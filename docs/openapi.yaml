@@ -1,0 +1,1756 @@
+openapi: 3.0.3
+info:
+  title: AUD CBT Digital Therapeutic API
+  description: |
+    AUD(Alcohol Use Disorder) 디지털 치료 소프트웨어 v3.0 API 정본.
+
+    입원 후 3개월 알코올 사용 장애 환자용 LLM 기반 인지행동치료(CBT) 앱의
+    환자·의료진·내부 컴포넌트 간 통신 명세.
+
+    범위: 대회 데모 + 사내 기술 검증. 실 환자 서비스 전 재구축 필요 항목은
+    AUD_CBT_MVP_기능명세서 9장 Post-MVP 참조.
+  version: 3.0.0
+  contact:
+    name: AUD CBT 개발팀
+
+servers:
+  - url: https://api.example.com/v1
+    description: 운영 서버 (예시)
+  - url: http://localhost:8000/v1
+    description: 로컬 개발 서버
+
+tags:
+  - name: Auth
+    description: 인증 (등록·로그인·로그아웃·PIN 변경)
+  - name: Patient - Home
+    description: P1 홈
+  - name: Patient - Checkin
+    description: P2 일일 체크인
+  - name: Patient - Conversation
+    description: P3 대화 (SSE 핵심)
+  - name: Patient - Safety
+    description: P4 응급 안내·안전 이벤트
+  - name: Patient - Progress
+    description: P5 진도
+  - name: Patient - Settings
+    description: P8 설정·SSO
+  - name: Provider - Profile
+    description: 의료진 본인
+  - name: Provider - D0
+    description: 퇴원 정보 입력
+  - name: Provider - D2
+    description: 환자 목록·상세 대시보드
+  - name: Provider - D4
+    description: 재평가 입력
+  - name: Internal - Safety
+    description: 안전 분류기 (내부)
+  - name: Internal - LLM
+    description: LLM 게이트웨이·컨텍스트 빌더 (내부)
+  - name: Internal - Session
+    description: 단계 판단기·세션 요약기 (내부)
+  - name: Internal - Output
+    description: 출력 검증 필터 (내부)
+  - name: Internal - Misc
+    description: 트리거 정규화·헬스 체크 (내부)
+
+security:
+  - BearerAuth: []
+
+paths:
+  # ============================================================
+  # AUTH
+  # ============================================================
+  /auth/patient/register:
+    post:
+      tags: [Auth]
+      summary: 환자 최초 등록
+      description: |
+        의료진이 D0에서 발급한 8자리 등록 코드(예: K7M3X9P2)와 환자가 설정할
+        6자리 PIN으로 환자 계정을 활성화. 등록 코드는 1회용.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [registration_code, pin]
+              properties:
+                registration_code:
+                  type: string
+                  pattern: '^[A-Z0-9]{8}$'
+                  example: K7M3X9P2
+                pin:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+                  example: '482917'
+      responses:
+        '200':
+          description: 등록 성공, Access Token 발급(24시간)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: 등록 코드 없음 또는 이미 사용됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '410':
+          description: 등록 코드 만료 (7일 경과)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/patient/login:
+    post:
+      tags: [Auth]
+      summary: 환자 로그인
+      description: Access Token 만료(24h) 또는 앱 재실행 시 등록 코드 + PIN으로 재로그인.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [registration_code, pin]
+              properties:
+                registration_code:
+                  type: string
+                  pattern: '^[A-Z0-9]{8}$'
+                pin:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+      responses:
+        '200':
+          description: 로그인 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '401':
+          description: 등록 코드 또는 PIN 불일치
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/provider/login:
+    post:
+      tags: [Auth]
+      summary: 의료진 로그인 (이메일·비밀번호·TOTP)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, totp]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 12
+                totp:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+                  description: Google Authenticator 등 표준 TOTP 앱 6자리 코드
+      responses:
+        '200':
+          description: 로그인 성공, Access Token 발급(8시간)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '401':
+          description: 자격 증명 또는 TOTP 불일치
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: 로그아웃
+      description: |
+        클라이언트가 Access Token 폐기 신호. v3.0은 서버 측 token blacklist를
+        운영하지 않으므로 실제로는 토큰을 폐기하지 않음. 클라이언트가 토큰을 삭제.
+      responses:
+        '204':
+          description: 로그아웃 처리됨
+
+  /auth/patient/pin/change:
+    post:
+      tags: [Auth]
+      summary: 환자 PIN 변경
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_pin, new_pin]
+              properties:
+                current_pin:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+                new_pin:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+      responses:
+        '204':
+          description: PIN 변경 성공
+        '401':
+          description: 현재 PIN 불일치
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ============================================================
+  # PATIENT APP - P1 HOME
+  # ============================================================
+  /me/patient:
+    get:
+      tags: [Patient - Home]
+      summary: P1 홈 화면 통합 응답
+      description: |
+        환자 본인의 홈 화면 정보를 한 번에 조회. 단주 일수, 현재 Week,
+        다음 세션까지 남은 일수, 오늘 할 일, 다음 외래(next_outpatient_date),
+        LLM 잠금 상태(llm_locked) 등.
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientHomeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================================
+  # PATIENT APP - P2 CHECKIN
+  # ============================================================
+  /me/checkins:
+    post:
+      tags: [Patient - Checkin]
+      summary: 오늘 체크인 제출 (하루 1회)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckinSubmit'
+      responses:
+        '201':
+          description: 제출 성공. safety_classification에 위험 시 grade/event_type/next_action 포함.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: CHECKIN_ALREADY_SUBMITTED — 오늘 이미 체크인함
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags: [Patient - Checkin]
+      summary: 체크인 목록 조회
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: 페이지네이션 응답
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedEnvelope'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/Checkin' }
+
+  /me/checkins/{checkin_id}:
+    get:
+      tags: [Patient - Checkin]
+      summary: 체크인 단건 조회
+      parameters:
+        - $ref: '#/components/parameters/CheckinId'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Checkin' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Patient - Checkin]
+      summary: 같은 날 체크인 수정 (24시간 이내)
+      parameters:
+        - $ref: '#/components/parameters/CheckinId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckinPatch'
+      responses:
+        '200':
+          description: 수정 성공
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckinResponse' }
+        '409':
+          description: 수정 시간 초과 (24h)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  # ============================================================
+  # PATIENT APP - P3 CONVERSATION
+  # ============================================================
+  /me/conversations/current-session:
+    get:
+      tags: [Patient - Conversation]
+      summary: 진행 중 또는 다음 세션 정보 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentSessionInfo'
+
+  /me/conversations/sessions:
+    post:
+      tags: [Patient - Conversation]
+      summary: 새 CBT 세션 시작
+      description: 한 시점에 한 세션만 활성화 가능.
+      responses:
+        '201':
+          description: 세션 생성 성공
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Conversation' }
+        '409':
+          description: 이미 진행 중인 세션이 있음
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '423':
+          description: SAFETY_LOCKED — 안전 이벤트로 LLM 대화 잠금 상태
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /me/conversations/craving:
+    post:
+      tags: [Patient - Conversation]
+      summary: 갈망 대화 시작
+      description: 횟수·시간 제한 없음. 세션과 별도 컨텍스트.
+      responses:
+        '201':
+          description: 갈망 대화 시작
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Conversation' }
+        '423':
+          description: SAFETY_LOCKED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /me/conversations/{conversation_id}/messages:
+    post:
+      tags: [Patient - Conversation]
+      summary: 환자 메시지 전송 + LLM 응답 SSE 스트리밍
+      description: |
+        응답은 text/event-stream (SSE).
+
+        정상 흐름: `start` → `token` (반복) → `done`
+
+        등급 A 감지: `safety_classified(grade=A)` → `done(safety_locked)`
+
+        등급 B 감지: `safety_classified(grade=B)` → `context_switched` →
+        `start` → `token` (반복) → `done`
+
+        v3.0에서 백엔드는 등급 A 발생 후에도 강제로 423을 반환하지 않을 수 있음.
+        SafetyEvent 기록 및 llm_locked 상태 노출만 수행하며, 클라이언트(환자 앱)가
+        시간 기반(24시간) 또는 사용자의 명시적 확인(P4 '다시 시작하기' 탭)으로
+        잠금 처리.
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 4000
+                client_message_id:
+                  type: string
+                  format: uuid
+                  description: 클라이언트 측 멱등성 키 (선택)
+      responses:
+        '200':
+          description: SSE 스트리밍 응답
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  SSE 이벤트 타입: start, token, safety_classified,
+                  context_switched, done, error
+        '423':
+          description: SAFETY_LOCKED — 잠금 상태 (v3.0에서는 약화, 클라이언트 측 처리)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+    get:
+      tags: [Patient - Conversation]
+      summary: 대화 이력 조회 (페이지네이션)
+      description: 앱 재시작 후 화면 복구용.
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: 페이지네이션 응답
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedEnvelope'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/Message' }
+
+  /me/conversations/{conversation_id}/end:
+    post:
+      tags: [Patient - Conversation]
+      summary: 대화 명시적 종료
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  enum: [completed, abandoned_by_user, timeout]
+      responses:
+        '200':
+          description: 종료 처리됨
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ended_at: { type: string, format: date-time }
+                  reason: { type: string }
+                  next_session_available_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+
+  # ============================================================
+  # PATIENT APP - P4 SAFETY
+  # ============================================================
+  /me/safety/p4-shown:
+    post:
+      tags: [Patient - Safety]
+      summary: P4 응급 안내 노출 기록
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [trigger]
+              properties:
+                trigger:
+                  type: string
+                  enum: [auto_safety_event, manual_button]
+                related_safety_event_id:
+                  type: string
+                  pattern: '^se_[a-z0-9]+$'
+                  nullable: true
+                clicked_resource:
+                  type: string
+                  enum: ['1393', '119', sso, none]
+                  nullable: true
+      responses:
+        '201':
+          description: 기록 완료
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  p4_event_id: { type: string }
+                  shown_at: { type: string, format: date-time }
+
+  /me/safety/events:
+    get:
+      tags: [Patient - Safety]
+      summary: 본인 안전 이벤트 이력 조회
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: 페이지네이션 응답
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedEnvelope'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/SafetyEvent' }
+
+  # ============================================================
+  # PATIENT APP - P5 PROGRESS
+  # ============================================================
+  /me/progress:
+    get:
+      tags: [Patient - Progress]
+      summary: 단주 일수·세션 진행률 조회 (v3.0 단순)
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sobriety_days: { type: integer, minimum: 0 }
+                  weeks_completed: { type: integer, minimum: 0, maximum: 12 }
+                  current_week: { type: integer, minimum: 1, maximum: 12 }
+                  next_session_date:
+                    type: string
+                    format: date
+                    nullable: true
+
+  # ============================================================
+  # PATIENT APP - P8 SETTINGS
+  # ============================================================
+  /me/settings:
+    get:
+      tags: [Patient - Settings]
+      summary: 설정 조회 (알림 시각·세션 요일·SSO)
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settings' }
+    patch:
+      tags: [Patient - Settings]
+      summary: 설정 부분 수정
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SettingsPatch' }
+      responses:
+        '200':
+          description: 수정 성공
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settings' }
+
+  /me/sso:
+    post:
+      tags: [Patient - Settings]
+      summary: SSO 추가·수정 (1명 한도, 추가 시 교체)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SupportPersonInput' }
+      responses:
+        '200':
+          description: SSO 저장됨
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SupportPerson' }
+
+  /me/sso/{sso_id}:
+    delete:
+      tags: [Patient - Settings]
+      summary: SSO 삭제
+      parameters:
+        - name: sso_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: 삭제됨
+
+  # ============================================================
+  # PROVIDER PORTAL - PROFILE
+  # ============================================================
+  /me/provider:
+    get:
+      tags: [Provider - Profile]
+      summary: 의료진 본인 프로필 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  provider_id: { type: string, pattern: '^pr_[a-z0-9]+$' }
+                  name: { type: string }
+                  email: { type: string, format: email }
+                  affiliation: { type: string }
+                  active_patient_count: { type: integer }
+                  notification_preferences:
+                    type: object
+                    description: v3.0에서 의료진 자동 알림은 없으나 향후 확장 대비 유지.
+
+  # ============================================================
+  # PROVIDER PORTAL - D0
+  # ============================================================
+  /provider/patients:
+    post:
+      tags: [Provider - D0]
+      summary: D0 환자 신규 등록 + DischargeProfile 동시 저장
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DischargeProfileInput' }
+      responses:
+        '201':
+          description: |
+            등록 성공. registration_code(8자리)를 환자에게 SMS·종이 등으로 전달.
+            primary_triggers는 내부 LLM이 normalized_triggers로 자동 변환.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  patient_id: { type: string, pattern: '^p_[a-z0-9]+$' }
+                  registration_code:
+                    type: string
+                    pattern: '^[A-Z0-9]{8}$'
+                  expires_at:
+                    type: string
+                    format: date-time
+                    description: 등록 코드 만료 시각 (7일 후)
+                  normalized_triggers:
+                    type: array
+                    items: { type: string }
+                    example: [work_stress, social_pressure]
+        '400':
+          $ref: '#/components/responses/ValidationError'
+    get:
+      tags: [Provider - D2]
+      summary: 담당 환자 목록 조회 (v3.0은 정렬·필터 제한)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: 페이지네이션 응답
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedEnvelope'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/PatientListItem' }
+
+  /provider/patients/{patient_id}/registration-code/regenerate:
+    post:
+      tags: [Provider - D0]
+      summary: 등록 코드 분실·만료 시 재발급
+      parameters:
+        - $ref: '#/components/parameters/PatientId'
+      responses:
+        '200':
+          description: 새 등록 코드 발급됨
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  registration_code: { type: string, pattern: '^[A-Z0-9]{8}$' }
+                  expires_at: { type: string, format: date-time }
+        '409':
+          description: PATIENT_ALREADY_REGISTERED — 이미 환자가 등록 완료한 상태
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  # ============================================================
+  # PROVIDER PORTAL - D2 PATIENT DETAIL
+  # ============================================================
+  /provider/patients/{patient_id}:
+    get:
+      tags: [Provider - D2]
+      summary: 환자 상세 대시보드 (통합 응답)
+      description: |
+        외래 진료 시 5분 안에 환자 상태 파악용. v3.0에서는 모든 정보를
+        이 응답 하나에 통합 (안전 이벤트·세션 이력·대화 로그·갈망 일지의 별도
+        엔드포인트는 Post-MVP로 이동).
+      parameters:
+        - $ref: '#/components/parameters/PatientId'
+      responses:
+        '200':
+          description: 환자 종합 정보
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PatientDetailDashboard' }
+        '403':
+          description: 담당 환자가 아님
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============================================================
+  # PROVIDER PORTAL - D4 REASSESSMENT
+  # ============================================================
+  /provider/patients/{patient_id}/medications:
+    put:
+      tags: [Provider - D4]
+      summary: 처방 약물 전체 교체. 즉시 LLM 컨텍스트 반영.
+      parameters:
+        - $ref: '#/components/parameters/PatientId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [medications]
+              properties:
+                medications:
+                  type: array
+                  items: { $ref: '#/components/schemas/Medication' }
+                change_note:
+                  type: string
+                  description: 변경 사유 (선택)
+      responses:
+        '200':
+          description: 갱신 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  patient_id: { type: string }
+                  medications:
+                    type: array
+                    items: { $ref: '#/components/schemas/Medication' }
+                  updated_at: { type: string, format: date-time }
+
+  /provider/patients/{patient_id}/next-outpatient-date:
+    patch:
+      tags: [Provider - D4]
+      summary: 다음 외래 예약일 갱신
+      description: |
+        외래 일정이 변경된 경우 의료진이 직접 갱신. 변경 즉시 환자 P1 홈에
+        반영(GET /me/patient 응답의 next_outpatient_date).
+        v3.0에서 의료진→환자 메시지 발송이 Post-MVP로 이동되었으므로, 일정
+        변경 사실을 명시적으로 알려야 하는 경우 SMS·전화 등 앱 외 수단으로 보완.
+      parameters:
+        - $ref: '#/components/parameters/PatientId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [next_outpatient_date]
+              properties:
+                next_outpatient_date:
+                  type: string
+                  format: date
+                change_note:
+                  type: string
+      responses:
+        '200':
+          description: 갱신 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  patient_id: { type: string }
+                  next_outpatient_date: { type: string, format: date }
+                  updated_at: { type: string, format: date-time }
+        '400':
+          description: VALIDATION_ERROR (과거 날짜 등)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /provider/patients/{patient_id}/program-status:
+    patch:
+      tags: [Provider - D4]
+      summary: 프로그램 상태 변경
+      description: |
+        환자가 사용 중단 요청을 직접 보낼 수단이 v3.0에 없으므로, 환자가
+        사용을 그만두면 의료진이 외래에서 active → withdrawn으로 변경.
+      parameters:
+        - $ref: '#/components/parameters/PatientId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_status]
+              properties:
+                new_status:
+                  type: string
+                  enum: [completed, withdrawn]
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: 상태 변경 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  patient_id: { type: string }
+                  program_status: { type: string }
+                  changed_at: { type: string, format: date-time }
+
+  # ============================================================
+  # INTERNAL API (Layer 3-5)
+  # ============================================================
+  /internal/safety/classify:
+    post:
+      tags: [Internal - Safety]
+      summary: 환자 입력 안전 분류 (룰 + Haiku 4.5 LLM hybrid)
+      description: |
+        5종 위험 신호(자살·급성중독·재발·복약중단·PAWS) 분류, 등급 A/B로 분리.
+        Recall > Precision 정책.
+      security:
+        - InternalServiceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SafetyClassifyRequest' }
+      responses:
+        '200':
+          description: 분류 결과
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SafetyClassifyResponse' }
+        '503':
+          description: 분류기 LLM 일시 장애 시 룰 기반 결과만 반환
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SafetyClassifyResponse' }
+
+  /internal/stage/track:
+    post:
+      tags: [Internal - Session]
+      summary: 단계 판단기 — CBT 세션 5단계 진행 추적
+      description: 매 환자 발화 후 호출. Sonnet 4.6.
+      security:
+        - InternalServiceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StageTrackRequest' }
+      responses:
+        '200':
+          description: 추적 결과
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StageTrackResponse' }
+
+  /internal/session/summarize:
+    post:
+      tags: [Internal - Session]
+      summary: 세션 요약기 — 세션 종료 시 SessionSummary 생성
+      description: 다음 Week 세션 LLM 인계용 요약. Sonnet 4.6. 동기·비동기 모두 지원.
+      security:
+        - InternalServiceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SessionSummarizeRequest' }
+      responses:
+        '200':
+          description: 동기 응답 (async=false)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionSummary' }
+        '202':
+          description: 비동기 응답 (async=true), Job ID 반환
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id: { type: string }
+                  status: { type: string, enum: [queued, processing] }
+
+  /internal/output/filter:
+    post:
+      tags: [Internal - Output]
+      summary: 출력 검증 필터 (의학 어휘·AVE 2종)
+      description: |
+        LLM 출력 검증. v1.0 5종에서 v2.0 이후 2종으로 축소.
+        Sycophancy·세션 표류·위기 부적절은 v2.0에서 제외.
+      security:
+        - InternalServiceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text, conversation_context]
+              properties:
+                text: { type: string }
+                conversation_context:
+                  $ref: '#/components/schemas/ConversationContext'
+                message_id:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: 검증 결과
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OutputFilterResponse' }
+
+  /internal/llm/invoke:
+    post:
+      tags: [Internal - LLM]
+      summary: LLM 게이트웨이 — Anthropic API 호출 추상화
+      description: 키 관리·로깅·재시도·rate limiting을 게이트웨이가 일괄 처리.
+      security:
+        - InternalServiceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LLMInvokeRequest' }
+      responses:
+        '200':
+          description: stream=false 응답
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LLMInvokeResponse' }
+            text/event-stream:
+              schema:
+                type: string
+                description: stream=true 시 Anthropic SSE 그대로 전달
+        '429':
+          description: LLM_TOKEN_QUOTA_EXCEEDED — 환자별 일일 한도 초과
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503':
+          description: LLM_UPSTREAM_UNAVAILABLE — Anthropic API 장애 (retry_after_seconds 포함)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /internal/llm/usage/{patient_id}:
+    get:
+      tags: [Internal - LLM]
+      summary: 환자별 일일 토큰 사용량 조회 (한도 체크용)
+      security:
+        - InternalServiceAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PatientId'
+      responses:
+        '200':
+          description: 사용량 정보
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date: { type: string, format: date }
+                  used_tokens: { type: integer }
+                  daily_quota: { type: integer }
+                  quota_remaining: { type: integer }
+                  breakdown_by_model:
+                    type: object
+                    additionalProperties: { type: integer }
+
+  /internal/context/build:
+    post:
+      tags: [Internal - LLM]
+      summary: 컨텍스트 빌더 — Week N 시스템 프롬프트 + 환자 컨텍스트 조립
+      security:
+        - InternalServiceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [patient_id, context_type]
+              properties:
+                patient_id: { type: string, pattern: '^p_[a-z0-9]+$' }
+                context_type:
+                  $ref: '#/components/schemas/ConversationContext'
+                week_number:
+                  type: integer
+                  minimum: 1
+                  maximum: 12
+                  description: context_type=session인 경우 필수
+      responses:
+        '200':
+          description: 조립된 프롬프트
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  system_prompt: { type: string }
+                  context_blocks:
+                    type: object
+                    description: |
+                      디버깅용. discharge_profile_summary, previous_session_summary,
+                      recent_checkins_summary 등.
+                  prompt_version:
+                    type: string
+                    description: git commit hash 등
+
+  /internal/trigger/normalize:
+    post:
+      tags: [Internal - Misc]
+      summary: D0 음주 트리거 자유 텍스트 → 정규화 태그 (Haiku 4.5)
+      security:
+        - InternalServiceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [raw_text]
+              properties:
+                raw_text: { type: string }
+      responses:
+        '200':
+          description: 정규화 결과
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  normalized_tags:
+                    type: array
+                    items: { type: string }
+                    example: [work_stress, social_pressure, loneliness]
+                  confidence: { type: number, format: float, minimum: 0, maximum: 1 }
+                  reasoning: { type: string }
+
+  /internal/health:
+    get:
+      tags: [Internal - Misc]
+      summary: 백엔드 컴포넌트 상태 확인 (모니터링용, 인증 없음)
+      security: []
+      responses:
+        '200':
+          description: 헬스 상태
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  overall_status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  components:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: safety_classifier
+                        status: { type: string, enum: [healthy, degraded, unhealthy] }
+                        response_time_ms: { type: integer }
+                        error_message: { type: string, nullable: true }
+                        last_success_at: { type: string, format: date-time }
+
+# ============================================================
+# COMPONENTS
+# ============================================================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT 단일 Access Token (v3.0 단순화).
+        환자 24시간, 의료진 8시간 유효. Refresh Token·자동 갱신 없음.
+        만료 시 재로그인 필요.
+    InternalServiceAuth:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-Key
+      description: |
+        내부 API 전용. 각 백엔드 컴포넌트가 고유한 서비스 키 보유.
+        90일 주기 키 교체. API 게이트웨이가 외부 클라이언트의 /internal/* 호출 차단.
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: page_size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    PatientId:
+      name: patient_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^p_[a-z0-9]+$'
+        example: p_8f3a9b2c4d
+    ConversationId:
+      name: conversation_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^c_[a-z0-9]+$'
+    CheckinId:
+      name: checkin_id
+      in: path
+      required: true
+      schema: { type: string }
+
+  responses:
+    Unauthorized:
+      description: 401 인증 실패 (토큰 만료·서명 오류)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ValidationError:
+      description: 400 요청 검증 실패
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: 404 리소스 없음
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  schemas:
+    # ---------- Common ----------
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code:
+              type: string
+              description: 대문자 스네이크 케이스 에러 코드
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              example: Request validation failed
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field: { type: string }
+                  issue: { type: string }
+            request_id:
+              type: string
+              format: uuid
+
+    PaginatedEnvelope:
+      type: object
+      properties:
+        items:
+          type: array
+          items: {}
+        pagination:
+          type: object
+          properties:
+            page: { type: integer }
+            page_size: { type: integer }
+            total_items: { type: integer }
+            total_pages: { type: integer }
+
+    AuthTokenResponse:
+      type: object
+      properties:
+        access_token: { type: string, description: JWT }
+        token_type: { type: string, enum: [Bearer], default: Bearer }
+        expires_in:
+          type: integer
+          description: 초 단위. 환자 86400, 의료진 28800.
+
+    ConversationContext:
+      type: string
+      enum: [session, craving, resu, soma]
+      description: |
+        session — 주 1회 핵심 CBT 세션
+        craving — 환자가 갈망 시 직접 진입
+        resu   — 안전 분류기가 재발 감지 시 자동 전환
+        soma   — 안전 분류기가 복약 중단 감지 시 자동 전환
+
+    SafetyGrade:
+      type: string
+      enum: [A, B]
+      description: A=응급, B=비응급
+
+    SafetyEventType:
+      type: string
+      enum: [suicide_risk, acute_intoxication, relapse, medication_stop, paws]
+
+    NRSScore:
+      type: integer
+      minimum: 0
+      maximum: 10
+
+    # ---------- Patient Home (P1) ----------
+    PatientHomeResponse:
+      type: object
+      properties:
+        patient_id: { type: string }
+        name: { type: string }
+        sobriety_days: { type: integer }
+        current_week: { type: integer, minimum: 1, maximum: 12 }
+        days_to_next_session: { type: integer, nullable: true }
+        today_tasks:
+          type: object
+          properties:
+            checkin_pending: { type: boolean }
+            session_today: { type: boolean }
+        next_outpatient_date:
+          type: string
+          format: date
+          nullable: true
+        llm_locked:
+          type: boolean
+          description: 백엔드의 LLM 잠금 상태 (환자 앱이 차단 UI 노출 여부 판단에 사용)
+
+    # ---------- Checkin (P2) ----------
+    CheckinSubmit:
+      type: object
+      required: [mood_nrs, craving_nrs, sleep_hours, medication_records]
+      properties:
+        mood_nrs: { $ref: '#/components/schemas/NRSScore' }
+        craving_nrs: { $ref: '#/components/schemas/NRSScore' }
+        sleep_hours: { type: number, minimum: 0, maximum: 12 }
+        medication_records:
+          type: array
+          items:
+            type: object
+            properties:
+              medication_name: { type: string }
+              taken: { type: boolean }
+              side_effect_note: { type: string, nullable: true }
+        free_note: { type: string, nullable: true }
+
+    CheckinPatch:
+      type: object
+      description: CheckinSubmit의 부분 수정. 모든 필드 optional.
+      properties:
+        mood_nrs: { $ref: '#/components/schemas/NRSScore' }
+        craving_nrs: { $ref: '#/components/schemas/NRSScore' }
+        sleep_hours: { type: number, minimum: 0, maximum: 12 }
+        medication_records:
+          type: array
+          items: { type: object }
+        free_note: { type: string, nullable: true }
+
+    Checkin:
+      type: object
+      properties:
+        checkin_id: { type: string }
+        date: { type: string, format: date }
+        mood_nrs: { $ref: '#/components/schemas/NRSScore' }
+        craving_nrs: { $ref: '#/components/schemas/NRSScore' }
+        sleep_hours: { type: number }
+        medication_records: { type: array, items: { type: object } }
+        free_note: { type: string, nullable: true }
+        submitted_at: { type: string, format: date-time }
+
+    CheckinResponse:
+      type: object
+      properties:
+        checkin: { $ref: '#/components/schemas/Checkin' }
+        safety_classification:
+          type: object
+          nullable: true
+          properties:
+            grade: { $ref: '#/components/schemas/SafetyGrade' }
+            event_type: { $ref: '#/components/schemas/SafetyEventType' }
+            next_action:
+              type: string
+              enum: [llm_lock_p4, switch_resu, switch_soma, paws_resource, none]
+
+    # ---------- Conversation (P3) ----------
+    Conversation:
+      type: object
+      properties:
+        conversation_id: { type: string, pattern: '^c_[a-z0-9]+$' }
+        context: { $ref: '#/components/schemas/ConversationContext' }
+        session_id: { type: string, nullable: true }
+        week_number: { type: integer, minimum: 1, maximum: 12, nullable: true }
+        started_at: { type: string, format: date-time }
+
+    Message:
+      type: object
+      properties:
+        message_id: { type: string, pattern: '^m_[a-z0-9]+$' }
+        conversation_id: { type: string }
+        role: { type: string, enum: [user, assistant] }
+        text: { type: string }
+        created_at: { type: string, format: date-time }
+
+    CurrentSessionInfo:
+      type: object
+      properties:
+        active_conversation_id: { type: string, nullable: true }
+        current_week: { type: integer, minimum: 1, maximum: 12 }
+        next_session_date: { type: string, format: date, nullable: true }
+        llm_locked: { type: boolean }
+
+    # ---------- Safety Event ----------
+    SafetyEvent:
+      type: object
+      properties:
+        safety_event_id: { type: string, pattern: '^se_[a-z0-9]+$' }
+        grade: { $ref: '#/components/schemas/SafetyGrade' }
+        event_type: { $ref: '#/components/schemas/SafetyEventType' }
+        detected_at: { type: string, format: date-time }
+        source:
+          type: string
+          enum: [conversation_message, checkin_free_note, conversation_pattern]
+        recommended_action:
+          type: string
+          enum: [llm_lock_p4, switch_resu, switch_soma, paws_resource, none]
+
+    # ---------- Settings (P8) ----------
+    Settings:
+      type: object
+      properties:
+        daily_checkin_time: { type: string, example: '20:00' }
+        session_day_of_week: { type: integer, minimum: 0, maximum: 6 }
+        sso: { $ref: '#/components/schemas/SupportPerson' }
+
+    SettingsPatch:
+      type: object
+      properties:
+        daily_checkin_time: { type: string }
+        session_day_of_week: { type: integer, minimum: 0, maximum: 6 }
+
+    SupportPersonInput:
+      type: object
+      required: [name, relationship, phone]
+      properties:
+        name: { type: string }
+        relationship:
+          type: string
+          enum: [spouse, parent, sibling, child, friend, other]
+        phone: { type: string }
+
+    SupportPerson:
+      allOf:
+        - $ref: '#/components/schemas/SupportPersonInput'
+        - type: object
+          properties:
+            sso_id: { type: string }
+            access_level:
+              type: string
+              enum: [info_only]
+              description: v3.0은 info_only만 사용. share_consent·full_account는 Post-MVP.
+
+    # ---------- D0 DischargeProfile ----------
+    DischargeProfileInput:
+      type: object
+      required:
+        - name
+        - phone
+        - date_of_birth
+        - sex
+        - discharge_date
+        - diagnosis_severity
+        - admission_days
+        - medications
+        - suicide_ideation_history
+        - primary_triggers
+        - sso
+        - next_outpatient_date
+      properties:
+        name: { type: string }
+        phone: { type: string }
+        date_of_birth: { type: string, format: date }
+        sex: { type: string, enum: [male, female, other] }
+        discharge_date: { type: string, format: date }
+        diagnosis_severity:
+          type: string
+          enum: [moderate, severe]
+          description: DSM-5 중등도·중증
+        admission_days: { type: integer, minimum: 1 }
+        medications:
+          type: array
+          items: { $ref: '#/components/schemas/Medication' }
+        comorbidities:
+          type: array
+          items:
+            type: string
+            enum: [depression, anxiety, insomnia, ptsd, bipolar, other]
+        suicide_ideation_history:
+          type: string
+          enum: [none, past, during_admission, current]
+        primary_triggers:
+          type: object
+          required: [raw_text]
+          properties:
+            raw_text:
+              type: string
+              description: 자유 텍스트 1~2줄. 백엔드 LLM이 정규화 태그로 변환.
+        sso: { $ref: '#/components/schemas/SupportPersonInput' }
+        next_outpatient_date: { type: string, format: date }
+
+    Medication:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: naltrexone
+          description: 'naltrexone | acamprosate | disulfiram | other'
+        dose: { type: string, example: 50mg }
+        frequency: { type: string, example: once_daily }
+        note: { type: string, nullable: true }
+
+    # ---------- D2 Patient list & detail ----------
+    PatientListItem:
+      type: object
+      properties:
+        patient_id: { type: string }
+        name: { type: string }
+        current_week: { type: integer }
+        sobriety_days: { type: integer }
+        last_active_at: { type: string, format: date-time, nullable: true }
+        program_status:
+          type: string
+          enum: [active, completed, withdrawn]
+        llm_locked: { type: boolean }
+        unacknowledged_safety_events_count: { type: integer, minimum: 0 }
+
+    PatientDetailDashboard:
+      type: object
+      properties:
+        patient_id: { type: string }
+        discharge_profile:
+          type: object
+          description: D0 정보 요약 (병명·약물·SSO·다음 외래일)
+        progress:
+          type: object
+          properties:
+            current_week: { type: integer }
+            sobriety_days: { type: integer }
+            medication_adherence_rate_30d: { type: number, format: float }
+        recent_checkins_30d:
+          type: array
+          items: { $ref: '#/components/schemas/Checkin' }
+        active_session:
+          type: object
+          nullable: true
+        recent_sessions:
+          type: array
+          items:
+            type: object
+            properties:
+              session_id: { type: string }
+              week_number: { type: integer }
+              ended_at: { type: string, format: date-time }
+              summary: { $ref: '#/components/schemas/SessionSummary' }
+        recent_safety_events:
+          type: object
+          description: v3.0에서 안전 이벤트 별도 조회·확인 처리 엔드포인트는 Post-MVP. 본 응답에 통합.
+          properties:
+            grade_a:
+              type: array
+              items: { $ref: '#/components/schemas/SafetyEvent' }
+            grade_b:
+              type: array
+              items: { $ref: '#/components/schemas/SafetyEvent' }
+        llm_lock_status:
+          type: object
+          properties:
+            locked: { type: boolean }
+            locked_at: { type: string, format: date-time, nullable: true }
+            reason: { type: string, nullable: true }
+
+    # ---------- Internal: Safety Classifier ----------
+    SafetyClassifyRequest:
+      type: object
+      required: [patient_id, text, source]
+      properties:
+        patient_id: { type: string }
+        text: { type: string }
+        source:
+          type: string
+          enum: [conversation_message, checkin_free_note, conversation_pattern]
+        conversation_context:
+          $ref: '#/components/schemas/ConversationContext'
+        recent_dialogue:
+          type: array
+          description: 직전 맥락 2~5턴
+          items:
+            type: object
+            properties:
+              role: { type: string, enum: [user, assistant] }
+              text: { type: string }
+
+    SafetyClassifyResponse:
+      type: object
+      properties:
+        classified: { type: boolean }
+        grade:
+          type: string
+          enum: [A, B, none]
+        event_type:
+          type: string
+          enum: [suicide_risk, acute_intoxication, relapse, medication_stop, paws, none]
+        confidence: { type: number, format: float, minimum: 0, maximum: 1 }
+        matched_by:
+          type: string
+          enum: [rule_keyword, llm_classifier, both, none]
+        safety_event_id:
+          type: string
+          nullable: true
+          description: 등급 A·B인 경우 생성된 ID
+        recommended_action:
+          type: string
+          enum: [llm_lock_p4, switch_resu, switch_soma, paws_resource, none]
+
+    # ---------- Internal: Stage Tracker ----------
+    StageTrackRequest:
+      type: object
+      required: [conversation_id, session_id, week_number, current_step, dialogue]
+      properties:
+        conversation_id: { type: string }
+        session_id: { type: string }
+        week_number: { type: integer, minimum: 1, maximum: 12 }
+        current_step: { type: integer, minimum: 1, maximum: 5 }
+        step_objectives:
+          type: array
+          items: { type: string }
+        dialogue:
+          type: array
+          items: { type: object }
+
+    StageTrackResponse:
+      type: object
+      properties:
+        current_step: { type: integer, minimum: 1, maximum: 5 }
+        ready_to_advance: { type: boolean }
+        step_completion_estimate: { type: number, format: float, minimum: 0, maximum: 1 }
+        step_drift_risk:
+          type: string
+          enum: [low, medium, high]
+        delivered_objectives:
+          type: array
+          items: { type: string }
+        recommended_next_action:
+          type: string
+          enum: [advance_step, redirect_to_step_topic, continue_current]
+
+    # ---------- Internal: Session Summarizer ----------
+    SessionSummarizeRequest:
+      type: object
+      required: [session_id, patient_id, week_number, full_dialogue, session_objectives]
+      properties:
+        session_id: { type: string }
+        patient_id: { type: string }
+        week_number: { type: integer, minimum: 1, maximum: 12 }
+        full_dialogue:
+          type: array
+          items: { type: object }
+        session_objectives:
+          type: array
+          items: { type: string }
+        previous_summary:
+          allOf:
+            - $ref: '#/components/schemas/SessionSummary'
+          nullable: true
+          description: Week 1이면 null
+        patient_context:
+          type: object
+        async:
+          type: boolean
+          default: false
+          description: true면 202, false면 200
+
+    SessionSummary:
+      type: object
+      description: 세션 요약기 출력. 다음 Week 세션 시작 시 시스템 프롬프트에 자동 주입.
+      properties:
+        session_completed_objectives:
+          type: array
+          items: { type: string }
+        session_unaddressed_objectives:
+          type: array
+          items: { type: string }
+        patient_key_insights:
+          type: array
+          items: { type: string }
+        identified_triggers:
+          type: array
+          items:
+            type: object
+            properties:
+              tag:
+                type: string
+                example: work_stress
+              context: { type: string }
+        assigned_homework: { type: string }
+        emotional_tone:
+          type: string
+          enum: [engaged, resistant, low, volatile, neutral]
+        next_session_handoff_notes: { type: string }
+        safety_flags:
+          type: array
+          items:
+            type: object
+            properties:
+              grade: { $ref: '#/components/schemas/SafetyGrade' }
+              event_type: { $ref: '#/components/schemas/SafetyEventType' }
+        generated_at: { type: string, format: date-time }
+        model_used: { type: string, example: claude-sonnet-4-6 }
+        generation_time_ms: { type: integer }
+
+    # ---------- Internal: Output Filter ----------
+    OutputFilterResponse:
+      type: object
+      properties:
+        passed: { type: boolean }
+        violations:
+          type: array
+          items:
+            type: object
+            properties:
+              filter:
+                type: string
+                enum: [medical_terminology, ave_violation]
+              severity:
+                type: string
+                enum: [low, medium, high]
+              matched_text: { type: string }
+              reasoning: { type: string }
+        recommended_action:
+          type: string
+          enum: [allow, regenerate, fallback]
+
+    # ---------- Internal: LLM Gateway ----------
+    LLMInvokeRequest:
+      type: object
+      required: [model, messages, max_tokens, patient_id, purpose, caller_component]
+      properties:
+        model:
+          type: string
+          enum: [claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5]
+        messages:
+          type: array
+          description: Anthropic Messages 형식
+          items: { type: object }
+        system: { type: string }
+        max_tokens: { type: integer, minimum: 1 }
+        temperature: { type: number, format: float, minimum: 0, maximum: 1 }
+        stream: { type: boolean, default: false }
+        patient_id: { type: string }
+        purpose:
+          type: string
+          enum:
+            - patient_dialogue
+            - safety_classification
+            - stage_tracking
+            - session_summarization
+            - output_filtering
+            - trigger_normalization
+        caller_component:
+          type: string
+          enum:
+            - orchestrator
+            - safety_classifier
+            - stage_tracker
+            - session_summarizer
+            - output_filter
+            - trigger_normalizer
+
+    LLMInvokeResponse:
+      type: object
+      description: stream=false 응답
+      properties:
+        content: { type: string }
+        usage:
+          type: object
+          properties:
+            input_tokens: { type: integer }
+            output_tokens: { type: integer }
+        stop_reason: { type: string }
+        invocation_id: { type: string }
