@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(node -e \"try { require\\('./node_modules/zustand'\\); console.log\\('zustand OK'\\); } catch\\(e\\) { console.log\\('zustand MISSING'\\); }\")",
+      "Bash(node -e \"try { require\\('./node_modules/@tanstack/react-query'\\); console.log\\('react-query OK'\\); } catch\\(e\\) { console.log\\('react-query MISSING'\\); }\")",
+      "Bash(node -e ' *)",
+      "Bash(python3 -c ' *)",
+      "Bash(python -c ' *)"
+    ]
+  }
+}
