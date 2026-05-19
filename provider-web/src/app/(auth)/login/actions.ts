@@ -3,21 +3,18 @@
 import { z } from "zod"
 import { redirect } from "next/navigation"
 import { createSession } from "@/lib/session"
-import { API_BASE_URL } from "@/lib/env"
 
 const LoginSchema = z.object({
   email: z.email({ error: "올바른 이메일을 입력하세요." }),
   password: z
     .string()
     .min(12, { error: "비밀번호는 12자 이상이어야 합니다." }),
-  totp: z.string().regex(/^[0-9]{6}$/, { error: "6자리 숫자를 입력하세요." }),
 })
 
 export type LoginState = {
   errors?: {
     email?: string[]
     password?: string[]
-    totp?: string[]
     form?: string[]
   }
 }
@@ -29,7 +26,6 @@ export async function loginAction(
   const parsed = LoginSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
-    totp: formData.get("totp"),
   })
   if (!parsed.success) {
     return { errors: z.flattenError(parsed.error).fieldErrors }
@@ -40,15 +36,16 @@ export async function loginAction(
   const VALID = {
     email: "provider@example.com",
     password: "Demo!Pass1234",
-    totp: "123456",
   }
 
   let providerId: string | null = null
   let accessToken: string | null = null
 
+  const backendUrl = process.env.BACKEND_INTERNAL_URL
+
   try {
-    if (process.env.NEXT_PUBLIC_API_BASE_URL) {
-      const res = await fetch(`${API_BASE_URL}/auth/provider/login`, {
+    if (backendUrl) {
+      const res = await fetch(`${backendUrl}/auth/provider/login`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(parsed.data),
@@ -63,12 +60,11 @@ export async function loginAction(
       // Mock 검증
       if (
         parsed.data.email !== VALID.email ||
-        parsed.data.password !== VALID.password ||
-        parsed.data.totp !== VALID.totp
+        parsed.data.password !== VALID.password
       ) {
         return {
           errors: {
-            form: ["이메일·비밀번호·TOTP 중 하나가 일치하지 않습니다."],
+            form: ["이메일 또는 비밀번호가 일치하지 않습니다."],
           },
         }
       }

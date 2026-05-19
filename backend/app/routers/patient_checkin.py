@@ -165,7 +165,7 @@ def list_checkins(
 
 @router.get("/{checkin_id}", response_model=CheckinOut)
 def get_checkin(
-    patient: CurrentPatient, db: DbSession, checkin_id: str = CHECKIN_ID
+    patient: CurrentPatient, db: DbSession, checkin_id: str = Path(...)
 ) -> CheckinOut:
     row = db.get(DailyCheckin, checkin_id)
     if row is None or row.patient_id != patient.patient_id:

@@ -44,7 +44,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { COMORBIDITY_OPTIONS, MEDICATION_PRESETS } from "@/lib/safety"
+import {
+  COMORBIDITY_OPTIONS,
+  MEDICATION_PRESETS,
+  RELATIONSHIP_OPTIONS,
+  type Comorbidity,
+  type SsoRelationship,
+} from "@/lib/safety"
 import { useCreatePatient } from "@/lib/queries"
 import { formatDateKo } from "@/lib/format"
 
@@ -73,7 +79,9 @@ const Schema = z.object({
       }),
     )
     .min(0),
-  comorbidities: z.array(z.string()),
+  comorbidities: z.array(
+    z.enum(["depression", "anxiety", "insomnia", "ptsd", "bipolar", "other"]),
+  ),
   suicide_ideation_history: z.enum(
     ["none", "past", "during_admission", "current"],
     { error: "자살 사고 이력을 선택하세요." },
@@ -83,7 +91,10 @@ const Schema = z.object({
     .min(2, "주된 음주 트리거를 1~2줄 적어주세요.")
     .max(500, "500자 이내"),
   sso_name: z.string().min(1, "SSO 이름"),
-  sso_relation: z.string().min(1, "관계"),
+  sso_relation: z.enum(
+    ["spouse", "parent", "sibling", "child", "friend", "other"],
+    { error: "관계를 선택하세요." },
+  ),
   sso_phone: z
     .string()
     .regex(/^01[016789]-?\d{3,4}-?\d{4}$/, "SSO 휴대전화 형식 확인"),
@@ -105,7 +116,7 @@ const DEFAULTS: FormValues = {
   suicide_ideation_history: "none",
   primary_triggers_raw: "",
   sso_name: "",
-  sso_relation: "",
+  sso_relation: "spouse",
   sso_phone: "",
   next_outpatient_date: "",
 }
@@ -142,7 +153,7 @@ export default function NewPatientPage() {
         primary_triggers: { raw_text: values.primary_triggers_raw },
         sso: {
           name: values.sso_name,
-          relation: values.sso_relation,
+          relationship: values.sso_relation,
           phone: values.sso_phone,
         },
         next_outpatient_date: values.next_outpatient_date,
@@ -388,23 +399,23 @@ export default function NewPatientPage() {
                 <Label>④ 동반 정신질환 (다중 선택)</Label>
                 <div className="flex flex-wrap gap-2">
                   {COMORBIDITY_OPTIONS.map((c) => {
-                    const selected = selectedComorbidities.includes(c)
+                    const selected = selectedComorbidities.includes(c.value)
                     return (
                       <Button
-                        key={c}
+                        key={c.value}
                         type="button"
                         variant={selected ? "default" : "outline"}
                         size="sm"
                         onClick={() => {
-                          const next = selected
-                            ? selectedComorbidities.filter((x) => x !== c)
-                            : [...selectedComorbidities, c]
+                          const next: Comorbidity[] = selected
+                            ? selectedComorbidities.filter((x) => x !== c.value)
+                            : [...selectedComorbidities, c.value]
                           form.setValue("comorbidities", next, {
                             shouldDirty: true,
                           })
                         }}
                       >
-                        {c}
+                        {c.label}
                       </Button>
                     )
                   })}
@@ -493,9 +504,23 @@ export default function NewPatientPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>관계</FormLabel>
-                      <FormControl>
-                        <Input placeholder="배우자" {...field} />
-                      </FormControl>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="선택" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {RELATIONSHIP_OPTIONS.map((r) => (
+                            <SelectItem key={r.value} value={r.value}>
+                              {r.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

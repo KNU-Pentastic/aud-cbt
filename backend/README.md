@@ -19,7 +19,7 @@ docker compose up --build
 ```bash
 docker compose exec api python -m scripts.seed_demo
 ```
-출력된 등록 코드와 PIN으로 `POST /v1/auth/patient/register`, 의료진은 이메일/패스워드/TOTP로 `POST /v1/auth/provider/login`.
+출력된 등록 코드와 PIN으로 `POST /v1/auth/patient/register`, 의료진은 이메일/패스워드로 `POST /v1/auth/provider/login`.
 
 ## 로컬 (Docker 없이)
 
