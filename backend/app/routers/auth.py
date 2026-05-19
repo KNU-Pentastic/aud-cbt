@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 
-import pyotp
 from fastapi import APIRouter, Response, status
 from sqlalchemy import select
 
@@ -72,9 +71,6 @@ def provider_login(body: ProviderLoginIn, db: DbSession) -> TokenResponse:
     ).scalar_one_or_none()
     if provider is None or not verify_secret(body.password, provider.password_hash):
         raise unauthorized("Invalid credentials", code="INVALID_CREDENTIALS")
-    totp = pyotp.TOTP(provider.totp_secret)
-    if not totp.verify(body.totp, valid_window=1):
-        raise unauthorized("Invalid TOTP", code="INVALID_TOTP")
     token = create_access_token(subject=provider.provider_id, role="provider")
     return TokenResponse(access_token=token, expires_in=token_ttl("provider"))
 

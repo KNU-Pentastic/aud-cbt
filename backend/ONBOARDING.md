@@ -81,8 +81,6 @@ docker compose exec api python -m scripts.seed_demo
 Provider ID  : pr_8f3a9b2c4d
 Email        : demo.doctor@example.com
 Password     : DemoPassword!2026
-TOTP secret  : JBSWY3DPEHPK3PXP
-TOTP URI     : otpauth://totp/...
 
 Patient ID   : p_xyz12345
 Reg code     : K7M3X9P2

@@ -269,10 +269,9 @@ Access Token 24시간 만료 시 또는 앱 재실행 시
 성공 시 새 Access Token 발급
 호출 엔드포인트: POST /auth/patient/login
 3.4 의료진 로그인 흐름
-의료진은 보안 강화를 위해 3가지 정보를 모두 입력해야 합니다.
+의료진은 다음 정보를 입력합니다.
 이메일
 비밀번호 (12자 이상, 영문 대소문자·숫자·특수문자 포함)
-TOTP (Time-based One-Time Password, 시간 기반 일회용 비밀번호 — Google Authenticator 등 표준 앱에서 30초마다 새로 생성되는 6자리 코드)
 호출 엔드포인트: POST /auth/provider/login
 3.5 토큰 사용 방법
 로그인 후 모든 API 호출 시 다음과 같이 헤더에 Access Token을 담아 전송합니다.

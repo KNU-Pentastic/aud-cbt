@@ -54,14 +54,51 @@ export const EMOTIONAL_TONE_LABELS: Record<EmotionalTone, string> = {
   neutral: "보통",
 }
 
-export const COMORBIDITY_OPTIONS = [
-  "우울",
-  "불안",
-  "불면",
-  "ADHD",
-  "PTSD",
-  "양극성장애",
-] as const
+export type Comorbidity =
+  | "depression"
+  | "anxiety"
+  | "insomnia"
+  | "ptsd"
+  | "bipolar"
+  | "other"
+
+export const COMORBIDITY_OPTIONS: { value: Comorbidity; label: string }[] = [
+  { value: "depression", label: "우울" },
+  { value: "anxiety", label: "불안" },
+  { value: "insomnia", label: "불면" },
+  { value: "ptsd", label: "PTSD" },
+  { value: "bipolar", label: "양극성장애" },
+  { value: "other", label: "기타" },
+]
+
+export const COMORBIDITY_LABELS: Record<Comorbidity, string> =
+  Object.fromEntries(COMORBIDITY_OPTIONS.map((o) => [o.value, o.label])) as Record<
+    Comorbidity,
+    string
+  >
+
+export type SsoRelationship =
+  | "spouse"
+  | "parent"
+  | "sibling"
+  | "child"
+  | "friend"
+  | "other"
+
+export const RELATIONSHIP_OPTIONS: { value: SsoRelationship; label: string }[] = [
+  { value: "spouse", label: "배우자" },
+  { value: "parent", label: "부모" },
+  { value: "sibling", label: "형제·자매" },
+  { value: "child", label: "자녀" },
+  { value: "friend", label: "친구" },
+  { value: "other", label: "기타" },
+]
+
+export const RELATIONSHIP_LABELS: Record<SsoRelationship, string> =
+  Object.fromEntries(RELATIONSHIP_OPTIONS.map((o) => [o.value, o.label])) as Record<
+    SsoRelationship,
+    string
+  >
 
 export const MEDICATION_PRESETS = [
   { name: "날트렉손", dose: "50mg", frequency: "1x daily" },

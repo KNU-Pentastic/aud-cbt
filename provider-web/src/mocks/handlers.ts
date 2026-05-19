@@ -7,7 +7,6 @@ const url = (path: string) => `${API_BASE_URL}${path}`
 const VALID_PROVIDER = {
   email: "provider@example.com",
   password: "Demo!Pass1234",
-  totp: "123456",
 }
 
 function makeRegistrationCode() {
@@ -22,19 +21,17 @@ export const handlers = [
     const body = (await request.json()) as {
       email: string
       password: string
-      totp: string
     }
     await delay(400)
     if (
       body.email !== VALID_PROVIDER.email ||
-      body.password !== VALID_PROVIDER.password ||
-      body.totp !== VALID_PROVIDER.totp
+      body.password !== VALID_PROVIDER.password
     ) {
       return HttpResponse.json(
         {
           error: {
             code: "AUTH_INVALID_CREDENTIALS",
-            message: "이메일·비밀번호·TOTP 중 하나가 일치하지 않습니다.",
+            message: "이메일 또는 비밀번호가 일치하지 않습니다.",
             request_id: crypto.randomUUID(),
           },
         },
