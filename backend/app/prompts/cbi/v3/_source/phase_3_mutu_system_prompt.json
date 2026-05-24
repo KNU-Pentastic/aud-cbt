@@ -1,0 +1,37 @@
+{
+  "routing_target": "phase_3_mutu_system_prompt",
+  "catalog_version": "v3",
+  "source_count": 5,
+  "source_items": [
+    {
+      "id": 345,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_MUTU",
+      "text": "Add your own encouragement, but never insist that a client attend."
+    },
+    {
+      "id": 436,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_MUTU",
+      "text": "Ask your client for reasons why having additional support could be helpful (invoke self-motivational statements)."
+    },
+    {
+      "id": 437,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_MUTU",
+      "text": "Consider specific steps to help your client get to meetings."
+    },
+    {
+      "id": 499,
+      "category": "MISC",
+      "sublabel": "PHASE_3_MUTU",
+      "text": "When you go to this particular meeting, you will probably find that it starts with a time of silence, followed by the serenity prayer."
+    },
+    {
+      "id": 500,
+      "category": "MISC",
+      "sublabel": "PHASE_3_MUTU",
+      "text": "You will probably feel more a part of the meeting, though, if you say something about why you are there and what has been happening."
+    }
+  ]
+}

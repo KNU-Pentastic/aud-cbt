@@ -104,7 +104,7 @@ class OutputFilterRequest(BaseModel):
 
 
 class Violation(BaseModel):
-    filter: Literal["medical_terminology", "ave_violation"]
+    filter: Literal["medical_terminology", "ave_violation", "mi_style"]
     severity: Literal["low", "medium", "high"]
     matched_text: str
     reasoning: str
@@ -132,6 +132,7 @@ class LLMInvokeRequest(BaseModel):
         "session_summarization",
         "output_filtering",
         "trigger_normalization",
+        "module_classification",
     ]
     caller_component: Literal[
         "orchestrator",
@@ -140,6 +141,7 @@ class LLMInvokeRequest(BaseModel):
         "session_summarizer",
         "output_filter",
         "trigger_normalizer",
+        "module_classifier",
     ]
 
 
@@ -161,6 +163,28 @@ class LLMUsageOut(BaseModel):
     daily_quota: int
     quota_remaining: int
     breakdown_by_model: dict[str, int]
+
+
+# ---- Phase 3 module classifier ----
+# CBI Phase 3 모듈 9종 (NIAAA CBI §5). 분류기는 환자 기능분석 데이터로 1~2개를 고른다.
+ModuleCode = Literal[
+    "CRAV", "DREF", "MOOD", "ASSN", "COMM", "JOBF", "SARC", "SSSO", "MUTU"
+]
+
+
+class ModuleClassifyRequest(BaseModel):
+    patient_id: str
+    week_number: int = Field(ge=1, le=12)
+    normalized_triggers: list[str] = Field(default_factory=list)
+    comorbidities: list[str] = Field(default_factory=list)
+    recent_checkins: list[dict] = Field(default_factory=list)
+    previous_modules: list[str] = Field(default_factory=list)
+
+
+class ModuleClassifyResponse(BaseModel):
+    selected_modules: list[ModuleCode] = Field(default_factory=list, max_length=2)
+    rationale: str = ""
+    confidence: float = Field(default=0.0, ge=0, le=1)
 
 
 # ---- Context builder ----

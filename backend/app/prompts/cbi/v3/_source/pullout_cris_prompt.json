@@ -1,0 +1,43 @@
+{
+  "routing_target": "pullout_cris_prompt",
+  "catalog_version": "v3",
+  "source_count": 6,
+  "source_items": [
+    {
+      "id": 6,
+      "category": "OBLIGATION",
+      "sublabel": "CRIS",
+      "text": "A client’s safety always has top priority."
+    },
+    {
+      "id": 197,
+      "category": "PROHIBITION",
+      "sublabel": "CRIS",
+      "text": "Your four-level response, listed below, is designed to avoid the situation in which you argue for continuation while the client argues against it. 1."
+    },
+    {
+      "id": 213,
+      "category": "OBLIGATION",
+      "sublabel": "CRIS",
+      "text": "Clients can always seek pharmacological treatment after the completion of the trial if CBI is not as helpful as they hoped."
+    },
+    {
+      "id": 245,
+      "category": "GUIDANCE",
+      "sublabel": "CRIS",
+      "text": "You should refer cases in which the client’s drinking problems appear to be worsening or you see evidence of other new and serious difficulties (e.g., suicidal thoughts, psychotic behavior, violence) to the senior clinician of your team for further evaluation and consultation."
+    },
+    {
+      "id": 260,
+      "category": "MISC",
+      "sublabel": "CRIS",
+      "text": "In many cases, you will be able to handle the situation by telephone."
+    },
+    {
+      "id": 331,
+      "category": "PROHIBITION",
+      "sublabel": "CRIS",
+      "text": "George perceives his situation as hopeless and his life as worthless and falls into a suicidal mood, wishing he had never been born."
+    }
+  ]
+}

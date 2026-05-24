@@ -138,15 +138,17 @@ def get_dashboard(
         if row is None:
             return None
         return SessionSummaryBlock(
-            completed_objectives=list(row.completed_objectives or []),
-            unaddressed_objectives=list(row.unaddressed_objectives or []),
-            key_insights=list(row.key_insights or []),
+            session_completed_objectives=list(row.completed_objectives or []),
+            session_unaddressed_objectives=list(row.unaddressed_objectives or []),
+            patient_key_insights=list(row.key_insights or []),
             identified_triggers=list(row.identified_triggers or []),
             assigned_homework=row.assigned_homework,
             emotional_tone=row.emotional_tone,
-            handoff_notes=row.handoff_notes,
+            next_session_handoff_notes=row.handoff_notes,
             safety_flags=list(row.safety_flags or []),
             generated_at=row.generated_at,
+            model_used=row.model_used,
+            generation_time_ms=row.generation_time_ms,
         )
 
     sessions_block = [

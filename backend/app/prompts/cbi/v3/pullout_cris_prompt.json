@@ -1,0 +1,14 @@
+{
+  "routing_target": "pullout_cris_prompt",
+  "catalog_version": "v3",
+  "title_ko": "Pull-out · 위기 개입 (CRIS) [MVP 비활성]",
+  "reviewed": false,
+  "mvp_active": false,
+  "source_ids": [6, 197, 213, 245],
+  "principles_ko": [
+    "환자의 안전이 항상 최우선이다.",
+    "자살 사고·정신증·폭력 등 새롭고 심각한 위험 징후가 보이면 즉시 의료진/응급 자원으로 연계한다.",
+    "치료 지속을 설득하고 환자가 반대하는 논쟁 구도를 피한다.",
+    "주의: 본 모듈은 명세서 v3.0에서 비활성. 실제 위기 신호는 safety_classifier가 grade A로 즉시 LLM lock 처리하므로, 이 블록은 보조 참조용이다."
+  ]
+}

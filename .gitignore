@@ -19,5 +19,7 @@ venv/
 # IDE
 .vscode/
 .idea/
+.vs/
 .DS_Store
+.claude/settings.local.json
 EOF

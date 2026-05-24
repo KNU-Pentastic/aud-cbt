@@ -1,0 +1,157 @@
+{
+  "routing_target": "phase_3_assn_system_prompt",
+  "catalog_version": "v3",
+  "source_count": 25,
+  "source_items": [
+    {
+      "id": 262,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "When clients become more assertive, they may be able to avoid the maladaptive pattern of using alcohol to cope with interpersonal conflict."
+    },
+    {
+      "id": 263,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "Avoid any long spans of time where you are talking and the client is just listening passively."
+    },
+    {
+      "id": 264,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "Notice the difference in these two ways of communicating a frustration: “You never listen to what I have to say” compared with “I feel frustrated when I think you’re not listening to me.” To be an effective assertive communicator, you need to learn how to use three types of description-of-change messages."
+    },
+    {
+      "id": 265,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "They believe that they cannot speak up and confront another person or deliver criticism without having a drink first."
+    },
+    {
+      "id": 266,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "In talking about the problem, describe behavior but do not blame, moralize, or comment on character."
+    },
+    {
+      "id": 360,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "The basic principle of finding a socially appropriate middle ground (between aggression and passivity) crosses cultures reasonably well, but you will need to be culturally sensitive in determining what constitutes appropriate assertive behavior in your client’s social contexts."
+    },
+    {
+      "id": 361,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "It’s like I have this idea that I should always know where I am and where I’m going."
+    },
+    {
+      "id": 366,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "It can be useful for you to model appropriate communication, but always have the client take his/her own role to practice the new skills."
+    },
+    {
+      "id": 367,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "If you need to confront another person, tell him/her how the stated actions affect you."
+    },
+    {
+      "id": 402,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "Ask your client to tell you the disadvantages of each approach."
+    },
+    {
+      "id": 403,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "The four strategies described below can help the client to work toward a positive outcome when someone confronts him/her about a situation, regardless of whether the criticism is delivered in a constructive or destructive manner."
+    },
+    {
+      "id": 404,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "Help the client to see that there are effective ways of doing this and still maintaining a positive relationship with the other person."
+    },
+    {
+      "id": 405,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "Offer to do what you can to help or thank the person for making the change you are requesting."
+    },
+    {
+      "id": 406,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "Ask what you can do to help it happen."
+    },
+    {
+      "id": 407,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "Ask the client to tell you something he/she hasn’t liked about the way you have worked with him/her so far and what the client wishes you had done differently."
+    },
+    {
+      "id": 447,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "It is important in this module, as in other Phase 3 modules, to make the material concrete and personally applicable to your client."
+    },
+    {
+      "id": 448,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "It is also important to note that what constitutes assertive communication (as distinct from aggressive or passive communication) varies widely across cultures and subcultures."
+    },
+    {
+      "id": 449,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "Now that you have the “why,” the next step is to get some basic “how to.” There are a few simple rules you can remember that are really helpful."
+    },
+    {
+      "id": 450,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "The basic idea is that when you express a feeling or opinion, you should begin the sentence with “I” rather than “You.” This makes it clear that you are expressing a personal feeling or opinion, and it is less likely to elicit defensiveness from the listener."
+    },
+    {
+      "id": 451,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "Again, remember to use specific descriptions that focus on the behavior rather than putting the other person down!"
+    },
+    {
+      "id": 452,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "It is important in this module that you actually practice assertive expression."
+    },
+    {
+      "id": 453,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "Other times, you should stop the conversation and continue it at a more appropriate time or place."
+    },
+    {
+      "id": 469,
+      "category": "MISC",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "You can make a real difference just by how you communicate yourself."
+    },
+    {
+      "id": 470,
+      "category": "MISC",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "You can do this by beginning the sentence with the word “I,” rather than “You.” This is the “I” message we talked about earlier, a way of taking responsibility for your own behavior."
+    },
+    {
+      "id": 472,
+      "category": "MISC",
+      "sublabel": "PHASE_3_ASSN",
+      "text": "You can describe these comments as being like little deposits into the relationship piggy bank. 135 The comments might sound a little hollow at first, but bit by bit, they become more solid."
+    }
+  ]
+}

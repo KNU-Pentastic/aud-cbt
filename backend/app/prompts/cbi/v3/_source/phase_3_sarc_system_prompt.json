@@ -1,0 +1,91 @@
+{
+  "routing_target": "phase_3_sarc_system_prompt",
+  "catalog_version": "v3",
+  "source_count": 14,
+  "source_items": [
+    {
+      "id": 346,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_SARC",
+      "text": "This rebuilding may include the client finding a nondrinking peer group, sampling and pursuing positive social–recreational activities that do not involve drinking, and establishing or re-establishing stable employment (see section 5.5, “Job-Finding Training”)."
+    },
+    {
+      "id": 347,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_SARC",
+      "text": "The central goal in this module is to help your client connect with reliable sources of positive reinforcement that do not involve or depend on drinking."
+    },
+    {
+      "id": 348,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_SARC",
+      "text": "Avoid lecturing your client on matters it is likely he/she already knows."
+    },
+    {
+      "id": 350,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_SARC",
+      "text": "Besides using this worksheet, ask the client to think of activities, hobbies, and interests of friends or acquaintances who do not drink or to think of activities, pleasurable or not, that do not involve drinking."
+    },
+    {
+      "id": 351,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_SARC",
+      "text": "This is easier when your client already knows of activities, people, and places that are fun and do not involve or emphasize drinking."
+    },
+    {
+      "id": 352,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_SARC",
+      "text": "I never drink with my boyfriend because he’s been so encouraging throughout treatment and feels it has helped our relationship a lot."
+    },
+    {
+      "id": 353,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_SARC",
+      "text": "Gabe wants to see you succeed in treatment and you’ve told me that he’s helped by planning weekend hiking trips for the two of you because you never drink when you go hiking."
+    },
+    {
+      "id": 355,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_SARC",
+      "text": "I don’t drink underwater—at least I’ve never tried it."
+    },
+    {
+      "id": 356,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_SARC",
+      "text": "It’s a common problem: many clients have good intentions of sampling a new activity, yet do not follow through, perhaps because they do not have the skills, are embarrassed, or are not well prepared to begin something new."
+    },
+    {
+      "id": 357,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_SARC",
+      "text": "Once your client has agreed on an activity, do not assume he/she will make the first contact."
+    },
+    {
+      "id": 438,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_SARC",
+      "text": "Similarly, ask your client to describe recreational events, people, and places that he/she enjoyed in the past that are not associated with drinking."
+    },
+    {
+      "id": 439,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_SARC",
+      "text": "I’m writing down that you will get the information about the church’s softball league and ask Gabe to join with you as an assignment for this week!"
+    },
+    {
+      "id": 440,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_SARC",
+      "text": "This will allow you to encourage your client in the things he/she does well while gaining valuable behavioral information about how the client interacts with others. 2."
+    },
+    {
+      "id": 441,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_SARC",
+      "text": "Help your client to keep sampling new nondrinking activities until he/she finds several that he/she enjoys and is likely to stick with."
+    }
+  ]
+}

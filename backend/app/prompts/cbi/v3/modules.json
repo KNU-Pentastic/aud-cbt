@@ -1,0 +1,15 @@
+{
+  "catalog_version": "v3",
+  "comment": "Phase 3 모듈 9종. module_classifier 가 환자 데이터로 1~2개 선택, context_builder 가 routing_target 자산을 주입한다. signal_ko 는 분류기 가이드(매뉴얼 미규정 → [C]+[D], 임상 자문 필요).",
+  "modules": [
+    {"code": "CRAV", "name_ko": "갈망 대처", "routing_target": "phase_3_crav_system_prompt", "signal_ko": "갈망·내적 충동·고위험 상황이 주요 음주 선행요인", "manual": "§5.3"},
+    {"code": "DREF", "name_ko": "음주 거절 기술", "routing_target": "phase_3_dref_system_prompt", "signal_ko": "사회적 권유·압력(직간접)이 주요 선행요인", "manual": "§5.4"},
+    {"code": "MOOD", "name_ko": "기분 관리", "routing_target": "phase_3_mood_system_prompt", "signal_ko": "우울·불안 등 부정 정서가 선행요인, 또는 동반질환(우울/불안)", "manual": "§5.6"},
+    {"code": "ASSN", "name_ko": "자기주장 기술", "routing_target": "phase_3_assn_system_prompt", "signal_ko": "자기주장 결핍·대인 갈등 회피가 음주와 연결", "manual": "§5.1"},
+    {"code": "COMM", "name_ko": "의사소통 기술", "routing_target": "phase_3_comm_system_prompt", "signal_ko": "의사소통 기술 부족·관계 내 소통 문제", "manual": "§5.2"},
+    {"code": "JOBF", "name_ko": "구직 기술", "routing_target": "phase_3_jobf_system_prompt", "signal_ko": "실직·구직 곤란 등 직업 공백이 위험요인", "manual": "§5.5"},
+    {"code": "SARC", "name_ko": "사회·여가 활동", "routing_target": "phase_3_sarc_system_prompt", "signal_ko": "비음주 여가·또래 활동의 공백", "manual": "§5.8"},
+    {"code": "SSSO", "name_ko": "단주 지지망", "routing_target": "phase_3_ssso_system_prompt", "signal_ko": "단주를 지지하는 사회적 관계망 부족·고립", "manual": "§5.9"},
+    {"code": "MUTU", "name_ko": "자조모임 참여", "routing_target": "phase_3_mutu_system_prompt", "signal_ko": "추가 지지원이 필요하고 자조모임 연계가 적합", "manual": "§5.7"}
+  ]
+}
