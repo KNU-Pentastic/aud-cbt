@@ -11,10 +11,12 @@ patient_checkin.py 의 list_checkins 페이지네이션 패턴을 그대로 복�
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Query, status
+from sqlalchemy import func, select
 
 from app.deps import CurrentPatient, DbSession
 from app.ids import p4_event_id as new_p4_event_id
 from app.models.daily_checkin import P4Event
+from app.models.safety_event import SafetyEvent
 from app.schemas.common import PaginatedEnvelope, Pagination
 from app.schemas.safety import P4ShownIn, P4ShownOut, SafetyEventOut
 
@@ -25,7 +27,6 @@ router = APIRouter(prefix="/me/safety", tags=["Patient - Safety"])
 def record_p4_shown(
     body: P4ShownIn, patient: CurrentPatient, db: DbSession
 ) -> P4ShownOut:
-    # TODO(junior): P4Event 인스턴스 생성 → db.add → db.commit → db.refresh → 응답.
     evt = P4Event(
         p4_event_id=new_p4_event_id(),
         patient_id=patient.patient_id,
@@ -47,9 +48,25 @@ def list_events(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ) -> PaginatedEnvelope[SafetyEventOut]:
-    # TODO(junior): patient_checkin.py list_checkins 그대로 따라서 SafetyEvent 조회.
-    # 정렬: detected_at desc.
+    total = int(db.execute(
+        select(func.count(SafetyEvent.safety_event_id))
+        .where(SafetyEvent.patient_id == patient.patient_id)
+    ).scalar() or 0)
+
+    rows = db.execute(
+        select(SafetyEvent)
+        .where(SafetyEvent.patient_id == patient.patient_id)
+        .order_by(SafetyEvent.detected_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).scalars().all()
+
     return PaginatedEnvelope[SafetyEventOut](
-        items=[],
-        pagination=Pagination(page=page, page_size=page_size, total_items=0, total_pages=0),
+        items=[SafetyEventOut.model_validate(r) for r in rows],
+        pagination=Pagination(
+            page=page,
+            page_size=page_size,
+            total_items=total,
+            total_pages=(total + page_size - 1) // page_size if total else 0,
+        ),
     )

@@ -20,6 +20,9 @@
   from app.models.daily_checkin import DailyCheckin
 """
 
+from datetime import datetime, timezone
+from sqlalchemy import select
+from app.models.daily_checkin import DailyCheckin
 from fastapi import APIRouter
 
 from app.deps import CurrentPatient, DbSession
@@ -31,13 +34,22 @@ router = APIRouter(tags=["Patient - Home"])
 @router.get("/me/patient", response_model=PatientHomeResponse)
 def get_home(patient: CurrentPatient, db: DbSession) -> PatientHomeResponse:
     # TODO(junior): 위 docstring대로 채우기.
+    today = datetime.now(timezone.utc).date()
+    days_to_next_session = (patient.session_day_of_week - today.weekday()) % 7
+    exists = db.execute(
+        select(DailyCheckin).where(
+            DailyCheckin.patient_id == patient.patient_id,
+            DailyCheckin.date == today,
+        )
+    ).scalar_one_or_none() is not None
+    checkin_pending = not exists
     return PatientHomeResponse(
         patient_id=patient.patient_id,
         name=patient.name,
-        sobriety_days=0,
+        sobriety_days=max(0, (today - patient.discharge_date).days),
         current_week=patient.current_week,
-        days_to_next_session=None,
-        today_tasks=TodayTasks(checkin_pending=True, session_today=False),
+        days_to_next_session=days_to_next_session,
+        today_tasks=TodayTasks(checkin_pending=checkin_pending, session_today=days_to_next_session == 0),
         next_outpatient_date=patient.next_outpatient_date,
         llm_locked=patient.llm_locked,
     )
