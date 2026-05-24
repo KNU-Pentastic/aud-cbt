@@ -1,0 +1,121 @@
+{
+  "routing_target": "pullout_soma_prompt",
+  "catalog_version": "v3",
+  "source_count": 19,
+  "source_items": [
+    {
+      "id": 2,
+      "category": "PROHIBITION",
+      "sublabel": "SOMA",
+      "text": "With the important exceptions noted below, you should not need to discuss with your client’s MM practitioner what transpires in CBI."
+    },
+    {
+      "id": 5,
+      "category": "OBLIGATION",
+      "sublabel": "SOMA",
+      "text": "If in the course of CBI sessions your client divulges to you information about drinking that is different from what the MM practitioner knows (e.g., the client told the MM practitioner that he/she was not drinking but reported to you that he/she actually was; the client has been drinking much more than he/she admitted to the MM practitioner), you must discuss this discrepancy with the MM practitioner for safety reasons. 5."
+    },
+    {
+      "id": 7,
+      "category": "ACTION",
+      "sublabel": "SOMA",
+      "text": "Encourage your client to discuss concerns with the MM practitioner."
+    },
+    {
+      "id": 8,
+      "category": "ACTION",
+      "sublabel": "SOMA",
+      "text": "If your client discloses to you that he/she has been less than honest with the MM practitioner about taking medication, express concern by following procedures described in section 4.5, and encourage your client to discuss his/her issues with the MM practitioner."
+    },
+    {
+      "id": 11,
+      "category": "GUIDANCE",
+      "sublabel": "SOMA",
+      "text": "Note that after the first month, MM sessions become biweekly and then monthly, whereas CBI continues on a weekly basis, so there will be CBI weeks when the client has no corresponding MM session. 3."
+    },
+    {
+      "id": 12,
+      "category": "GUIDANCE",
+      "sublabel": "SOMA",
+      "text": "In this case, you should follow the procedures outlined in the “Support for Medication Adherence (SOMA)” pull-out (section 4.5)."
+    },
+    {
+      "id": 14,
+      "category": "MISC",
+      "sublabel": "SOMA",
+      "text": "Thus your client will usually be seeing both you and an MM practitioner who will monitor trial medications and attend to medical care issues. (For clients receiving no medication, you will be your client’s only therapist.) This section discusses important information about the coordination of care between MM and CBI."
+    },
+    {
+      "id": 194,
+      "category": "PROHIBITION",
+      "sublabel": "SOMA",
+      "text": "To form an alliance, start by asking general or open-ended questions, such as “How are you getting along with the medications?” Avoid confrontational remarks (e.g., “What do you expect, a miracle?”)."
+    },
+    {
+      "id": 195,
+      "category": "PROHIBITION",
+      "sublabel": "SOMA",
+      "text": "Whatever you do, of course, avoid the kind of interaction in which you argue for why the client should take the medications and the client takes the side of resisting."
+    },
+    {
+      "id": 209,
+      "category": "OBLIGATION",
+      "sublabel": "SOMA",
+      "text": "This means that you need to discover ways in which medication adherence might support the client’s own goals and interests."
+    },
+    {
+      "id": 210,
+      "category": "OBLIGATION",
+      "sublabel": "SOMA",
+      "text": "You can always decide later to stop the meds."
+    },
+    {
+      "id": 211,
+      "category": "OBLIGATION",
+      "sublabel": "SOMA",
+      "text": "Before deciding on specific action steps, make sure that both your client and his/her SSO are committed to the plan."
+    },
+    {
+      "id": 212,
+      "category": "OBLIGATION",
+      "sublabel": "SOMA",
+      "text": "If this is the case, introduce the “Case Management” module described earlier in this chapter (section 4.3), but first make sure that you have obtained the client’s agreement about the need for additional services."
+    },
+    {
+      "id": 226,
+      "category": "ACTION",
+      "sublabel": "SOMA",
+      "text": "A straightforward problem-solving strategy is to ask your client about his/her past experience in adhering to medications."
+    },
+    {
+      "id": 227,
+      "category": "ACTION",
+      "sublabel": "SOMA",
+      "text": "In the absence of an SSO, ask your client to draw upon other resources, such as an AA sponsor who is supportive of pharmacotherapy, to fulfill this treatment need."
+    },
+    {
+      "id": 228,
+      "category": "ACTION",
+      "sublabel": "SOMA",
+      "text": "It’s tough asking for help, and you can do a lot on your own, but they might still be there for you."
+    },
+    {
+      "id": 243,
+      "category": "GUIDANCE",
+      "sublabel": "SOMA",
+      "text": "Thus, it is important to support the clients’ high levels of adherence to study medications."
+    },
+    {
+      "id": 257,
+      "category": "MISC",
+      "sublabel": "SOMA",
+      "text": "It would be important for you to let the medical practitioner know these specific concerns as well so you can both reinforce more accurate expectations."
+    },
+    {
+      "id": 258,
+      "category": "MISC",
+      "sublabel": "SOMA",
+      "text": "This is a unique kind of support that you can provide as an adjunct to the primarily educational approach of your medical management colleague."
+    }
+  ]
+}

@@ -12,7 +12,7 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.deps import CurrentProvider, DbSession
-from app.exceptions import conflict, not_found
+from app.exceptions import conflict, forbidden, not_found
 from app.ids import (
     discharge_profile_id,
     patient_id as new_patient_id,
@@ -112,8 +112,10 @@ def regenerate_code(
     patient_id: str, provider: CurrentProvider, db: DbSession
 ) -> RegistrationCodeRegenResponse:
     patient = db.get(Patient, patient_id)
-    if patient is None or patient.provider_id != provider.provider_id:
+    if patient is None:
         raise not_found("Patient not found")
+    if patient.provider_id != provider.provider_id:
+        raise forbidden("Not assigned to this patient")
     if patient.is_registered:
         raise conflict(
             "Patient already registered", code="PATIENT_ALREADY_REGISTERED"

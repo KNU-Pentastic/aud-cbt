@@ -424,6 +424,11 @@ paths:
                 description: |
                   SSE 이벤트 타입: start, token, safety_classified,
                   context_switched, done, error
+        '409':
+          description: CONVERSATION_ENDED — 이미 종료된 대화에는 메시지를 보낼 수 없음
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
         '423':
           description: SAFETY_LOCKED — 잠금 상태 (v3.0에서는 약화, 클라이언트 측 처리)
           content:
@@ -482,6 +487,11 @@ paths:
                     type: string
                     format: date-time
                     nullable: true
+        '409':
+          description: CONVERSATION_ENDED — 이미 종료된 대화
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   # ============================================================
   # PATIENT APP - P4 SAFETY
@@ -717,6 +727,13 @@ paths:
                 properties:
                   registration_code: { type: string, pattern: '^[A-Z0-9]{8}$' }
                   expires_at: { type: string, format: date-time }
+        '403':
+          description: 담당 환자가 아님
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           description: PATIENT_ALREADY_REGISTERED — 이미 환자가 등록 완료한 상태
           content:
@@ -786,6 +803,13 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/Medication' }
                   updated_at: { type: string, format: date-time }
+        '403':
+          description: 담당 환자가 아님
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /provider/patients/{patient_id}/next-outpatient-date:
     patch:
@@ -827,6 +851,13 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: 담당 환자가 아님
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /provider/patients/{patient_id}/program-status:
     patch:
@@ -861,6 +892,13 @@ paths:
                   patient_id: { type: string }
                   program_status: { type: string }
                   changed_at: { type: string, format: date-time }
+        '403':
+          description: 담당 환자가 아님
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   # ============================================================
   # INTERNAL API (Layer 3-5)
@@ -989,7 +1027,14 @@ paths:
             text/event-stream:
               schema:
                 type: string
-                description: stream=true 시 Anthropic SSE 그대로 전달
+                description: |
+                  stream=true 시 게이트웨이가 토큰을 자체 SSE 이벤트로 재포장하여 전달.
+                  이벤트: `token`(data=토큰 텍스트, 반복) → `done`(data={}).
+                  Anthropic 원본 SSE(content_block_delta 등)를 그대로 전달하지 않음.
+
+                  주의(v3.0 한계): stream=true에서는 응답이 이미 200으로 시작되므로
+                  토큰 한도 초과/업스트림 장애가 발생해도 429·503 상태 코드로 전달되지 않음.
+                  HTTP 상태 기반 오류는 stream=false 경로에서만 보장됨.
         '429':
           description: LLM_TOKEN_QUOTA_EXCEEDED — 환자별 일일 한도 초과
           content:
@@ -1692,7 +1737,7 @@ components:
             properties:
               filter:
                 type: string
-                enum: [medical_terminology, ave_violation]
+                enum: [medical_terminology, ave_violation, mi_style]
               severity:
                 type: string
                 enum: [low, medium, high]
@@ -1728,6 +1773,7 @@ components:
             - session_summarization
             - output_filtering
             - trigger_normalization
+            - module_classification
         caller_component:
           type: string
           enum:
@@ -1737,6 +1783,7 @@ components:
             - session_summarizer
             - output_filter
             - trigger_normalizer
+            - module_classifier
 
     LLMInvokeResponse:
       type: object

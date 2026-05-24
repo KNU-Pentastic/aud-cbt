@@ -1,0 +1,133 @@
+{
+  "routing_target": "phase_3_jobf_system_prompt",
+  "catalog_version": "v3",
+  "source_count": 21,
+  "source_items": [
+    {
+      "id": 325,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "Many clients have never had one."
+    },
+    {
+      "id": 326,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "I admire your honesty, and you certainly should not give inaccurate information on a job application."
+    },
+    {
+      "id": 327,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "If you do not receive an interview for future openings, ask the person if he/she knows of any other job openings. 6."
+    },
+    {
+      "id": 385,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "I can always sell dope, but that’s not such a good idea."
+    },
+    {
+      "id": 386,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "During the initial JOBF session, be sure to discuss in considerable detail your client’s employment history, including prior jobs and training."
+    },
+    {
+      "id": 387,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "I really do want to become more independent, and I always feel better about myself when I am supporting myself and my kids."
+    },
+    {
+      "id": 390,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "Make sure the client understands the reasons behind this, and practice how to talk about these times in the interview (e.g., focusing on the positives accomplished with relation to alcohol use). 4."
+    },
+    {
+      "id": 392,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "It is always a good idea to complete the applications neatly, as you have done."
+    },
+    {
+      "id": 393,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "Always focus on the positive, because you have accomplished a great deal in treatment already!"
+    },
+    {
+      "id": 394,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "Your client will find that looking for a job is easier when he/she has good interviewing skills, and you need to help him/her gain confidence in his/her abilities in this area."
+    },
+    {
+      "id": 420,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "Although you can certainly describe these and explain how employment supports stable sobriety, it may be better to elicit from the client the good things (and perhaps not-so-good things) about having a job."
+    },
+    {
+      "id": 421,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "Ask your client about positive feedback that past employers or coworkers have given to help generate his/her personal characteristic list."
+    },
+    {
+      "id": 422,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "When you get an interview, you can explain what was 167 going on more fully if the employer asks about those periods."
+    },
+    {
+      "id": 423,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "If necessary, help the client find a typewriter or word processor, and assist in formatting the résumé, wording the résumé, or preparing it in other ways."
+    },
+    {
+      "id": 424,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "Even though the client may be confident that he/she can maintain sobriety and expresses interest in returning to these jobs, help your client explore better alternatives."
+    },
+    {
+      "id": 425,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "Ask your client to bring in job application forms for actual employment opportunities."
+    },
+    {
+      "id": 426,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "Help your client broaden the search to include the widest possible number of opportunities; for example, if your client is interested in working with shoes, encourage him/her to also look under shoe retailers, manufacturers, distributors, repairs, and other related areas."
+    },
+    {
+      "id": 428,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "Below are some steps to help your client practice cold calling: 1."
+    },
+    {
+      "id": 484,
+      "category": "MISC",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "Now that you are familiar with the types of jobs your client has held in the past, you will be able to talk about the potential for drinking that may be associated with each job."
+    },
+    {
+      "id": 485,
+      "category": "MISC",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "You can then direct the client away from those that may pose a greater risk for encouraging drinking."
+    },
+    {
+      "id": 486,
+      "category": "MISC",
+      "sublabel": "PHASE_3_JOBF",
+      "text": "So you will talk with your family about openings and will start identifying places from the phone book."
+    }
+  ]
+}

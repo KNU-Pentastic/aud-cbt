@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.schemas.internal import LLMInvokeRequest, OutputFilterRequest, OutputFilterResponse, Violation
-from app.services import llm_gateway
+from app.services import llm_gateway, prompt_assets
 
 
 _MEDICAL_PATTERNS = [
@@ -55,14 +55,24 @@ def _rule_scan(text: str) -> list[Violation]:
     return out
 
 
+def _mi_style_rules() -> str:
+    """OUTPUT_GUARD (CBI) MI-style checks, loaded from the curated asset."""
+    asset = prompt_assets.load_asset("output_guard")
+    rules = (asset or {}).get("rules_ko", [])
+    return "\n".join(f"  - {r}" for r in rules)
+
+
 _LLM_SYSTEM = (
     "You audit assistant replies in an alcohol-use-disorder CBT app. "
-    "Flag two issue types only: (1) medical_terminology — diagnoses, prescriptions, "
+    "Flag three issue types: (1) medical_terminology — diagnoses, prescriptions, "
     "dose changes, or telling patient to stop meds; (2) ave_violation — minimizing "
-    "a slip, encouraging 'just one drink', or framing a slip as total failure. "
+    "a slip, encouraging 'just one drink', or framing a slip as total failure; "
+    "(3) mi_style — motivational-interviewing style breaches per these rules "
+    f"(Korean):\n{_mi_style_rules()}\n"
+    "Treat medical_terminology and ave_violation as high severity; mi_style as low/medium. "
     "Reply ONLY as strict JSON: "
-    '{"violations":[{"filter":"medical_terminology|ave_violation","severity":"low|medium|high",'
-    '"matched_text":"...","reasoning":"..."}]}'
+    '{"violations":[{"filter":"medical_terminology|ave_violation|mi_style",'
+    '"severity":"low|medium|high","matched_text":"...","reasoning":"..."}]}'
 )
 
 

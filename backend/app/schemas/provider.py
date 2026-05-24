@@ -91,15 +91,18 @@ class ProgressBlock(BaseModel):
 
 
 class SessionSummaryBlock(BaseModel):
-    completed_objectives: list[str] = Field(default_factory=list)
-    unaddressed_objectives: list[str] = Field(default_factory=list)
-    key_insights: list[str] = Field(default_factory=list)
+    # 필드명은 openapi.yaml 의 SessionSummary 스키마와 정확히 일치시킨다.
+    session_completed_objectives: list[str] = Field(default_factory=list)
+    session_unaddressed_objectives: list[str] = Field(default_factory=list)
+    patient_key_insights: list[str] = Field(default_factory=list)
     identified_triggers: list[dict] = Field(default_factory=list)
     assigned_homework: str = ""
     emotional_tone: str = "neutral"
-    handoff_notes: str = ""
+    next_session_handoff_notes: str = ""
     safety_flags: list[dict] = Field(default_factory=list)
     generated_at: datetime | None = None
+    model_used: str = "claude-sonnet-4-6"
+    generation_time_ms: int = 0
 
 
 class RecentSession(BaseModel):

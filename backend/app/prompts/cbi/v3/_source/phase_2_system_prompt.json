@@ -1,0 +1,277 @@
+{
+  "routing_target": "phase_2_system_prompt",
+  "catalog_version": "v3",
+  "source_count": 45,
+  "source_items": [
+    {
+      "id": 132,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_2",
+      "text": "Do not use technical jargon such as “functional analysis” and “antecedents” with most clients, of course."
+    },
+    {
+      "id": 133,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_2",
+      "text": "The DED lists 37 possibly desirable expected consequences that the client has ranked from 0 (never drank for this reason) to 3 (always drank for this reason)."
+    },
+    {
+      "id": 134,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_2",
+      "text": "As you proceed through the pairs, note and comment on commonalities that emerge. (e.g., “So here, too, what occurs to you is just to avoid this kind of situation."
+    },
+    {
+      "id": 135,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_2",
+      "text": "Reviewing Psychosocial Functioning Alcohol problems do not occur in isolation from the rest of a person’s life."
+    },
+    {
+      "id": 136,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_2",
+      "text": "In the area of work, in some jobs it is more difficult to avoid drinking than in others— salespeople, for instance, are often expected to have meetings with clients where having a drink is a normal part of working through a sale."
+    },
+    {
+      "id": 137,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_2",
+      "text": "You cannot change a Treatment Plan sheet once it has been signed and dated, so you must use a new sheet for all addenda and modifications."
+    },
+    {
+      "id": 138,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_2",
+      "text": "Include goals that are positive (wanting to begin, increase, improve, do more of something), not just goals that could be accomplished through general anesthesia (to stop, avoid, or decrease behaviors)."
+    },
+    {
+      "id": 139,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_2",
+      "text": "He thought you should go to AA, and you thought you’d just cut down on your drinking and try to avoid drinking when you are alone."
+    },
+    {
+      "id": 141,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_2",
+      "text": "That way you always have an alternative, a choice."
+    },
+    {
+      "id": 142,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_2",
+      "text": "You may have some helpful ideas here too.” Wait for your client to complete the Personal Happiness Form, take it back, and make sure that the client left no items blank."
+    },
+    {
+      "id": 143,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_2",
+      "text": "When the client has finished sorting, set the NO pile aside, take up the YES pile, and put check marks in the \"Link\" column on the Personal Happiness Form that corresponds to each of the YES cards (the card numbers correspond to the matching numbered areas in the \"Change\" column). Also notice on the Personal Happiness Form those areas for which the client has indicated dissatisfaction (rating of 4 or lower), because you will soon need to use this information."
+    },
+    {
+      "id": 144,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_2",
+      "text": "However the discussion goes, as always your goal is to help your client to clarify his/her own thoughts and feelings about these life areas and to experience discrepancy."
+    },
+    {
+      "id": 145,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_2",
+      "text": "Remember that an area doesn’t have to be a “problem” itself or an area of dissatisfaction for it to be an important support for continued drinking."
+    },
+    {
+      "id": 146,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_2",
+      "text": "Joining in such activities may be what is expected “to belong.” As you explore the possibilities in each of these functional areas, be sure to maintain your empathic style."
+    },
+    {
+      "id": 147,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_2",
+      "text": "As always, it is useful to provide transitional and structuring language when you shift to a new focus in treatment."
+    },
+    {
+      "id": 148,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_2",
+      "text": "Be sure to leave at least two bubbles empty."
+    },
+    {
+      "id": 149,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_2",
+      "text": "Problem #1 will always be alcohol problems and/or dependence."
+    },
+    {
+      "id": 150,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_2",
+      "text": "The choice is always theirs, regardless of your recommendations."
+    },
+    {
+      "id": 151,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_2",
+      "text": "Be sure to affirm your client’s decision, intentions, efforts, and so on."
+    },
+    {
+      "id": 152,
+      "category": "ACTION",
+      "sublabel": "PHASE_2",
+      "text": "Let the client draw connecting lines.) For triggers that have not been paired, ask the client to tell you what alcohol might have done for him/her in that situation and have him/her draw a line to the appropriate box in the “Effects” column."
+    },
+    {
+      "id": 153,
+      "category": "ACTION",
+      "sublabel": "PHASE_2",
+      "text": "For example, you could ask the client, “Would it be all right to mark this one as possibly related to drinking?”"
+    },
+    {
+      "id": 154,
+      "category": "ACTION",
+      "sublabel": "PHASE_2",
+      "text": "Your task is simply to help the client clarify the factors that may be supportive of drinking in each of these areas."
+    },
+    {
+      "id": 155,
+      "category": "ACTION",
+      "sublabel": "PHASE_2",
+      "text": "First, ask the client (or SSO) to elaborate. “In what ways are you a ____________ person?"
+    },
+    {
+      "id": 156,
+      "category": "ACTION",
+      "sublabel": "PHASE_2",
+      "text": "Ask the SSO, “What else do you see as strengths in _________ that can help (him/her] succeed in making changes in his/her life?” If you bog down, pull out the list of adjectives on the Characteristics of Successful Changers form and invite the client and SSO to look through it for words they think accurately describe the client."
+    },
+    {
+      "id": 157,
+      "category": "ACTION",
+      "sublabel": "PHASE_2",
+      "text": "During the discussion, encourage the client to sample several such groups."
+    },
+    {
+      "id": 158,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_2",
+      "text": "Note that it begins with a key question as prescribed in section"
+    },
+    {
+      "id": 159,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_2",
+      "text": "When inquiring about the client’s desired consequences of drinking, remember that you are inquiring here about the client’s own perceived or expected effects of alcohol, which need not correspond to veridical effects of ethanol."
+    },
+    {
+      "id": 160,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_2",
+      "text": "Note that you are to fill in both the “Triggers” column and the “Effects” column in the New Roads Worksheet before you begin exploring the links between the two."
+    },
+    {
+      "id": 161,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_2",
+      "text": "Set aside the cards and work from the Personal Happiness Form; it includes three pieces of information for each area of psychosocial functioning: (1) the client’s self-rating of satisfaction, (2) the client’s appraisal of whether the area is related to his/her drinking, and (3) the client’s current judgment as to whether or not it is important to make a change in this area."
+    },
+    {
+      "id": 162,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_2",
+      "text": "Is that something that we might work on together?” It is important for you to remember that you will not address all items on the treatment plan in CBI sessions."
+    },
+    {
+      "id": 163,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_2",
+      "text": "The client may feel it is important to address childhood trauma, for example, and that would not be included in the CBI sessions."
+    },
+    {
+      "id": 164,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_2",
+      "text": "You should also state at least a tentative timeline for each problem: when will this be done?"
+    },
+    {
+      "id": 165,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_2",
+      "text": "It is important to remember here the difference between the treatment program’s goal—abstinence—and the client’s goals."
+    },
+    {
+      "id": 166,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_2",
+      "text": "It is also important to remember that it is not up to you to “permit”or“let”or“allow”clientstomakechoices."
+    },
+    {
+      "id": 168,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_2",
+      "text": "In any event, remember that it is a goal to keep your client engaged in treatment and that ultimately it is the client who chooses his/her own course, regardless of your advice."
+    },
+    {
+      "id": 169,
+      "category": "MISC",
+      "sublabel": "PHASE_2",
+      "text": "Only you can do it. • You can decide to go on drinking just as you were or to make a change."
+    },
+    {
+      "id": 170,
+      "category": "MISC",
+      "sublabel": "PHASE_2",
+      "text": "If you have used the optional Reviewing Past Successes procedure in Phase 1, you will already have some relevant material."
+    },
+    {
+      "id": 172,
+      "category": "MISC",
+      "sublabel": "PHASE_2",
+      "text": "Otherwise, this is a good place to end the session; close with a structuring statement that tells the client that in the next session (ideally scheduled within a few days), you will work together to develop a change plan."
+    },
+    {
+      "id": 173,
+      "category": "MISC",
+      "sublabel": "PHASE_2",
+      "text": "As you can see (show client the sheet), I’ve written each idea in one of these bubbles, and I’ve also left some bubbles blank because you may have other good ideas."
+    },
+    {
+      "id": 174,
+      "category": "MISC",
+      "sublabel": "PHASE_2",
+      "text": "Are there other topics you can think of that we might discuss as part of your change plan?"
+    },
+    {
+      "id": 175,
+      "category": "MISC",
+      "sublabel": "PHASE_2",
+      "text": "Take care that you convey this to your client so that he/she does not think he/she has been promised something that you will not deliver."
+    },
+    {
+      "id": 179,
+      "category": "MISC",
+      "sublabel": "PHASE_2",
+      "text": "If you don’t drink, you can be sure that you won’t have problems because of your drinking. 2."
+    },
+    {
+      "id": 180,
+      "category": "MISC",
+      "sublabel": "PHASE_2",
+      "text": "Your husband likes this idea too and has agreed to spend more time with you so you can go and do things together in the evening or on weekends."
+    },
+    {
+      "id": 181,
+      "category": "MISC",
+      "sublabel": "PHASE_2",
+      "text": "You can continue with Phase 1 and Phase 2 work in sessions until the client agrees to pursue at least one Phase 3 module."
+    },
+    {
+      "id": 246,
+      "category": "MISC",
+      "sublabel": "PHASE_2",
+      "text": "If needed, you can also suggest some advantages."
+    }
+  ]
+}

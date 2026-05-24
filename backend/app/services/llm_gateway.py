@@ -58,6 +58,16 @@ def _mock_response(req: LLMInvokeRequest) -> tuple[str, int, int]:
         text = '{"passed": true, "violations": []}'
     elif req.purpose == "trigger_normalization":
         text = '{"normalized_tags": ["work_stress"], "confidence": 0.6}'
+    elif req.purpose == "module_classification":
+        # Light keyword match over the classifier input so the demo is illustrative.
+        blob = last_user
+        mood = any(k in blob for k in ("우울", "불안", "depress", "anxiet", "mood"))
+        social = any(k in blob for k in ("권유", "압력", "회식", "social", "pressure"))
+        mods = ["MOOD"] if mood else (["DREF"] if social else ["CRAV"])
+        text = (
+            '{"selected_modules": ' + str(mods).replace("'", '"') + ', '
+            '"rationale": "mock: 트리거 키워드 기반 기본 선택", "confidence": 0.4}'
+        )
     else:
         text = (
             f"[mock-{req.model}] 잘 들었어요. 방금 말씀하신 부분 — \"{last_user[:60]}\" — "

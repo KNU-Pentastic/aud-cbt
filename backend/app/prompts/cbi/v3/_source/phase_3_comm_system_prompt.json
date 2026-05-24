@@ -1,0 +1,103 @@
+{
+  "routing_target": "phase_3_comm_system_prompt",
+  "catalog_version": "v3",
+  "source_count": 16,
+  "source_items": [
+    {
+      "id": 267,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_COMM",
+      "text": "Some clients may never have developed good communication skills, while other clients’ skills may have diminished as a result of drinking-related isolation."
+    },
+    {
+      "id": 268,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_COMM",
+      "text": "If the client cannot provide an example from his/her experience, offer an example that is appropriate to the client’s situation."
+    },
+    {
+      "id": 269,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_COMM",
+      "text": "Most often the conversation goes off in a different direction and never gets back to the speaker’s original road."
+    },
+    {
+      "id": 271,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_COMM",
+      "text": "The key to this part of the module is to help your client find fun, pleasant, positive activities that he/she can share with someone else and that do not involve drinking (see “SARC,” module 5.8)."
+    },
+    {
+      "id": 272,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_3_COMM",
+      "text": "If the client’s SSO is participating in treatment, it is wise to try this in the office first to make sure that they have the necessary skills or so you can coach them if they do not."
+    },
+    {
+      "id": 368,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_COMM",
+      "text": "You know that people don’t always say exactly what they mean, right?"
+    },
+    {
+      "id": 369,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_COMM",
+      "text": "This means that the message you send in words (point out box “Message Sent [Words]”) doesn’t always match what you meant to communicate."
+    },
+    {
+      "id": 370,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_COMM",
+      "text": "Then debrief first by asking what it was like to be the listener—what your client was experiencing. (For example, many people say that they thought of all the things they would have said ordinarily.) Be sure to comment positively on what the client did well to communicate listening and understanding."
+    },
+    {
+      "id": 371,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_COMM",
+      "text": "If there is something specific that the client could do to be a still better listener, comment on it, but be sure to begin and end with positive reinforcement."
+    },
+    {
+      "id": 372,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_COMM",
+      "text": "Always use the form: “Do you mean that you ________________?” Rule: The speaker may answer only “Yes” or “No” and say nothing more."
+    },
+    {
+      "id": 373,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_COMM",
+      "text": "Make sure that this rationale makes sense to the client (and SSO) before proceeding."
+    },
+    {
+      "id": 410,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_COMM",
+      "text": "Now, to do that, you need something you can talk about for a while without much help from me, because you are going to do all of the talking for a few minutes while I just listen."
+    },
+    {
+      "id": 454,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_3_COMM",
+      "text": "Note that some speaker statements don’t go anywhere. “One thing about myself I’d like to change is my hair color.” Or “One thing about myself that I’d like to change is that I smoke.” Even these sometimes lead in surprising directions, but in general, the speaker should offer something that has some feeling, importance, and ambiguity attached to it."
+    },
+    {
+      "id": 473,
+      "category": "MISC",
+      "sublabel": "PHASE_3_COMM",
+      "text": "You can deliver this module to the client alone or when his/her SSO is attending treatment."
+    },
+    {
+      "id": 474,
+      "category": "MISC",
+      "sublabel": "PHASE_3_COMM",
+      "text": "So if you will talk about that for a while, I’ll do my best to let you know without words that I’m listening."
+    },
+    {
+      "id": 475,
+      "category": "MISC",
+      "sublabel": "PHASE_3_COMM",
+      "text": "Choose an appropriate topic about which you can talk for a few minutes while the client listens."
+    }
+  ]
+}

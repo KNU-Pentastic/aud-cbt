@@ -1,0 +1,73 @@
+{
+  "routing_target": "system_prompt_common_header",
+  "catalog_version": "v3",
+  "source_count": 11,
+  "source_items": [
+    {
+      "id": 1,
+      "category": "PROHIBITION",
+      "sublabel": "overview_context",
+      "text": "Modules may also overlap in time (e.g., the client can be completing homework assignments from one module while you initiate another module in the following session), but you should not be working on more than two modules simultaneously. 1 The number of sessions is guided by whether the client achieves the goals identified in the Treatment Plan, again paralleling normal clinical practice."
+    },
+    {
+      "id": 4,
+      "category": "OBLIGATION",
+      "sublabel": "overview_context",
+      "text": "Although the formal language of conditioning is not always used in practice, this analytic approach is implicit in language often used in treatment."
+    },
+    {
+      "id": 10,
+      "category": "GUIDANCE",
+      "sublabel": "overview_context",
+      "text": "A client does not need an SSO to be able to participate in treatment, but you should make every effort to identify, include, and involve an SSO, unless such involvement appears to be detrimental to the client’s treatment."
+    },
+    {
+      "id": 16,
+      "category": "MISC",
+      "sublabel": "overview_context",
+      "text": "You can schedule the first CBI visit immediately after the first MM visit if the client is willing to remain for 2 hours. (In cases where the client does not receive medication as part of his/her COMBINE treatment, CBI may begin any time after completion of baseline assessment and randomization.) 2."
+    },
+    {
+      "id": 47,
+      "category": "PROHIBITION",
+      "sublabel": "",
+      "text": "Avoid jargon here, and use the client’s own language."
+    },
+    {
+      "id": 70,
+      "category": "ACTION",
+      "sublabel": "",
+      "text": "Motivational interviewing is a client-centered yet directive style of counseling designed to do just that—to help the client resolve ambivalence about a problem behavior and initiate change (Rollnick and Miller 1995)."
+    },
+    {
+      "id": 95,
+      "category": "GUIDANCE",
+      "sublabel": "",
+      "text": "Remember to use a motivational interviewing style when exploring SSO involvement."
+    },
+    {
+      "id": 103,
+      "category": "GUIDANCE",
+      "sublabel": "",
+      "text": "Each of these questions tends to elicit self-motivational statements to which you should respond with reflective listening and summarizing."
+    },
+    {
+      "id": 198,
+      "category": "OBLIGATION",
+      "sublabel": "ch4_intro",
+      "text": "It is also possible that you will not need to use any of these procedures."
+    },
+    {
+      "id": 205,
+      "category": "OBLIGATION",
+      "sublabel": "homework_followup",
+      "text": "Always troubleshoot an assignment."
+    },
+    {
+      "id": 466,
+      "category": "GUIDANCE",
+      "sublabel": "",
+      "text": "Remember to provide information and advice within the larger clinical style of motivational interviewing."
+    }
+  ]
+}

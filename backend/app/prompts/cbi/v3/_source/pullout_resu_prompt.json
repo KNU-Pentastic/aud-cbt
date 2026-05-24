@@ -1,0 +1,115 @@
+{
+  "routing_target": "pullout_resu_prompt",
+  "catalog_version": "v3",
+  "source_count": 18,
+  "source_items": [
+    {
+      "id": 188,
+      "category": "PROHIBITION",
+      "sublabel": "RESU",
+      "text": "Avoid the situation in which you argue for resumed abstinence and your client argues against it. • Review the client’s originally stated reasons 99 for making a commitment to abstinence and for initially quitting."
+    },
+    {
+      "id": 189,
+      "category": "PROHIBITION",
+      "sublabel": "RESU",
+      "text": "If so, did the client attempt any coping strategies to avoid drinking in the situation?"
+    },
+    {
+      "id": 190,
+      "category": "PROHIBITION",
+      "sublabel": "RESU",
+      "text": "Instead of thinking adaptively, “I just didn’t handle the situation well—next time, I’ll stay away from those friends,” a client may reexamine his/her commitment to sobriety (“I guess I don’t really want to change or I wouldn’t be drinking”), identity as a sober person (“I guess I’ll always be a drunk”), or ability to change drinking (“What’s the point of trying to stay sober—once again it’s clear that I have no control over my drinking and never will”)."
+    },
+    {
+      "id": 191,
+      "category": "PROHIBITION",
+      "sublabel": "RESU",
+      "text": "I never really told any of them directly that I quit."
+    },
+    {
+      "id": 192,
+      "category": "PROHIBITION",
+      "sublabel": "RESU",
+      "text": "Think through what happened, and figure out how to avoid such situations and/or be better prepared for them. 3."
+    },
+    {
+      "id": 193,
+      "category": "PROHIBITION",
+      "sublabel": "RESU",
+      "text": "Do not give it to clients who are abstaining successfully."
+    },
+    {
+      "id": 223,
+      "category": "ACTION",
+      "sublabel": "RESU",
+      "text": "The goals of this procedure are to help your client do the following: • Explore the competing motivations of continuing drinking and resuming abstinence. • Identify specific triggers for drinking and determine whether abstinence can be aided by learning new coping skills. • Explore the client’s cognitive-affective reactions to resumed drinking. • Develop a plan (as appropriate) to resume abstinence."
+    },
+    {
+      "id": 224,
+      "category": "ACTION",
+      "sublabel": "RESU",
+      "text": "Help your client understand which elements of a specific situation might have triggered drinking."
+    },
+    {
+      "id": 225,
+      "category": "ACTION",
+      "sublabel": "RESU",
+      "text": "If your client’s problem seems to be a secondary cognitive-emotional reaction to abstinence violation, however, help your client reframe what happened."
+    },
+    {
+      "id": 237,
+      "category": "GUIDANCE",
+      "sublabel": "RESU",
+      "text": "Remember to use open questions and reflective listening so that it is the client who voices adverse effects. • Ask your client to review possible shortterm and long-term benefits of resuming abstinence (e.g., improved health, relationships, emotions, school or job performance)."
+    },
+    {
+      "id": 240,
+      "category": "GUIDANCE",
+      "sublabel": "RESU",
+      "text": "I remember that those were two of the things you hoped for when you stopped drinking before."
+    },
+    {
+      "id": 241,
+      "category": "GUIDANCE",
+      "sublabel": "RESU",
+      "text": "Remember that factors which contributed to the client’s resumption of drinking may differ from those that you uncovered in your initial functional analysis (section 3.2), and also that people continue drinking as a result of different contingencies than those that prompted their initial (resumed) use."
+    },
+    {
+      "id": 251,
+      "category": "MISC",
+      "sublabel": "RESU",
+      "text": "As you explore the client’s answers to these questions, you will see where additional attention is needed to prevent future episodes."
+    },
+    {
+      "id": 252,
+      "category": "MISC",
+      "sublabel": "RESU",
+      "text": "Now there was something you said that made me think that you can have a good time without drinking."
+    },
+    {
+      "id": 253,
+      "category": "MISC",
+      "sublabel": "RESU",
+      "text": "I wonder if you would be willing for us to talk some more about how to enjoy yourself with people without drinking, and also to work on how you can deal with strong feelings such as anger without drinking."
+    },
+    {
+      "id": 254,
+      "category": "MISC",
+      "sublabel": "RESU",
+      "text": "Are you thinking that because you’ve had a few days of drinking this week, you can’t stop again?"
+    },
+    {
+      "id": 255,
+      "category": "MISC",
+      "sublabel": "RESU",
+      "text": "From my perspective, you had difficulty handling a particular kind of situation, but there’s plenty of evidence from other situations that you can do something—such as stay sober—if you put your mind to it."
+    },
+    {
+      "id": 503,
+      "category": "PROHIBITION",
+      "sublabel": "RESU",
+      "text": "Do not use “relapse” language."
+    }
+  ]
+}
