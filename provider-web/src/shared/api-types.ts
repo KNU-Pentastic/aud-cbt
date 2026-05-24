@@ -136,7 +136,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 의료진 로그인 (이메일·비밀번호·TOTP) */
+        /** 의료진 로그인 (이메일·비밀번호) */
         post: {
             parameters: {
                 query?: never;
@@ -150,8 +150,6 @@ export interface paths {
                         /** Format: email */
                         email: string;
                         password: string;
-                        /** @description Google Authenticator 등 표준 TOTP 앱 6자리 코드 */
-                        totp: string;
                     };
                 };
             };
@@ -165,7 +163,7 @@ export interface paths {
                         "application/json": components["schemas"]["AuthTokenResponse"];
                     };
                 };
-                /** @description 자격 증명 또는 TOTP 불일치 */
+                /** @description 자격 증명 불일치 */
                 401: {
                     headers: {
                         [name: string]: unknown;

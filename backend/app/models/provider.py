@@ -12,7 +12,6 @@ class Provider(Base):
     provider_id: Mapped[str] = mapped_column(String(40), primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
-    totp_secret: Mapped[str] = mapped_column(String(64))
 
     name: Mapped[str] = mapped_column(String(120))
     affiliation: Mapped[str] = mapped_column(String(255), default="")

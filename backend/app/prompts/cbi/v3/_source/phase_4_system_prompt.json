@@ -1,0 +1,103 @@
+{
+  "routing_target": "phase_4_system_prompt",
+  "catalog_version": "v3",
+  "source_count": 16,
+  "source_items": [
+    {
+      "id": 502,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_4",
+      "text": "If Phase 3 treatment has extended to within the 2-week deadline, do not initiate Phase 4."
+    },
+    {
+      "id": 504,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_4",
+      "text": "What aspects of “how it was” does your client particularly want to avoid? 3."
+    },
+    {
+      "id": 505,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_4",
+      "text": "Avoid communicating to your client that “you won’t make it without my additional help.” Rather, offer additional sessions or modules and discuss whether the client might find these helpful."
+    },
+    {
+      "id": 506,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_4",
+      "text": "Use key questions to renew commitment (e.g., “So what does this mean for the future?” “I wonder what you will need to do differently next time.”)."
+    },
+    {
+      "id": 507,
+      "category": "ACTION",
+      "sublabel": "PHASE_4",
+      "text": "If your client declines, explain that you will be able to see him/her for further sessions up until the 16-week anniversary date, after which treatment is over."
+    },
+    {
+      "id": 508,
+      "category": "ACTION",
+      "sublabel": "PHASE_4",
+      "text": "Invite your client to call you back if he/she feels that a session might be useful."
+    },
+    {
+      "id": 509,
+      "category": "ACTION",
+      "sublabel": "PHASE_4",
+      "text": "Encourage the client for all small steps, little successes, even minor progress. 3."
+    },
+    {
+      "id": 510,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_4",
+      "text": "Remember to remain empathic, avoiding any judgmental tone or stance."
+    },
+    {
+      "id": 511,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_4",
+      "text": "Remember that motivational problems can be a lack of confidence as well as a lack of perceived importance or readiness."
+    },
+    {
+      "id": 512,
+      "category": "MISC",
+      "sublabel": "PHASE_4",
+      "text": "You can continue weekly sessions throughout the 16week treatment period if needed. 209"
+    },
+    {
+      "id": 513,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_4",
+      "text": "Preparing Your Client Never surprise your client by saying, “This is our last session.” From the beginning, you should make it clear that treatment ends within the 16 weeks, and it is wise to remind clients from time to time of the approximate ending date you are working toward."
+    },
+    {
+      "id": 514,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_4",
+      "text": "This should not be “canned,” but genuine and individualized to this client. 2."
+    },
+    {
+      "id": 515,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_4",
+      "text": "If you have been in Phase 4 and meeting less frequently, be sure to schedule in advance the termination session for the appropriate time period."
+    },
+    {
+      "id": 516,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_4",
+      "text": "Essential Elements of the Termination Session Make sure you follow the 10 steps outlined below: 1."
+    },
+    {
+      "id": 517,
+      "category": "ACTION",
+      "sublabel": "PHASE_4",
+      "text": "Ask your client what important changes he/she has made during treatment."
+    },
+    {
+      "id": 518,
+      "category": "ACTION",
+      "sublabel": "PHASE_4",
+      "text": "Ask your client to reflect on what is likely to happen in the months ahead."
+    }
+  ]
+}

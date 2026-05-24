@@ -4,7 +4,7 @@ Usage (from backend/ with .env loaded):
     python -m scripts.seed_demo
 
 Prints:
-    - Provider email/password/TOTP secret (with otpauth:// URI)
+    - Provider email/password
     - Patient ID and a fresh registration code (with PIN you choose)
 """
 
@@ -12,8 +12,6 @@ from __future__ import annotations
 
 import sys
 from datetime import date, datetime, timedelta, timezone
-
-import pyotp
 
 from app.config import settings
 from app.database import SessionLocal
@@ -46,12 +44,10 @@ def main() -> None:
             print("  → re-run after dropping the table if you want a fresh seed.")
             return
 
-        totp_secret = pyotp.random_base32()
         provider = Provider(
             provider_id=new_provider_id(),
             email=DEMO_PROVIDER_EMAIL,
             password_hash=hash_secret(DEMO_PROVIDER_PASSWORD),
-            totp_secret=totp_secret,
             name="데모 주치의",
             affiliation="강원대학교병원 정신건강의학과",
         )
@@ -101,19 +97,12 @@ def main() -> None:
         db.add(rc)
         db.commit()
 
-        otp_uri = pyotp.TOTP(totp_secret).provisioning_uri(
-            name=DEMO_PROVIDER_EMAIL, issuer_name="AUD-CBT"
-        )
-
         print("=" * 60)
         print("DEMO SEED COMPLETE")
         print("=" * 60)
         print(f"Provider ID  : {provider.provider_id}")
         print(f"Email        : {DEMO_PROVIDER_EMAIL}")
         print(f"Password     : {DEMO_PROVIDER_PASSWORD}")
-        print(f"TOTP secret  : {totp_secret}")
-        print(f"TOTP URI     : {otp_uri}")
-        print(f"  (load this URI into Google Authenticator / 1Password)")
         print()
         print(f"Patient ID   : {pid}")
         print(f"Reg code     : {code}   (use to call POST /v1/auth/patient/register)")

@@ -31,14 +31,14 @@ export default function LoginPage() {
           <ul className="mt-7 grid gap-3 text-sm">
             <Feat>📊 30일 추이와 안전 이벤트를 한 화면에</Feat>
             <Feat>⚡ D0 등록 → 8자리 코드 즉시 발급</Feat>
-            <Feat>🔒 TOTP 2단계 인증으로 안전하게</Feat>
+            <Feat>🔒 안전한 의료진 전용 로그인</Feat>
           </ul>
         </section>
         <Card className="ring-glow rounded-3xl border-0">
           <CardHeader>
             <CardTitle className="text-2xl">의료진 로그인</CardTitle>
             <CardDescription>
-              이메일·비밀번호·TOTP 3단계 인증이 필요합니다.
+              이메일과 비밀번호를 입력해 주세요.
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -1,0 +1,61 @@
+{
+  "routing_target": "phase_3_ssso_system_prompt",
+  "catalog_version": "v3",
+  "source_count": 9,
+  "source_items": [
+    {
+      "id": 358,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_SSSO",
+      "text": "These clients may experience difficulties attending mutualhelp meetings because they may find the level of interaction to be too stressful, so they avoid them."
+    },
+    {
+      "id": 359,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_SSSO",
+      "text": "This can be useful even if in real life there are reasons he/she cannot express it (e.g., the client is too afraid to say it)."
+    },
+    {
+      "id": 442,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_SSSO",
+      "text": "Encourage your client to sample mutual-support groups (even within a single program such as AA), looking for a good fit, because involvement in such groups is particularly helpful to people with high network support for drinking."
+    },
+    {
+      "id": 443,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_SSSO",
+      "text": "A principal goal here is to help your client articulate what he/she needs from others in the way of social support for sobriety."
+    },
+    {
+      "id": 444,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_SSSO",
+      "text": "Ask questions to help the client process the material in this handout."
+    },
+    {
+      "id": 445,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_SSSO",
+      "text": "Encourage your client to rehearse aloud what support he/she would want from others."
+    },
+    {
+      "id": 446,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_SSSO",
+      "text": "It is an important goal to try to help the client start new relationships with healthier people, but this can take a while."
+    },
+    {
+      "id": 467,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_3_SSSO",
+      "text": "Also, you may want to keep in mind the following points as you work with your client: • The letter is designed for the client to hand to important people in his/her life who want to help the client recover (e.g., friends, spouse or significant other, AA sponsor). • It is up to the client to decide whether and to whom to give the letter."
+    },
+    {
+      "id": 501,
+      "category": "MISC",
+      "sublabel": "PHASE_3_SSSO",
+      "text": "You can connect a client who is isolated and depressed through case-management activities such as arranging a 12-step contact or putting the client in touch with groups and activities that will bring him/her into contact with others (see module 5.8, “Social and Recreational Counseling”)."
+    }
+  ]
+}

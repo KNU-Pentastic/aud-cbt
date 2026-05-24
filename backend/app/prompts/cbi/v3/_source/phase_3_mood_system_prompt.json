@@ -1,0 +1,223 @@
+{
+  "routing_target": "phase_3_mood_system_prompt",
+  "catalog_version": "v3",
+  "source_count": 36,
+  "source_items": [
+    {
+      "id": 328,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "Negative moods do not occur or continue in a vacuum."
+    },
+    {
+      "id": 329,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "Do not present this level of detail to your client."
+    },
+    {
+      "id": 332,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "In a transforming vision, he gets his wish, seeing life in his town as it would have been had he never existed."
+    },
+    {
+      "id": 333,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "As a general rule, people do not expect things to change when they attribute a situation to a stable cause but do expect change when they attribute a situation to an unstable cause."
+    },
+    {
+      "id": 334,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "Feelings of fatigue may contribute to the urge to avoid and withdraw."
+    },
+    {
+      "id": 335,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "If a person, once thrown from a horse, continues to avoid horses, he/she will become even more afraid of them."
+    },
+    {
+      "id": 336,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "This pattern, as with avoidance, is often exacerbated by substance use."
+    },
+    {
+      "id": 337,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "Do not recite this list to your client; it is provided here to help you think clearly about what systematic, automatic distortions may be occurring in your client’s thought processes."
+    },
+    {
+      "id": 338,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "The point is, do not say, “You’re wrong,” but show how different ways of thinking about situations actually lead to different realities (O, R, and C)."
+    },
+    {
+      "id": 340,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "If the problem is who you are—if this is something hopeless that can never change, then of course you feel demoralized."
+    },
+    {
+      "id": 342,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "Are you 100-percent sure that things will never get better?"
+    },
+    {
+      "id": 343,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "Here—let’s take a look at that thought about things never getting any better."
+    },
+    {
+      "id": 395,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "For example, when a person says, “I felt that . . .” it is almost always a thought rather than an emotion (for example, “I felt that I was being treated unfairly”)."
+    },
+    {
+      "id": 396,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "Make sure this is agreeable and that the client understands what you are asking him/her to do."
+    },
+    {
+      "id": 397,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "Explain that no matter the situation, he/she always has the freedom to choose how to think about and understand the situation."
+    },
+    {
+      "id": 398,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "It is fine to suggest different possible interpretations if your client gets stuck, but always first invite him/her to suggest different ways of looking at situations and feelings."
+    },
+    {
+      "id": 399,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "I’m always going to be this way."
+    },
+    {
+      "id": 400,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "As always in CBI, it is best to elicit the client’s own ideas."
+    },
+    {
+      "id": 429,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "You will teach your client a model of emotion to help him/her understand negative moods. 2."
+    },
+    {
+      "id": 430,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "You will help your client identify automatic thoughts that lead to negative emotions."
+    },
+    {
+      "id": 431,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "Explore automatic, maladaptive behaviors and help your client plan cognitive and behavior change."
+    },
+    {
+      "id": 432,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "Next, ask the client to describe the situation to you, and then have the client make a brief note in the “Situation” box (S) to indicate the external circumstances."
+    },
+    {
+      "id": 433,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "Ask your client for examples to determine the extent to which he/she grasps the idea."
+    },
+    {
+      "id": 434,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "Instead, invite your client to consider how else it would be possible to view or interpret the same situation."
+    },
+    {
+      "id": 435,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "Instead, invite the client to consider with you, as a mental experiment, what else he/she could have done and what different consequences might have followed."
+    },
+    {
+      "id": 462,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "It is important to make the STORC model directly relevant and applicable to your client’s life by using real-life examples and assignments."
+    },
+    {
+      "id": 463,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "It is important to explain that the situation is only one part of how moods occur."
+    },
+    {
+      "id": 464,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "It is important for the person to learn a new coping style, a new way of responding that promotes healthier moods and adjustment."
+    },
+    {
+      "id": 465,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "And then in the “C” box, make a note that Toni yelled at you and ran out of the house."
+    },
+    {
+      "id": 488,
+      "category": "MISC",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "Your client will monitor his/her subjective mood states, and together you will use this self-monitoring information to assess and address cognitive themes. 3."
+    },
+    {
+      "id": 489,
+      "category": "MISC",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "In essence, you will be teaching your client how to have greater self-control over the frequency and intensity of his/her negative moods by restructuring automatic thoughts and changing maladaptive behaviors."
+    },
+    {
+      "id": 490,
+      "category": "MISC",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "You can, to a large extent, decide how you feel about something."
+    },
+    {
+      "id": 491,
+      "category": "MISC",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "It’s a rating scale from minus 10, which is feeling about as bad as you can feel, to plus 10, which is feeling on top of the world, about as good as you can feel."
+    },
+    {
+      "id": 492,
+      "category": "MISC",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "If time permits, you can continue with the next section or postpone this until your client returns with completed Mood Self-Monitoring forms."
+    },
+    {
+      "id": 494,
+      "category": "MISC",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "What we’re going to focus on today is how your thoughts affect your moods and what you can do about that."
+    },
+    {
+      "id": 498,
+      "category": "MISC",
+      "sublabel": "PHASE_3_MOOD",
+      "text": "You can analyze urges with the same STORC model, and positive changes may occur at any link in the chain."
+    }
+  ]
+}

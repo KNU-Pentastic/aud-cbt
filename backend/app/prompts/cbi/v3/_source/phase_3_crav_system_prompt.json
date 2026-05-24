@@ -1,0 +1,139 @@
+{
+  "routing_target": "phase_3_crav_system_prompt",
+  "catalog_version": "v3",
+  "source_count": 22,
+  "source_items": [
+    {
+      "id": 273,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "These experiences may be uncomfortable, but they are very common and do not mean something is wrong."
+    },
+    {
+      "id": 274,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "Ask your client to describe a few recent situations in which he/she experienced craving or an urge to drink. (Note: Some clients do not identify with the term “craving” but will talk about weaker and stronger urges to drink."
+    },
+    {
+      "id": 275,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "These can be puzzling to the person feeling them because they do not seem to occur in predictable situations but “just pop up.” Below are two examples of internal triggers: • Particular types of emotions (e.g., frustration, fatigue, feeling stressed out)."
+    },
+    {
+      "id": 277,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "Still—better late than never. 3."
+    },
+    {
+      "id": 278,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "Never get in a power struggle over this; just understand the client’s perspective and see whether he/she is willing to try at least 1 more week of recording. 145 Sample Completed Urge Monitoring Card Date/Time Situation 0–100 How I Responded 5/16 3:30 pm Feeling stressed out."
+    },
+    {
+      "id": 279,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "The four basic strategies for coping with external triggers are: Avoid, Escape, Distract, or Endure, described in detail below."
+    },
+    {
+      "id": 280,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "Perhaps the easiest way to deal with high-risk situations is to avoid them in the first place."
+    },
+    {
+      "id": 281,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "Below is a list of common examples: • Get rid of alcohol at home. • Avoid parties or bars where drinking occurs. • Reduce contact with friends who drink, meeting them only in nondrinking contexts."
+    },
+    {
+      "id": 282,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "It is noteworthy that people who successfully quit drinking, smoking, or using other drugs typically avoid such situations altogether, particularly early in the quitting process."
+    },
+    {
+      "id": 283,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "Of course it is not possible to avoid all high-risk situations."
+    },
+    {
+      "id": 284,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "What happens, then, when the client finds him/herself in a high-risk situation—either because he/she did not anticipate it or because he/she was unable to avoid it?"
+    },
+    {
+      "id": 285,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "One alternative to drinking—either to avoid or to escape—is to go to a mutual-help group meeting."
+    },
+    {
+      "id": 286,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "If your client can’t avoid or physically escape from a situation, he/she should find an enjoyable distracting activity such as reading, making something, going to a movie, exercising (e.g., walking, running, biking), or calling someone."
+    },
+    {
+      "id": 287,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "Then there are those situations that are difficult to avoid or escape and where distraction isn’t enough."
+    },
+    {
+      "id": 288,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "Trying to avoid one’s internal world can be futile."
+    },
+    {
+      "id": 411,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "Because it is hard to recognize some triggers by discussing them during a session, it is a good idea to help the client self-monitor urges."
+    },
+    {
+      "id": 412,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "Better still, ask your client how keeping these records for a while might be beneficial, eliciting selfmotivational statements."
+    },
+    {
+      "id": 413,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "After reviewing the general strategies that he/she can use, ask your client to select two or three that seem to fit best, that seem most realistic to use in his/her daily life, and develop these in detail."
+    },
+    {
+      "id": 476,
+      "category": "MISC",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "You can “surf” over them. (For skiers, the image of skiing over or around moguls without falling might be better.) 5."
+    },
+    {
+      "id": 477,
+      "category": "MISC",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "You are not helpless in the face of craving or urges to drink: there is something you can do about them."
+    },
+    {
+      "id": 478,
+      "category": "MISC",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "The point of this step is to identify urge triggers so that you can plan coping strategies for them."
+    },
+    {
+      "id": 479,
+      "category": "MISC",
+      "sublabel": "PHASE_3_CRAV",
+      "text": "Set a time limit on the monitoring (usually 2 to 3 weeks), at the end of which you will reevaluate together what you and the client have learned and whether it is useful to continue."
+    }
+  ]
+}

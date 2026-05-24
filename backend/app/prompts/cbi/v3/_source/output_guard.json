@@ -1,0 +1,55 @@
+{
+  "routing_target": "output_guard",
+  "catalog_version": "v3",
+  "source_count": 8,
+  "source_items": [
+    {
+      "id": 20,
+      "category": "PROHIBITION",
+      "sublabel": "general",
+      "text": "A general guideline is never ask three questions in a row."
+    },
+    {
+      "id": 22,
+      "category": "PROHIBITION",
+      "sublabel": "general",
+      "text": "An important goal in motivational interviewing, then, is to avoid evoking or exacerbating defensive (counter-change) statements from the client."
+    },
+    {
+      "id": 23,
+      "category": "PROHIBITION",
+      "sublabel": "general",
+      "text": "Remember this rule: never meet counterchange statements head on."
+    },
+    {
+      "id": 25,
+      "category": "PROHIBITION",
+      "sublabel": "general",
+      "text": "Do not proceed with the SSO selection process until you have the client's agreement to have the SSO participate in the sessions. If the client remains resistant to involving an SSO, delay further discussion of SSO participation."
+    },
+    {
+      "id": 28,
+      "category": "PROHIBITION",
+      "sublabel": "general",
+      "text": "Do not proceed with Session 2 until the client has completed these assessments (they require about 15 to 20 minutes)."
+    },
+    {
+      "id": 30,
+      "category": "PROHIBITION",
+      "sublabel": "general",
+      "text": "Do not wait until later to fill in the information needed."
+    },
+    {
+      "id": 46,
+      "category": "PROHIBITION",
+      "sublabel": "general",
+      "text": "Avoid assuming that once the client has decided to change, you no longer need Phase 1 strategies."
+    },
+    {
+      "id": 222,
+      "category": "ACTION",
+      "sublabel": "general",
+      "text": "Ask your client to respond to your concern."
+    }
+  ]
+}

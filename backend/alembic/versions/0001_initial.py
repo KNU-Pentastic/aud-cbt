@@ -20,7 +20,6 @@ def upgrade() -> None:
         sa.Column("provider_id", sa.String(40), primary_key=True),
         sa.Column("email", sa.String(255), nullable=False, unique=True),
         sa.Column("password_hash", sa.String(255), nullable=False),
-        sa.Column("totp_secret", sa.String(64), nullable=False),
         sa.Column("name", sa.String(120), nullable=False),
         sa.Column("affiliation", sa.String(255), nullable=False, server_default=""),
         sa.Column("notification_preferences", sa.JSON, nullable=False, server_default="{}"),

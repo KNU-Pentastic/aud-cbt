@@ -44,24 +44,6 @@ export function LoginForm() {
         )}
       </div>
 
-      <div className="grid gap-2">
-        <Label htmlFor="totp">TOTP 인증코드</Label>
-        <Input
-          id="totp"
-          name="totp"
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]{6}"
-          maxLength={6}
-          placeholder="6자리 숫자"
-          autoComplete="one-time-code"
-          required
-        />
-        {state?.errors?.totp && (
-          <p className="text-destructive text-sm">{state.errors.totp[0]}</p>
-        )}
-      </div>
-
       {state?.errors?.form && (
         <p className="text-destructive text-sm" role="alert">
           {state.errors.form[0]}
@@ -73,7 +55,7 @@ export function LoginForm() {
       </Button>
 
       <p className="text-muted-foreground text-xs">
-        데모 자격: provider@example.com / Demo!Pass1234 / 123456
+        데모 자격: demo.doctor@example.com / DemoPassword!2026
       </p>
     </form>
   )

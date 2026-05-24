@@ -1,0 +1,481 @@
+{
+  "routing_target": "phase_1_system_prompt",
+  "catalog_version": "v3",
+  "source_count": 79,
+  "source_items": [
+    {
+      "id": 17,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_1",
+      "text": "If handled poorly, ambivalence and discrepancy can resolve into defensive coping strategies that reduce the client’s discomfort but do not alter drinking and related risks."
+    },
+    {
+      "id": 18,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_1",
+      "text": "This should not be equated with the client accepting a diagnostic label."
+    },
+    {
+      "id": 19,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_1",
+      "text": "It is easy to fall into a question/answer pattern with clients, particularly in early sessions, but you should avoid this pattern for several reasons."
+    },
+    {
+      "id": 21,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "In sum, people with alcohol problems do not, in general, walk through the therapist’s door already possessing abnormally high levels of denial or other defensive styles."
+    },
+    {
+      "id": 26,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_1",
+      "text": "Maintains own sobriety: is recovering with no episodes of drinking in the last 6 months or has never experienced an alcohol use/abuse problem. below."
+    },
+    {
+      "id": 34,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_1",
+      "text": "You can work on two (but never more than two) modules at the same time during Phase 3."
+    },
+    {
+      "id": 35,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_1",
+      "text": "He loves his children and would never do anything to hurt them."
+    },
+    {
+      "id": 36,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_1",
+      "text": "He never drank when he would take them out for food, ball games, and swimming."
+    },
+    {
+      "id": 38,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_1",
+      "text": "The fact that I do not drink at these events probably helps a little bit."
+    },
+    {
+      "id": 40,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_1",
+      "text": "I do not think we should serve alcohol at the party."
+    },
+    {
+      "id": 44,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_1",
+      "text": "Do not shift into a marital/family therapy strategy, in which you focus on changing the relationship."
+    },
+    {
+      "id": 45,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_1",
+      "text": "Explain again the role that you want the SSO to play within sessions and what things you do not want him/her to do."
+    },
+    {
+      "id": 48,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_1",
+      "text": "He never knew what happened to me."
+    },
+    {
+      "id": 49,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_1",
+      "text": "The WAI should not be returned directly to you, and you should not be present when the client is completing it."
+    },
+    {
+      "id": 50,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_1",
+      "text": "What are other people worried about? (If an SSO is present, you can ask this to him/her directly.) • What makes you wonder if perhaps you need to make a change in your drinking? • What makes you believe that you could quit drinking if you decided to?"
+    },
+    {
+      "id": 52,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_1",
+      "text": "Because you need to accomplish a lot in this first session, it may last from 60 to 90 minutes."
+    },
+    {
+      "id": 53,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_1",
+      "text": "Tell me about that. •What is it about drinking that you really need to hang on to, that you can’t let go of?"
+    },
+    {
+      "id": 54,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_1",
+      "text": "If the patient declines again in Phase 2, you must query again in Phase 3 using the procedure outlined above. 2.6b.2."
+    },
+    {
+      "id": 55,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_1",
+      "text": "Explore all potential candidates with the client in case his/her first choice for SSO is unable or unavailable to participate so that you will not have to dedicate part of another session to this task."
+    },
+    {
+      "id": 58,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_1",
+      "text": "When the session has ended, make sure you have checked all of the boxes corresponding to procedures that you delivered."
+    },
+    {
+      "id": 59,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_1",
+      "text": "You may discuss issues that have to do with communication in relationships, but the primary purpose of treatment is to help the client get and stay sober. •Explain that the SSO’s role does not include any policing or enforcing but that the main focus is to be supportive of change. •Explain clearly that the SSO’s role is to provide support for sobriety during treatment, both inside and outside of sessions."
+    },
+    {
+      "id": 60,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_1",
+      "text": "I can see, though, that you have really been looking for what you can do to support him in not drinking— whether or not it was always the right thing to do. (Turning to client) Let me ask you this: Do you have any concerns or anticipate any problems in having Martha come to the sessions with you?"
+    },
+    {
+      "id": 61,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_1",
+      "text": "What do you need to do to help yourself to stay sober?"
+    },
+    {
+      "id": 65,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_1",
+      "text": "Before doing so, however, always complete the motivational assessment procedure, described in the following section."
+    },
+    {
+      "id": 66,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_1",
+      "text": "How ready do you think you are? (Circle the client’s rating.) At this point, you need to make an important clinical judgment call: Should you proceed directly to Phase 2 or continue to strengthen motivation for change?"
+    },
+    {
+      "id": 67,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_1",
+      "text": "If you need to do additional Phase 1 work to enhance motivation for change, ask the client (and SSO) to consider the pros and cons of change."
+    },
+    {
+      "id": 69,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_1",
+      "text": "As with any home task assignment, always follow up on the assigned task at the beginning of the next session."
+    },
+    {
+      "id": 71,
+      "category": "ACTION",
+      "sublabel": "PHASE_1",
+      "text": "You can reflect selectively, choosing to reinforce certain components of what the client has said while bypassing others. In this way, clients not only hear themselves saying a self-motivational statement but also hear you saying that they said it. Furthermore, this style of responding is likely to encourage the client to elaborate upon the reflected statement process, as shown in the example below."
+    },
+    {
+      "id": 72,
+      "category": "ACTION",
+      "sublabel": "PHASE_1",
+      "text": "You can use reframing to encourage both your client and his/her SSO to deal with the drinking behavior."
+    },
+    {
+      "id": 73,
+      "category": "ACTION",
+      "sublabel": "PHASE_1",
+      "text": "In the example below, the therapist gives a firstsession summary: THERAPIST: Let me try to pull together what you’ve said today, and you can tell me if I’ve missed anything important."
+    },
+    {
+      "id": 74,
+      "category": "ACTION",
+      "sublabel": "PHASE_1",
+      "text": "Encourage your client to generate ideas about how to overcome the practical limitations, and advise the client if you will be able to adjust your schedule to accommodate SSO participation (e.g., scheduling alternatives, having the SSO plan a special trip for a particular session)."
+    },
+    {
+      "id": 75,
+      "category": "ACTION",
+      "sublabel": "PHASE_1",
+      "text": "The client believes a potential SSO will be reluctant to participate To determine if the client’s negative feelings are really the concern, ask the client how he/she would feel about an SSO being there and what the client thinks the role of an SSO is."
+    },
+    {
+      "id": 76,
+      "category": "ACTION",
+      "sublabel": "PHASE_1",
+      "text": "Supports sobriety: • Will not drink in the company of the client • Will not suggest or invite the client to drink • Will not report on his/her own experiences related to drinking • Will encourage the client’s efforts to achieve stated drinking goals."
+    },
+    {
+      "id": 78,
+      "category": "ACTION",
+      "sublabel": "PHASE_1",
+      "text": "Ask the client about specific concerns he/she has about having someone attend the sessions."
+    },
+    {
+      "id": 79,
+      "category": "ACTION",
+      "sublabel": "PHASE_1",
+      "text": "Then keep trying periodically to encourage the client to involve an SSO in treatment."
+    },
+    {
+      "id": 81,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "Nevertheless it is good to remember that even in the action stage, clients still experience ambivalence about change, and motivational enhancement processes can be useful throughout therapy."
+    },
+    {
+      "id": 82,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "The therapist should employ reflective listening to the client in all sessions from Phase 1 through termination."
+    },
+    {
+      "id": 83,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "Note that it may be stated hypothetically, without an expressed desire or intent to change; examples are listed below: • I can do this."
+    },
+    {
+      "id": 84,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "Rather than telling the client how he/she should feel or what to do or think, ask the client about his/her own feelings, ideas, concerns, and plans."
+    },
+    {
+      "id": 85,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "Therefore, it is important to follow an open question not with another question but with sustained reflective listening."
+    },
+    {
+      "id": 86,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "It is important to note that selective reflection may backfire occasionally."
+    },
+    {
+      "id": 87,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "For a client who is ambivalent, reflecting only one side of the dilemma (“So you can see that drinking is causing you some problems”) may evoke the other side from the client (“Well, I don’t think I have a problem really”)—just the opposite of what should be happening."
+    },
+    {
+      "id": 88,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "As discussed above in section 2.3d (“Deflect Defensiveness”), it is important to be aware that the extent of such client behavior during treatment is powerfully affected by the therapist’s own style."
+    },
+    {
+      "id": 89,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "Remember that you want the client to make self-motivational statements (ready, willing, and able), and if you defend the need for change, you may evoke the opposite."
+    },
+    {
+      "id": 90,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "I’m not making decisions for you here, and I don’t think you should get stuck on that concern right now."
+    },
+    {
+      "id": 91,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "Remember that the general tone in reframing is to suggest a new way of thinking about what is happening."
+    },
+    {
+      "id": 92,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "And I remember that you were worried that you might be labeled as an alcoholic, and you don’t like that idea."
+    },
+    {
+      "id": 93,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "Remember to ask few questions, and rely primarily on reflective listening."
+    },
+    {
+      "id": 94,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "Keep in mind that your goal is to elicit self-motivational statements, which can then be reinforced by reflection, accumulated, and gathered together in summaries."
+    },
+    {
+      "id": 96,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "Let’s remember that these guidelines are just that, guidelines."
+    },
+    {
+      "id": 97,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "As you can see on the Supportive People sheet, the supportive person should support your sobriety and maintain his/her own sobriety and your goals for treatment."
+    },
+    {
+      "id": 98,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "Remember, you still have important people in your life; this particular person should be able to attend sessions, and you should be able to rate him or her pretty highly on these categories."
+    },
+    {
+      "id": 99,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "Also note that there is a procedure (handwritten note) to be completed after Session 1."
+    },
+    {
+      "id": 100,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "If you screen properly, you should be able to identify potential SSOs who would interact negatively with the client before you ask them to become involved in treatment."
+    },
+    {
+      "id": 101,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "For some, their willingness to decide to change depends in part upon trying out various strategies until they find something that is satisfactory and effective. 55 It is also important to remember that even when a client appears to have made a decision and is taking steps to change, he/she is still likely to feel ambivalent."
+    },
+    {
+      "id": 102,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "In any event, there comes a point in treatment when you should shift your emphasis away from motivation-enhancing (Phase 1) strategies toward negotiating a change plan and consolidating commitment to it."
+    },
+    {
+      "id": 104,
+      "category": "GUIDANCE",
+      "sublabel": "PHASE_1",
+      "text": "Question 1 is not viable for the rare client whose score is zero, in which case you should skip to Question 2.) 2."
+    },
+    {
+      "id": 106,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "Others will come less ready to change, and you will need more time to build their motivation in preparation for Phases 2 and 3."
+    },
+    {
+      "id": 107,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "It is the clinical style you will use throughout CBI."
+    },
+    {
+      "id": 108,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "You will seek to mobilize the client’s own inner resources as well as those inherent in the client’s natural helping relationships."
+    },
+    {
+      "id": 109,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "Head-on confrontation is rarely an effective sales technique (e.g., “Your children are educationally deprived, and you will be an irresponsible parent if you don’t buy this computer”)."
+    },
+    {
+      "id": 110,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "These are best joined in the middle by “and” rather than “but” to reinforce the simultaneous experience of both sides of the ambivalence, as shown in the following examples: •You don’t think that alcohol is harming you seriously now, and at the same time you are concerned that it might get out of hand for you later. •You really enjoy drinking and would hate to give it up, and you can also see that it is causing some serious difficulties for your family and your job."
+    },
+    {
+      "id": 112,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "For example, when a client is receiving feedback that confirms problematic drinking, you can recast a wife’s reaction of “I knew it” from “I’m right and I told you so” to “You’ve been so worried about him, and you care about him very much.” The therapist reframes what could be a negative interpretation to a more positive one."
+    },
+    {
+      "id": 113,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "You can reframe this (quite accurately) as a risk factor, the absence of a built-in warning system that tells the person when he/she has had enough."
+    },
+    {
+      "id": 114,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "By placing current problems in a more positive and optimistic frame, you can communicate that a problem is solvable and changeable (Bergaman 1985; Fisch et al. 1982)."
+    },
+    {
+      "id": 116,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "Along the way during a session, you can give shorter “progress” summaries."
+    },
+    {
+      "id": 117,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "From your review of the client’s assessment information, you will already have some sense of his/her situation, which may guide you in your choice of an opening question."
+    },
+    {
+      "id": 118,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "It’s really your choice”), and indicate that you will come back to the issue (i.e., SSO involvement) later on in treatment."
+    },
+    {
+      "id": 119,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "I hope that you will agree to come to at least one session to explore how you might support [client’s] efforts toward change."
+    },
+    {
+      "id": 120,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "Allow enough time to administer these at the end of the first session so that you can obtain a few additional scores you will need for feedback (PFR) in Session 2."
+    },
+    {
+      "id": 121,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "You can fill these out right here."
+    },
+    {
+      "id": 122,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "We have between 12 and 20 sessions to work together during the next 16 weeks, and you will have a lot to say about what we do here during that time."
+    },
+    {
+      "id": 123,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "You can respond to these with a reflection of the apparent feeling."
+    },
+    {
+      "id": 124,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "You can see, though, that in another way it has taken over your life to the point that it is compromising your health and your relationship."
+    },
+    {
+      "id": 125,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "Maybe you can start by saying something about the steps you have taken that have been helpful to him."
+    },
+    {
+      "id": 128,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "When you feel right about something, you can be really strong."
+    },
+    {
+      "id": 129,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "You can do this in a separate session or partial session with the SSO if necessary."
+    },
+    {
+      "id": 130,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "If after you have explored the client’s ratings with this procedure you believe that further Phase 1 work is needed, you can follow two other optional procedures: “Constructing a Decisional Balance” (section 2.8e) and “Reviewing Past Successes” (section 2.8f)."
+    },
+    {
+      "id": 131,
+      "category": "MISC",
+      "sublabel": "PHASE_1",
+      "text": "In one form, you can describe the generally positive outcomes for people who set out to change their drinking and related problems."
+    }
+  ]
+}

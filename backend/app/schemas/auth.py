@@ -3,7 +3,6 @@ from pydantic import BaseModel, EmailStr, Field
 
 REG_CODE = r"^[A-Z0-9]{8}$"
 PIN = r"^[0-9]{6}$"
-TOTP = r"^[0-9]{6}$"
 
 
 class PatientRegisterIn(BaseModel):
@@ -19,7 +18,6 @@ class PatientLoginIn(BaseModel):
 class ProviderLoginIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=12)
-    totp: str = Field(pattern=TOTP)
 
 
 class PinChangeIn(BaseModel):

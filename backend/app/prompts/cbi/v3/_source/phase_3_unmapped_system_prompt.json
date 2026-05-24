@@ -1,0 +1,91 @@
+{
+  "routing_target": "phase_3_unmapped_system_prompt",
+  "catalog_version": "v3",
+  "source_count": 14,
+  "source_items": [
+    {
+      "id": 261,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_UNMAPPED",
+      "text": "Remember that it is fine to be working on two modules at the same time, although you should not discuss more than two modules in any single treatment session."
+    },
+    {
+      "id": 270,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_UNMAPPED",
+      "text": "Nevertheless, it’s worth demonstrating."
+    },
+    {
+      "id": 308,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_UNMAPPED",
+      "text": "I’ve never been in this situation before."
+    },
+    {
+      "id": 318,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_UNMAPPED",
+      "text": "I think I’ll avoid the poker game this month."
+    },
+    {
+      "id": 321,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_UNMAPPED",
+      "text": "Now, what might you say to him to avoid drinking?"
+    },
+    {
+      "id": 330,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_UNMAPPED",
+      "text": "We ask them to keep it down, but they never listen."
+    },
+    {
+      "id": 339,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_UNMAPPED",
+      "text": "It will never get better.” Does that sound right?"
+    },
+    {
+      "id": 354,
+      "category": "PROHIBITION",
+      "sublabel": "PHASE_3_UNMAPPED",
+      "text": "I never drink when I go to church with him."
+    },
+    {
+      "id": 362,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_UNMAPPED",
+      "text": "That always makes me a little embarrassed."
+    },
+    {
+      "id": 365,
+      "category": "OBLIGATION",
+      "sublabel": "PHASE_3_UNMAPPED",
+      "text": "You don’t always pick up your own stuff."
+    },
+    {
+      "id": 409,
+      "category": "ACTION",
+      "sublabel": "PHASE_3_UNMAPPED",
+      "text": "I’ll do it first, and you can tell me how I did."
+    },
+    {
+      "id": 468,
+      "category": "MISC",
+      "sublabel": "PHASE_3_UNMAPPED",
+      "text": "As treatment proceeds, you and your client may discover the need for an additional module that you had not planned for at the outset of Phase 3, and you can renegotiate your treatment plan to include it."
+    },
+    {
+      "id": 487,
+      "category": "MISC",
+      "sublabel": "PHASE_3_UNMAPPED",
+      "text": "Does that sound like something you can do?"
+    },
+    {
+      "id": 497,
+      "category": "MISC",
+      "sublabel": "PHASE_3_UNMAPPED",
+      "text": "You can also meet them at a ton of other places."
+    }
+  ]
+}
