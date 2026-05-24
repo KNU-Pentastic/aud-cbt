@@ -114,9 +114,9 @@ backend/
 │   ├── services/             ← LLM·안전·세션 로직 (절대 수정 X)
 │   └── routers/              ← ★ 본인이 작업하는 곳
 │       ├── patient_checkin.py   ← 모범 라우터 (읽고 따라하기)
-│       ├── patient_home.py      ← 본인 작업
-│       ├── patient_progress.py  ← 본인 작업
-│       ├── patient_safety.py    ← 본인 작업
+│       ├── patient_home.py      ← 본인 작업 o
+│       ├── patient_progress.py  ← 본인 작업 o
+│       ├── patient_safety.py    ← 본인 작업 
 │       ├── patient_settings.py  ← 본인 작업
 │       ├── provider_profile.py  ← 본인 작업 (완성됨)
 │       ├── provider_d2_list.py  ← 본인 작업 (완성됨)
