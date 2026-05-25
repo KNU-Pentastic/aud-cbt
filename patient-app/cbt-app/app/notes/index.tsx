@@ -85,7 +85,7 @@ export default function NotesListScreen() {
         <SectionList
           sections={sections}
           keyExtractor={(item) => item.date}
-          stickySectionHeaders={false}
+          stickySectionHeadersEnabled={false}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 40 }}
           renderSectionHeader={({ section }) => (

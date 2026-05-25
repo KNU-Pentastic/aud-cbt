@@ -68,6 +68,11 @@ def start_session(db: Session, patient: Patient) -> Conversation:
         phase=patient.current_phase,
         status="in_progress",
     )
+    # conversations.session_id FK가 sessions를 참조하므로, sessions 행을 먼저
+    # flush해 같은 트랜잭션 안에 만들어둔 뒤 conversation을 추가한다.
+    # (둘 사이에 ORM relationship이 없어 add_all 순서로는 INSERT 순서가 보장되지 않음)
+    db.add(sess)
+    db.flush()
     conv = Conversation(
         conversation_id=new_conv_id(),
         patient_id=patient.patient_id,
@@ -76,7 +81,7 @@ def start_session(db: Session, patient: Patient) -> Conversation:
         week_number=patient.current_week,
         status="active",
     )
-    db.add_all([sess, conv])
+    db.add(conv)
     db.commit()
     db.refresh(conv)
     return conv

@@ -1,13 +1,12 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useTodayCheckin } from '@/store/useCheckinStore';
 import { colors, spacing, radius } from '@/constants/theme';
 
-export function TodayCheckinCard() {
+type Props = { completed: boolean };
+
+export function TodayCheckinCard({ completed }: Props) {
   const router = useRouter();
-  const todayCheckin = useTodayCheckin();
-  const isCompleted = todayCheckin !== null;
 
   return (
     <Pressable
@@ -15,23 +14,21 @@ export function TodayCheckinCard() {
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
     >
       <View
-        style={[styles.iconBox, isCompleted ? styles.iconBoxDone : styles.iconBoxTodo]}
+        style={[styles.iconBox, completed ? styles.iconBoxDone : styles.iconBoxTodo]}
       >
         <Ionicons
-          name={isCompleted ? 'checkmark-circle' : 'clipboard-outline'}
+          name={completed ? 'checkmark-circle' : 'clipboard-outline'}
           size={22}
-          color={isCompleted ? colors.sageDark : colors.coral}
+          color={completed ? colors.sageDark : colors.coral}
         />
       </View>
 
       <View style={styles.info}>
         <Text style={styles.label}>
-          {isCompleted ? '오늘의 체크인 완료' : '오늘의 체크인'}
+          {completed ? '오늘의 체크인 완료' : '오늘의 체크인'}
         </Text>
         <Text style={styles.subtitle}>
-          {isCompleted
-            ? `기분 ${todayCheckin!.mood} · 갈망 ${todayCheckin!.craving} · 수정 가능`
-            : '4개 항목 · 약 1분이면 끝나요'}
+          {completed ? '오늘 기록 완료 · 수정 가능' : '4개 항목 · 약 1분이면 끝나요'}
         </Text>
       </View>
 

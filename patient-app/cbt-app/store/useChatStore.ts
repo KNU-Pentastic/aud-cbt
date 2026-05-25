@@ -1,172 +1,288 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api, streamMessage, ApiError, type SseEvent } from '@/lib/api';
 
 export type Message = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   createdAt: string;
+  /** 스트리밍 중인 어시스턴트 메시지 여부 */
+  streaming?: boolean;
 };
 
+export type ConversationContext = 'session' | 'craving' | 'resu' | 'soma';
+
 export type ChatSession = {
-  id: string;
-  sessionNumber: number;
-  stage: 1 | 2 | 3 | 4 | 5;
+  id: string; // 백엔드 conversation_id
+  sessionNumber: number; // 백엔드 week_number (헤더 표시용)
+  context: ConversationContext;
   messages: Message[];
   isComplete: boolean;
-  startedAt: string;
 };
+
+// 백엔드 응답 타입 (openapi.yaml 기준)
+type ConversationOut = {
+  conversation_id: string;
+  context: ConversationContext;
+  session_id: string | null;
+  week_number: number | null;
+  started_at: string;
+};
+
+type CurrentSessionInfo = {
+  active_conversation_id: string | null;
+  current_week: number;
+  next_session_date: string | null;
+  llm_locked: boolean;
+};
+
+type MessageOut = {
+  message_id: string;
+  conversation_id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  created_at: string;
+};
+
+type Paginated<T> = { items: T[]; pagination: unknown };
+
+/** 새 대화 진입 시 보여주는 정적 환영 문구 (LLM 출력이 아닌 UI 안내). */
+const GREETING =
+  '안녕하세요. 오늘 대화에 함께해 주셔서 감사해요. 이 공간은 판단 없이 편하게 이야기 나눌 수 있는 곳이에요. 오늘 어떻게 지내셨나요?';
+
+function greetingMessage(): Message {
+  return {
+    id: 'greeting',
+    role: 'assistant',
+    content: GREETING,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+type StartKind = 'session' | 'craving';
 
 type ChatState = {
   sessions: Record<string, ChatSession>;
   currentSessionId: string | null;
   isTyping: boolean;
-  startNewSession: () => string;
+  llmLocked: boolean;
+  lockReason: string | null;
+  error: string | null;
+  /** 등급 A 감지 직후 화면이 P4로 이동하도록 신호 (이동 후 clearSafetyTrip 호출) */
+  safetyTripped: boolean;
+  cancelStream: (() => void) | null;
+
+  /** 앱 진입 시 활성 대화가 있으면 복원, 없으면 새 세션/갈망 대화 시작 */
+  startNewSession: (kind?: StartKind) => Promise<string | null>;
+  /** 대화의 기존 메시지를 불러와 세션 구성 (내부용) */
+  loadConversation: (
+    conversationId: string,
+    currentWeek: number,
+    context: ConversationContext
+  ) => Promise<void>;
   sendMessage: (sessionId: string, content: string) => void;
-  completeSession: (sessionId: string) => void;
+  completeSession: (sessionId: string) => Promise<void>;
+  clearSafetyTrip: () => void;
+  clearError: () => void;
 };
 
-const MOCK_RESPONSES: Record<1 | 2 | 3 | 4 | 5, string[]> = {
-  1: [
-    '음주를 하게 되는 상황이 있으신가요? 예를 들어 스트레스를 받을 때나 특별한 감정이 들 때요. 편하게 이야기해 주세요.',
-    '요즘 어떻게 지내고 계신가요? 술과 관련된 생각이나 감정이 떠오를 때가 있다면 어떤 순간인지 이야기해 주실 수 있을까요?',
-    '오늘 이 자리에 오신 것만으로도 정말 잘 하셨어요. 지금 이 순간 어떤 감정이 드시나요? 어떤 이야기라도 괜찮아요.',
-  ],
-  2: [
-    '그 감정이 처음 느껴졌던 게 언제부터인지 기억나세요? 그 당시 어떤 일이 있었는지 이야기해 주실 수 있나요?',
-    '그 상황에서 가장 강하게 느껴진 감정은 어떤 것이었나요? 그 감정이 몸에서는 어떻게 느껴졌는지도 궁금해요.',
-    '말씀해 주신 내용이 많이 힘드셨을 것 같아요. 그런 상황이 얼마나 자주 일어나는 편인가요?',
-  ],
-  3: [
-    '그 순간 머릿속에 어떤 생각이 스쳐 지나갔나요? 판단 없이 떠오르는 생각 그대로 말씀해 주셔도 괜찮아요.',
-    "지금 이야기를 나누면서 어떤 생각이 드세요? 혹시 '나는 ~해야 한다'거나 '나는 ~이다'라는 생각이 떠오르지는 않으셨나요?",
-    '그 생각이 얼마나 사실처럼 느껴지시나요? 0에서 10으로 표현한다면 몇 점쯤 될까요?',
-  ],
-  4: [
-    '다른 관점에서 그 상황을 바라본다면 어떻게 보일까요? 가장 친한 친구가 같은 상황이었다면 어떤 말을 해줄 것 같으세요?',
-    '지금 갖고 계신 생각 외에 다른 가능성은 없을까요? 잠깐 다른 시각으로 같이 생각해봐요.',
-    '그 생각이 도움이 된다고 느끼시나요, 아니면 오히려 힘들게 하는 것 같으신가요? 조금 더 편안한 생각으로 바꾼다면 어떤 것일까요?',
-  ],
-  5: [
-    '오늘 대화를 통해 어떤 점을 새롭게 알게 되셨나요? 오늘 하신 이야기 중 가장 기억에 남는 부분이 있으시면 나눠주세요.',
-    '오늘 대화를 한 문장으로 정리한다면 어떻게 표현하시겠어요? 작은 것이라도 오늘 스스로 잘 하셨다고 느끼는 부분이 있으신가요?',
-    '오늘 이렇게 솔직하게 이야기해 주셔서 감사해요. 오늘 나눈 이야기를 토대로, 내일 하루 작은 목표가 있다면 어떤 것일까요?',
-  ],
-};
+export const useChatStore = create<ChatState>((set, get) => ({
+  sessions: {},
+  currentSessionId: null,
+  isTyping: false,
+  llmLocked: false,
+  lockReason: null,
+  error: null,
+  safetyTripped: false,
+  cancelStream: null,
 
-const GREETING =
-  '안녕하세요. 오늘 대화에 함께해 주셔서 감사해요. 이 공간은 판단 없이 편하게 이야기 나눌 수 있는 곳이에요. 오늘 어떻게 지내셨나요?';
+  startNewSession: async (kind: StartKind = 'session') => {
+    set({ error: null });
+    try {
+      // 1) 현재 세션 상태 조회 — 활성 대화 / 잠금 여부 확인
+      const info = await api.get<CurrentSessionInfo>('/me/conversations/current-session');
+      if (info.llm_locked) {
+        set({ llmLocked: true, lockReason: 'safety_lock', safetyTripped: true });
+        return null;
+      }
 
-export const useChatStore = create<ChatState>()(
-  persist(
-    (set, get) => ({
-      sessions: {},
-      currentSessionId: null,
-      isTyping: false,
+      // 2) 갈망 대화: 활성 갈망이 있으면 재사용, 없으면 생성 (백엔드 /craving 정책)
+      if (kind === 'craving') {
+        const conv = await api.post<ConversationOut>('/me/conversations/craving');
+        await get().loadConversation(conv.conversation_id, info.current_week, 'craving');
+        return conv.conversation_id;
+      }
 
-      startNewSession: () => {
-        const id = Date.now().toString();
-        const sessionNumber = Object.keys(get().sessions).length + 1;
-
-        const greeting: Message = {
-          id: `${id}_greeting`,
-          role: 'assistant',
-          content: GREETING,
-          createdAt: new Date().toISOString(),
-        };
-
-        const session: ChatSession = {
-          id,
-          sessionNumber,
-          stage: 1,
-          messages: [greeting],
-          isComplete: false,
-          startedAt: new Date().toISOString(),
-        };
-
-        set((state) => ({
-          sessions: { ...state.sessions, [id]: session },
-          currentSessionId: id,
-        }));
-
+      // 3) 세션: 활성 대화가 있으면 그대로 이어가기 (백엔드는 세션 동시 1개)
+      if (info.active_conversation_id) {
+        const id = info.active_conversation_id;
+        await get().loadConversation(id, info.current_week, 'session');
         return id;
-      },
+      }
 
-      sendMessage: (sessionId, content) => {
-        const session = get().sessions[sessionId];
-        if (!session || session.isComplete) return;
-
-        const userMsg: Message = {
-          id: Date.now().toString(),
-          role: 'user',
-          content,
-          createdAt: new Date().toISOString(),
-        };
-
-        const userCount =
-          session.messages.filter((m) => m.role === 'user').length + 1;
-        const newStage = Math.min(
-          5,
-          Math.floor(userCount / 5) + 1
-        ) as 1 | 2 | 3 | 4 | 5;
-
-        set((state) => ({
-          isTyping: true,
-          sessions: {
-            ...state.sessions,
-            [sessionId]: {
-              ...session,
-              stage: newStage,
-              messages: [...session.messages, userMsg],
-            },
-          },
-        }));
-
-        setTimeout(() => {
-          const current = get().sessions[sessionId];
-          const pool = MOCK_RESPONSES[current.stage];
-          const reply = pool[Math.floor(Math.random() * pool.length)];
-
-          const aiMsg: Message = {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content: reply,
-            createdAt: new Date().toISOString(),
-          };
-
-          set((state) => ({
-            isTyping: false,
-            sessions: {
-              ...state.sessions,
-              [sessionId]: {
-                ...state.sessions[sessionId],
-                messages: [...state.sessions[sessionId].messages, aiMsg],
-              },
-            },
-          }));
-        }, 1500);
-      },
-
-      completeSession: (sessionId) => {
-        set((state) => ({
-          sessions: {
-            ...state.sessions,
-            [sessionId]: {
-              ...state.sessions[sessionId],
-              isComplete: true,
-            },
-          },
-        }));
-      },
-    }),
-    {
-      name: '@cbt_chat',
-      storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({
-        sessions: state.sessions,
-        currentSessionId: state.currentSessionId,
-      }),
+      // 4) 새 세션 생성
+      const conv = await api.post<ConversationOut>('/me/conversations/sessions');
+      const session: ChatSession = {
+        id: conv.conversation_id,
+        sessionNumber: conv.week_number ?? info.current_week,
+        context: conv.context,
+        messages: [greetingMessage()],
+        isComplete: false,
+      };
+      set((state) => ({
+        sessions: { ...state.sessions, [session.id]: session },
+        currentSessionId: session.id,
+      }));
+      return session.id;
+    } catch (e) {
+      set({ error: e instanceof ApiError ? e.message : '세션을 시작할 수 없어요.' });
+      return null;
     }
-  )
-);
+  },
+
+  // 대화의 기존 메시지를 불러와 세션을 구성 (내부용)
+  loadConversation: async (conversationId, currentWeek, context) => {
+    const res = await api.get<Paginated<MessageOut>>(
+      `/me/conversations/${conversationId}/messages?page=1&page_size=100`
+    );
+    const msgs: Message[] = res.items.map((m) => ({
+      id: m.message_id,
+      role: m.role,
+      content: m.text,
+      createdAt: m.created_at,
+    }));
+    const session: ChatSession = {
+      id: conversationId,
+      sessionNumber: currentWeek,
+      context,
+      messages: msgs.length > 0 ? msgs : [greetingMessage()],
+      isComplete: false,
+    };
+    set((state) => ({
+      sessions: { ...state.sessions, [conversationId]: session },
+      currentSessionId: conversationId,
+    }));
+  },
+
+  sendMessage: (sessionId, content) => {
+    const session = get().sessions[sessionId];
+    if (!session || session.isComplete || get().isTyping) return;
+
+    const userMsg: Message = {
+      id: `u_${Date.now()}`,
+      role: 'user',
+      content,
+      createdAt: new Date().toISOString(),
+    };
+
+    set((state) => ({
+      isTyping: true,
+      error: null,
+      sessions: {
+        ...state.sessions,
+        [sessionId]: { ...session, messages: [...session.messages, userMsg] },
+      },
+    }));
+
+    // 어시스턴트 메시지에 토큰을 누적하는 헬퍼
+    const upsertAssistant = (messageId: string, mutate: (m: Message) => Message) => {
+      set((state) => {
+        const s = state.sessions[sessionId];
+        if (!s) return state;
+        const exists = s.messages.some((m) => m.id === messageId);
+        const messages = exists
+          ? s.messages.map((m) => (m.id === messageId ? mutate(m) : m))
+          : [
+              ...s.messages,
+              mutate({
+                id: messageId,
+                role: 'assistant',
+                content: '',
+                createdAt: new Date().toISOString(),
+                streaming: true,
+              }),
+            ];
+        return { sessions: { ...state.sessions, [sessionId]: { ...s, messages } } };
+      });
+    };
+
+    let assistantId: string | null = null;
+
+    const cancel = streamMessage(sessionId, content, {
+      onEvent: (ev: SseEvent) => {
+        switch (ev.event) {
+          case 'start':
+            assistantId = ev.data.message_id;
+            upsertAssistant(assistantId, (m) => m);
+            break;
+          case 'token':
+            if (assistantId) {
+              const id = assistantId;
+              upsertAssistant(id, (m) => ({ ...m, content: m.content + ev.data.text }));
+            }
+            break;
+          case 'safety_classified':
+            if (ev.data.grade === 'A') {
+              // 등급 A(자살·급성중독): LLM 잠금 + P4 강제 이동
+              set({ llmLocked: true, lockReason: ev.data.event_type, safetyTripped: true });
+            }
+            break;
+          case 'context_switched':
+            set((state) => {
+              const s = state.sessions[sessionId];
+              if (!s) return state;
+              return {
+                sessions: {
+                  ...state.sessions,
+                  [sessionId]: { ...s, context: ev.data.to as ConversationContext },
+                },
+              };
+            });
+            break;
+          case 'error':
+            set({ error: ev.data.message || '응답 생성 중 오류가 발생했어요.' });
+            break;
+          case 'done':
+            if (assistantId) {
+              const id = assistantId;
+              upsertAssistant(id, (m) => ({ ...m, streaming: false }));
+            }
+            break;
+        }
+      },
+      onError: (err: ApiError) => {
+        set({ isTyping: false, cancelStream: null, error: err.message });
+      },
+      onComplete: () => {
+        set({ isTyping: false, cancelStream: null });
+      },
+    });
+
+    set({ cancelStream: cancel });
+  },
+
+  completeSession: async (sessionId) => {
+    const cancel = get().cancelStream;
+    if (cancel) cancel();
+    try {
+      await api.post(`/me/conversations/${sessionId}/end`, { reason: 'completed' });
+    } catch {
+      /* 종료 실패해도 UI 는 종료 처리 (다음 진입 시 current-session 으로 재동기화) */
+    }
+    set((state) => {
+      const s = state.sessions[sessionId];
+      if (!s) return { isTyping: false, cancelStream: null };
+      return {
+        isTyping: false,
+        cancelStream: null,
+        sessions: {
+          ...state.sessions,
+          [sessionId]: { ...s, isComplete: true },
+        },
+      };
+    });
+  },
+
+  clearSafetyTrip: () => set({ safetyTripped: false }),
+  clearError: () => set({ error: null }),
+}));

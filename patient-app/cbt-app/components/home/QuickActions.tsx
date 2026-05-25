@@ -26,11 +26,11 @@ const actions: Action[] = [
   {
     id: 'craving',
     label: '갈망 대응',
-    subtitle: '즉시 도움받아요',
+    subtitle: 'AI와 즉시 대화',
     icon: 'pulse-outline',
     iconBg: colors.coralSofter,
     iconColor: colors.coral,
-    href: '/safety',
+    href: '/chat/new?kind=craving',
   },
   {
     id: 'stats',
@@ -39,6 +39,7 @@ const actions: Action[] = [
     icon: 'trending-up-outline',
     iconBg: colors.sageSoft,
     iconColor: colors.sageDark,
+    href: '/progress',
   },
 ];
 

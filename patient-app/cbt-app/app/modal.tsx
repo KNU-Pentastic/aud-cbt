@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.xxxl,
+    padding: spacing.xxl,
     backgroundColor: colors.background,
   },
   iconWrap: {
