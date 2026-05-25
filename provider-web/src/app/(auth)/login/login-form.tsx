@@ -55,7 +55,7 @@ export function LoginForm() {
       </Button>
 
       <p className="text-muted-foreground text-xs">
-        데모 자격: demo.doctor@example.com / DemoPassword!2026
+        데모 자격: provider@example.com / Demo!Pass1234
       </p>
     </form>
   )

@@ -8,21 +8,36 @@ type Props = {
   onChange: (value: number) => void;
   minLabel?: string;
   maxLabel?: string;
+  max?: number;
+  step?: number;
+  unit?: string;
 };
 
-export function CheckinSlider({ label, value, onChange, minLabel, maxLabel }: Props) {
+export function CheckinSlider({
+  label,
+  value,
+  onChange,
+  minLabel,
+  maxLabel,
+  max = 10,
+  step = 1,
+  unit,
+}: Props) {
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <Text style={styles.label}>{label}</Text>
-        <Text style={styles.value}>{value}</Text>
+        <Text style={styles.value}>
+          {value}
+          {unit ? <Text style={styles.unit}> {unit}</Text> : null}
+        </Text>
       </View>
 
       <Slider
         style={styles.slider}
         minimumValue={0}
-        maximumValue={10}
-        step={1}
+        maximumValue={max}
+        step={step}
         value={value}
         onValueChange={onChange}
         minimumTrackTintColor={colors.coral}
@@ -59,6 +74,7 @@ const styles = StyleSheet.create({
   },
   label: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
   value: { fontSize: 18, fontWeight: '700', color: colors.coral },
+  unit: { fontSize: 12, fontWeight: '500', color: colors.textSecondary },
   slider: { width: '100%', height: 36 },
   labelsRow: {
     flexDirection: 'row',

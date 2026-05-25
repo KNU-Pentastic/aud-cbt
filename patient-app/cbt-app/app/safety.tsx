@@ -1,80 +1,62 @@
-import {
-  View, Text, Pressable, ScrollView, StyleSheet,
-  Modal, TextInput, KeyboardAvoidingView, Platform, Alert,
-} from 'react-native';
-import { useState } from 'react';
+import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { useSettingsStore, SSOContact } from '@/store/useSettingsStore';
+import { useSettings } from '@/lib/queries';
+import { api } from '@/lib/api';
 import { colors, spacing, radius } from '@/constants/theme';
 import { EmergencyBanner } from '@/components/safety/EmergencyBanner';
 import { EmergencyCallCard } from '@/components/safety/EmergencyCallCard';
-import { SSOContactCard } from '@/components/safety/SSOContactCard';
 import { SelfHelpTile } from '@/components/safety/SelfHelpTile';
 import { SectionLabel } from '@/components/safety/SectionLabel';
 import { TipModal, TipData, BREATH_TIP, GROUND_TIP } from '@/components/safety/TipModal';
 import { AddictionCenterCard } from '@/components/safety/AddictionCenterCard';
 
-function formatPhone(text: string): string {
-  const digits = text.replace(/\D/g, '');
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-  if (digits.length <= 11) return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+const REL_LABELS: Record<string, string> = {
+  spouse: '배우자',
+  parent: '부모',
+  sibling: '형제자매',
+  child: '자녀',
+  friend: '친구',
+  other: '기타',
+};
+
+async function openTel(phone: string) {
+  try {
+    await Linking.openURL(`tel:${phone.replace(/[^0-9]/g, '')}`);
+  } catch {
+    Alert.alert('전화 연결 실패');
+  }
+}
+
+async function openSms(phone: string) {
+  try {
+    await Linking.openURL(`sms:${phone.replace(/[^0-9]/g, '')}`);
+  } catch {
+    Alert.alert('문자 보내기 실패');
+  }
 }
 
 export default function SafetyScreen() {
   const router = useRouter();
-  const { ssoContacts, addContact, updateContact, removeContact } = useSettingsStore();
+  const { data: settings } = useSettings();
+  const sso = settings?.sso ?? null;
 
   const [activeTip, setActiveTip] = useState<TipData | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingContact, setEditingContact] = useState<SSOContact | null>(null);
-  const [formName, setFormName] = useState('');
-  const [formRelationship, setFormRelationship] = useState('');
-  const [formPhone, setFormPhone] = useState('');
+  const recordedRef = useRef(false);
 
-  const openAdd = () => {
-    setEditingContact(null);
-    setFormName('');
-    setFormRelationship('');
-    setFormPhone('');
-    setModalVisible(true);
-  };
-
-  const openEdit = (contact: SSOContact) => {
-    setEditingContact(contact);
-    setFormName(contact.name);
-    setFormRelationship(contact.relationship);
-    setFormPhone(contact.phone);
-    setModalVisible(true);
-  };
-
-  const handleSave = () => {
-    if (!formName.trim() || !formPhone.trim()) {
-      Alert.alert('이름과 전화번호를 입력해주세요');
-      return;
-    }
-    const data = {
-      name: formName.trim(),
-      relationship: formRelationship.trim(),
-      phone: formPhone.trim(),
-    };
-    if (editingContact) {
-      updateContact(editingContact.id, data);
-    } else {
-      addContact(data);
-    }
-    setModalVisible(false);
-  };
-
-  const handleDelete = (id: string) => {
-    Alert.alert('연락처 삭제', '정말 삭제할까요?', [
-      { text: '취소', style: 'cancel' },
-      { text: '삭제', style: 'destructive', onPress: () => removeContact(id) },
-    ]);
-  };
+  // 명세 4.4.1: P4 진입 자체를 안전 이벤트로 기록 (fire-and-forget)
+  useEffect(() => {
+    if (recordedRef.current) return;
+    recordedRef.current = true;
+    api
+      .post('/me/safety/p4-shown', { trigger: 'manual_button', clicked_resource: 'none' })
+      .catch(() => {
+        /* 기록 실패는 응급 안내 표시를 막지 않음 */
+      });
+  }, []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -85,10 +67,7 @@ export default function SafetyScreen() {
         <Text style={styles.headerTitle}>긴급 도움</Text>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <EmergencyBanner />
 
         <AddictionCenterCard />
@@ -101,41 +80,38 @@ export default function SafetyScreen() {
           icon="call"
         />
 
-        <EmergencyCallCard
-          variant="dark"
-          label="응급 의료"
-          phoneNumber="119"
-          icon="medkit"
-        />
+        <EmergencyCallCard variant="dark" label="응급 의료" phoneNumber="119" icon="medkit" />
 
-        {/* 내가 등록한 연락처 헤더 */}
+        {/* 보호자(SSO) — 백엔드(D0/설정) 등록 정보 */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionLabelText}>내가 등록한 연락처</Text>
-          <Pressable
-            onPress={openAdd}
-            style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.7 }]}
-          >
-            <Ionicons name="add" size={16} color={colors.sageDark} />
-            <Text style={styles.addBtnText}>추가</Text>
+          <Text style={styles.sectionLabelText}>보호자 연락처</Text>
+          <Pressable onPress={() => router.push('/settings' as any)} hitSlop={8}>
+            <Text style={styles.manageText}>관리</Text>
           </Pressable>
         </View>
 
-        {ssoContacts.length > 0 ? (
-          ssoContacts.map((contact) => (
-            <SSOContactCard
-              key={contact.id}
-              contact={contact}
-              onEdit={() => openEdit(contact)}
-              onDelete={() => handleDelete(contact.id)}
-            />
-          ))
+        {sso ? (
+          <View style={styles.ssoCard}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{sso.name.charAt(0)}</Text>
+            </View>
+            <View style={styles.ssoInfo}>
+              <Text style={styles.ssoName}>{sso.name}</Text>
+              <Text style={styles.ssoDetail}>
+                {REL_LABELS[sso.relationship] ?? ''} · {sso.phone}
+              </Text>
+            </View>
+            <Pressable onPress={() => openTel(sso.phone)} style={styles.ssoActionBtn} hitSlop={6}>
+              <Ionicons name="call" size={16} color={colors.sageDark} />
+            </Pressable>
+            <Pressable onPress={() => openSms(sso.phone)} style={styles.ssoActionBtn} hitSlop={6}>
+              <Ionicons name="chatbubble" size={15} color={colors.coral} />
+            </Pressable>
+          </View>
         ) : (
-          <Pressable
-            onPress={openAdd}
-            style={({ pressed }) => [styles.emptyState, pressed && { opacity: 0.7 }]}
-          >
+          <Pressable onPress={() => router.push('/settings' as any)} style={styles.emptyState}>
             <Ionicons name="person-add-outline" size={20} color={colors.textTertiary} />
-            <Text style={styles.emptyText}>가족·보호자 연락처를 추가해보세요</Text>
+            <Text style={styles.emptyText}>설정에서 보호자 연락처를 등록해보세요</Text>
           </Pressable>
         )}
 
@@ -163,72 +139,6 @@ export default function SafetyScreen() {
       </ScrollView>
 
       <TipModal tip={activeTip} onClose={() => setActiveTip(null)} />
-
-      {/* 연락처 추가/수정 모달 */}
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <Pressable style={styles.overlay} onPress={() => setModalVisible(false)} />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalWrapper}
-        >
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>
-              {editingContact ? '연락처 수정' : '연락처 추가'}
-            </Text>
-
-            <Text style={styles.fieldLabel}>이름 *</Text>
-            <TextInput
-              style={styles.input}
-              value={formName}
-              onChangeText={setFormName}
-              placeholder="이름을 입력하세요"
-              placeholderTextColor={colors.textTertiary}
-              returnKeyType="next"
-            />
-
-            <Text style={styles.fieldLabel}>관계</Text>
-            <TextInput
-              style={styles.input}
-              value={formRelationship}
-              onChangeText={setFormRelationship}
-              placeholder="예: 가족, 친구, 상담사"
-              placeholderTextColor={colors.textTertiary}
-              returnKeyType="next"
-            />
-
-            <Text style={styles.fieldLabel}>전화번호 *</Text>
-            <TextInput
-              style={styles.input}
-              value={formPhone}
-              onChangeText={(text) => setFormPhone(formatPhone(text))}
-              placeholder="010-0000-0000"
-              placeholderTextColor={colors.textTertiary}
-              keyboardType="phone-pad"
-              returnKeyType="done"
-            />
-
-            <View style={styles.modalButtons}>
-              <Pressable
-                onPress={() => setModalVisible(false)}
-                style={({ pressed }) => [styles.cancelBtn, pressed && { opacity: 0.7 }]}
-              >
-                <Text style={styles.cancelBtnText}>취소</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleSave}
-                style={({ pressed }) => [styles.saveBtn, pressed && { opacity: 0.7 }]}
-              >
-                <Text style={styles.saveBtnText}>저장</Text>
-              </Pressable>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -252,22 +162,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xxl,
     paddingBottom: 10,
   },
-  sectionLabelText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    letterSpacing: 0.3,
-  },
-  addBtn: {
+  sectionLabelText: { fontSize: 11, fontWeight: '600', color: colors.textPrimary, letterSpacing: 0.3 },
+  manageText: { fontSize: 12, fontWeight: '600', color: colors.sageDark },
+  ssoCard: {
+    marginHorizontal: spacing.xl,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderSoft,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.sageSoft,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
+    gap: 12,
   },
-  addBtnText: { fontSize: 12, fontWeight: '600', color: colors.sageDark },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.sageSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: { fontSize: 13, fontWeight: '600', color: colors.sageDark },
+  ssoInfo: { flex: 1 },
+  ssoName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary, marginBottom: 2 },
+  ssoDetail: { fontSize: 11, color: colors.textSecondary },
+  ssoActionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   emptyState: {
     marginHorizontal: spacing.xl,
     paddingVertical: 24,
@@ -279,75 +209,6 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSoft,
     borderStyle: 'dashed',
   },
-  emptyText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  tilesRow: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.xl,
-    gap: 10,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  modalWrapper: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  modalCard: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: spacing.xxl,
-    paddingTop: 24,
-    paddingBottom: 40,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 20,
-  },
-  fieldLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: colors.background,
-    borderRadius: radius.sm,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.textPrimary,
-    marginBottom: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 4,
-  },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: radius.md,
-    backgroundColor: colors.borderSoft,
-    alignItems: 'center',
-  },
-  cancelBtnText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
-  saveBtn: {
-    flex: 2,
-    paddingVertical: 14,
-    borderRadius: radius.md,
-    backgroundColor: colors.coral,
-    alignItems: 'center',
-  },
-  saveBtnText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+  emptyText: { fontSize: 12, color: colors.textSecondary },
+  tilesRow: { flexDirection: 'row', paddingHorizontal: spacing.xl, gap: 10 },
 });

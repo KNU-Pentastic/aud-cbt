@@ -23,7 +23,7 @@ export default function NoteEditorScreen() {
   const [saved, setSaved] = useState(true);
 
   const contentRef = useRef<TextInput>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     const t = setTimeout(() => contentRef.current?.focus(), 120);
