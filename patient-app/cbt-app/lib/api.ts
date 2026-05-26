@@ -1,5 +1,5 @@
 import { API_BASE } from './config';
-import { getToken } from './authToken';
+import { getToken, notifyUnauthorized } from './authToken';
 
 /** 백엔드 표준 에러 봉투: { error: { code, message, details, request_id } } */
 export class ApiError extends Error {
@@ -58,6 +58,10 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 
   const text = await res.text();
   if (!res.ok) {
+    if (res.status === 401 && auth) {
+      // 만료/무효 토큰 → 인증 게이트에 알려 로그인 화면으로 복귀시킨다
+      notifyUnauthorized();
+    }
     throw parseError(res.status, text);
   }
   return (text ? JSON.parse(text) : null) as T;
@@ -155,6 +159,7 @@ export function streamMessage(
     if (xhr.readyState >= XMLHttpRequest.HEADERS_RECEIVED && xhr.status >= 400) {
       if (xhr.readyState === XMLHttpRequest.DONE) {
         settled = true;
+        if (xhr.status === 401) notifyUnauthorized();
         handlers.onError(parseError(xhr.status, xhr.responseText));
       }
       return;

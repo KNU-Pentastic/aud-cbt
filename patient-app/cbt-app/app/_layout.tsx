@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -21,6 +21,7 @@ function useAuthGate() {
   const status = useAuthStore((s) => s.status);
   const segments = useSegments();
   const router = useRouter();
+  const prevStatus = useRef(status);
 
   useEffect(() => {
     useAuthStore.getState().bootstrap();
@@ -29,6 +30,12 @@ function useAuthGate() {
   useEffect(() => {
     if (status === 'loading') return;
     const onLogin = (segments[0] as string) === 'login';
+    // authenticated → unauthenticated 전이(로그아웃/401 만료) 시
+    // 이전 사용자의 React Query 캐시를 폐기한다.
+    if (prevStatus.current === 'authenticated' && status === 'unauthenticated') {
+      queryClient.clear();
+    }
+    prevStatus.current = status;
     if (status === 'unauthenticated' && !onLogin) {
       router.replace('/login' as any);
     } else if (status === 'authenticated' && onLogin) {
