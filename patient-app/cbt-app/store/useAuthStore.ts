@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { api } from '@/lib/api';
-import { getToken, setToken } from '@/lib/authToken';
+import { getToken, setToken, setUnauthorizedHandler } from '@/lib/authToken';
 
 const TOKEN_KEY = 'cbt_access_token';
 
@@ -32,6 +32,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   status: 'loading',
 
   bootstrap: async () => {
+    // 401 응답을 받으면 토큰을 폐기하고 로그인 화면으로 복귀시킨다.
+    // (lib/api.ts → notifyUnauthorized → 아래 핸들러)
+    setUnauthorizedHandler(() => {
+      setToken(null);
+      SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => {});
+      set({ status: 'unauthenticated' });
+    });
+
     try {
       const stored = await SecureStore.getItemAsync(TOKEN_KEY);
       if (stored) {
