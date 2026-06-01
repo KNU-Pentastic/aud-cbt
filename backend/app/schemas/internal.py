@@ -118,7 +118,7 @@ class OutputFilterResponse(BaseModel):
 
 # ---- LLM gateway ----
 class LLMInvokeRequest(BaseModel):
-    model: Literal["claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5"]
+    model: Literal["claude-opus-4-8", "claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5"]
     messages: list[dict]
     system: str | None = None
     max_tokens: int = Field(ge=1)

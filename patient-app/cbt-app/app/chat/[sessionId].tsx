@@ -20,7 +20,6 @@ export default function ChatScreen() {
 
   const startNewSession = useChatStore((s) => s.startNewSession);
   const sendMessage = useChatStore((s) => s.sendMessage);
-  const completeSession = useChatStore((s) => s.completeSession);
   const isTyping = useChatStore((s) => s.isTyping);
   const error = useChatStore((s) => s.error);
   const clearError = useChatStore((s) => s.clearError);
@@ -76,18 +75,10 @@ export default function ChatScreen() {
     sendMessage(session.id, text);
   };
 
-  const handleEnd = () => {
-    Alert.alert('대화 종료', '오늘의 대화를 마무리할까요?', [
-      { text: '계속하기', style: 'cancel' },
-      {
-        text: '종료',
-        style: 'destructive',
-        onPress: async () => {
-          await completeSession(session.id);
-          router.back();
-        },
-      },
-    ]);
+  // 나가기는 대화를 끝내지 않는다 — 세션 종료 여부는 LLM 이 판단한다.
+  // (대화는 active 로 유지되어 다시 들어오면 이전 내용이 그대로 복원된다.)
+  const handleLeave = () => {
+    router.back();
   };
 
   const reversedMessages = [...session.messages].reverse();
@@ -99,7 +90,7 @@ export default function ChatScreen() {
       <ChatHeader
         sessionNumber={session.sessionNumber}
         onBack={() => router.back()}
-        onEnd={handleEnd}
+        onLeave={handleLeave}
       />
 
       <KeyboardAvoidingView
@@ -116,7 +107,13 @@ export default function ChatScreen() {
           contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}
         />
-        <ChatInput onSend={handleSend} disabled={isTyping || session.isComplete} />
+        {session.isComplete ? (
+          <View style={styles.completeNotice}>
+            <Text style={styles.completeText}>오늘 세션이 마무리되었어요. 수고하셨어요 🌿</Text>
+          </View>
+        ) : (
+          <ChatInput onSend={handleSend} disabled={isTyping} />
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -137,4 +134,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
+  completeNotice: {
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    alignItems: 'center',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSoft,
+    backgroundColor: colors.surface,
+  },
+  completeText: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
 });

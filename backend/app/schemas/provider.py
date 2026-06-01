@@ -71,6 +71,15 @@ class RegistrationCodeRegenResponse(BaseModel):
     expires_at: datetime
 
 
+class RegistrationCodeStatusResponse(BaseModel):
+    """현재(가장 최근) 등록 코드 + 가입 상태. 의료진이 코드를 다시 확인할 때 사용."""
+
+    registration_code: str | None = None
+    status: Literal["active", "consumed", "expired", "none"]
+    expires_at: datetime | None = None
+    is_registered: bool
+
+
 class PatientListItem(BaseModel):
     model_config = ApiModel
 

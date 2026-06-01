@@ -711,10 +711,47 @@ paths:
                         type: array
                         items: { $ref: '#/components/schemas/PatientListItem' }
 
+  /provider/patients/{patient_id}/registration-code:
+    get:
+      tags: [Provider - D0]
+      summary: 현재(가장 최근) 등록 코드 + 가입 상태 조회
+      description: 의료진이 환자의 등록 코드를 다시 확인할 때 사용.
+      parameters:
+        - $ref: '#/components/parameters/PatientId'
+      responses:
+        '200':
+          description: 현재 등록 코드 상태
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, is_registered]
+                properties:
+                  registration_code:
+                    type: string
+                    nullable: true
+                    pattern: '^[A-Z0-9]{8}$'
+                  status:
+                    type: string
+                    enum: [active, consumed, expired, none]
+                  expires_at: { type: string, format: date-time, nullable: true }
+                  is_registered: { type: boolean }
+        '403':
+          description: 담당 환자가 아님
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /provider/patients/{patient_id}/registration-code/regenerate:
     post:
       tags: [Provider - D0]
       summary: 등록 코드 분실·만료 시 재발급
+      description: |
+        새 코드를 발급하고 기존 미소비 코드를 무효화한다. 이미 가입을 완료한
+        환자라면 가입 상태(is_registered)와 PIN 을 초기화해 새 코드로 다시
+        등록할 수 있게 한다.
       parameters:
         - $ref: '#/components/parameters/PatientId'
       responses:
@@ -734,11 +771,6 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          description: PATIENT_ALREADY_REGISTERED — 이미 환자가 등록 완료한 상태
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   # ============================================================
   # PROVIDER PORTAL - D2 PATIENT DETAIL
@@ -759,6 +791,22 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/PatientDetailDashboard' }
+        '403':
+          description: 담당 환자가 아님
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Provider - D2]
+      summary: 환자 영구 삭제 (비가역)
+      description: 환자와 모든 관련 데이터(대화·체크인·세션·안전 이벤트·등록 코드 등)를 영구 삭제한다.
+      parameters:
+        - $ref: '#/components/parameters/PatientId'
+      responses:
+        '204':
+          description: 삭제 완료
         '403':
           description: 담당 환자가 아님
           content:
@@ -1754,7 +1802,7 @@ components:
       properties:
         model:
           type: string
-          enum: [claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5]
+          enum: [claude-opus-4-8, claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5]
         messages:
           type: array
           description: Anthropic Messages 형식
