@@ -255,7 +255,33 @@ export function useCreatePatient() {
   })
 }
 
+export type RegistrationCodeStatus = {
+  registration_code: string | null
+  status: "active" | "consumed" | "expired" | "none"
+  expires_at: string | null
+  is_registered: boolean
+}
+
+const regCodeKey = (id: string) =>
+  [...qk.patient(id), "registration-code"] as const
+
+export function useRegistrationCode(patientId: string) {
+  return useQuery({
+    queryKey: regCodeKey(patientId),
+    queryFn: async () => {
+      const { data, error } = await apiClient.GET(
+        "/provider/patients/{patient_id}/registration-code" as never,
+        { params: { path: { patient_id: patientId } } } as never,
+      )
+      if (error) throw error
+      return data as RegistrationCodeStatus
+    },
+    enabled: !!patientId,
+  })
+}
+
 export function useRegenerateCode(patientId: string) {
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: async () => {
       const { data, error } = await apiClient.POST(
@@ -265,6 +291,24 @@ export function useRegenerateCode(patientId: string) {
       if (error) throw error
       return data as { registration_code: string; expires_at: string }
     },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: regCodeKey(patientId) })
+      qc.invalidateQueries({ queryKey: qk.patient(patientId) })
+    },
+  })
+}
+
+export function useDeletePatient() {
+  const qc = useQueryClient()
+  return useMutation<void, Error, string>({
+    mutationFn: async (patientId) => {
+      const { error } = await apiClient.DELETE(
+        "/provider/patients/{patient_id}" as never,
+        { params: { path: { patient_id: patientId } } } as never,
+      )
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.patients() }),
   })
 }
 

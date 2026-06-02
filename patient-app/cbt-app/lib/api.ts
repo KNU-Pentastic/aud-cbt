@@ -1,3 +1,4 @@
+import { fetch as expoFetch } from 'expo/fetch';
 import { API_BASE } from './config';
 import { getToken, notifyUnauthorized } from './authToken';
 
@@ -81,8 +82,9 @@ export const api = {
 // ---------------------------------------------------------------------------
 // SSE 스트리밍 (POST /me/conversations/{id}/messages)
 //
-// React Native 에는 POST 바디를 지원하는 EventSource 가 없으므로
-// XMLHttpRequest 의 점진적 responseText(readyState 3) 를 직접 파싱합니다.
+// React Native 의 XMLHttpRequest 는 Expo 환경에서 responseText 를 점진적으로
+// 전달하지 못해 토큰이 실시간으로 표시되지 않는다. 대신 스트리밍을 지원하는
+// expo/fetch 의 ReadableStream(getReader) 으로 SSE 프레임을 직접 파싱한다.
 // ---------------------------------------------------------------------------
 
 export type SseEvent =
@@ -90,6 +92,7 @@ export type SseEvent =
   | { event: 'token'; data: { text: string } }
   | { event: 'safety_classified'; data: { grade: 'A' | 'B'; event_type: string } }
   | { event: 'context_switched'; data: { from: string; to: string } }
+  | { event: 'session_completed'; data: { week_number?: number } }
   | { event: 'done'; data: { message_id?: string; finish_reason: string } }
   | { event: 'error'; data: { code: string; message: string } };
 
@@ -130,63 +133,99 @@ export function streamMessage(
   handlers: StreamHandlers
 ): () => void {
   const token = getToken();
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', `${API_BASE}/me/conversations/${conversationId}/messages`);
-  xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.setRequestHeader('Accept', 'text/event-stream');
-  if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-
-  let processed = 0;
-  let buffer = '';
+  const controller = new AbortController();
   let settled = false;
 
-  const drain = () => {
-    const full = xhr.responseText;
-    buffer += full.slice(processed);
-    processed = full.length;
-    let idx: number;
-    while ((idx = buffer.indexOf('\n\n')) !== -1) {
-      const frame = buffer.slice(0, idx);
-      buffer = buffer.slice(idx + 2);
-      const ev = parseFrame(frame);
-      if (ev) handlers.onEvent(ev);
-    }
-  };
-
-  xhr.onreadystatechange = () => {
-    if (settled) return;
-    // HEADERS_RECEIVED 이상에서 HTTP 에러(SSE 아님)면 본문을 에러로 처리
-    if (xhr.readyState >= XMLHttpRequest.HEADERS_RECEIVED && xhr.status >= 400) {
-      if (xhr.readyState === XMLHttpRequest.DONE) {
-        settled = true;
-        if (xhr.status === 401) notifyUnauthorized();
-        handlers.onError(parseError(xhr.status, xhr.responseText));
-      }
-      return;
-    }
-    if (xhr.readyState === XMLHttpRequest.LOADING) {
-      drain();
-    } else if (xhr.readyState === XMLHttpRequest.DONE) {
-      settled = true;
-      drain();
-      handlers.onComplete();
-    }
-  };
-
-  xhr.onerror = () => {
+  // onComplete/onError 는 한 번만 호출되도록 보장한다 (취소 시에는 둘 다 미호출).
+  const settle = (fn?: () => void) => {
     if (settled) return;
     settled = true;
-    handlers.onError(
-      new ApiError(0, '서버에 연결할 수 없어요. 네트워크를 확인해주세요.', 'NETWORK_ERROR')
-    );
+    fn?.();
   };
 
-  xhr.send(JSON.stringify({ text }));
+  (async () => {
+    let resp;
+    try {
+      resp = await expoFetch(`${API_BASE}/me/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ text }),
+        signal: controller.signal,
+      });
+    } catch {
+      settle(() =>
+        handlers.onError(
+          new ApiError(0, '서버에 연결할 수 없어요. 네트워크를 확인해주세요.', 'NETWORK_ERROR')
+        )
+      );
+      return;
+    }
+
+    // SSE 가 아니라 HTTP 에러 본문이면 에러로 처리
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => '');
+      settle(() => {
+        if (resp.status === 401) notifyUnauthorized();
+        handlers.onError(parseError(resp.status, body));
+      });
+      return;
+    }
+
+    const reader = resp.body?.getReader();
+    if (!reader) {
+      settle(() => handlers.onComplete());
+      return;
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    const drainFrames = () => {
+      let idx: number;
+      while (!settled && (idx = buffer.indexOf('\n\n')) !== -1) {
+        const frame = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+        const ev = parseFrame(frame);
+        if (ev) handlers.onEvent(ev);
+      }
+    };
+
+    // sse_starlette 등 다수의 SSE 서버는 줄·프레임 구분에 CRLF(\r\n)를 쓴다.
+    // 프레임 경계는 \n\n 로 탐지하므로, 버퍼를 LF 로 정규화해야 \r\n\r\n 이
+    // 경계로 인식된다. (정규화하지 않으면 토큰이 한 건도 파싱되지 않아 화면에
+    // 아무 응답도 표시되지 않는다.) 청크 경계에서 \r\n 이 쪼개질 수 있어
+    // append 후 버퍼 전체를 다시 정규화한다.
+    const append = (text: string) => {
+      buffer = (buffer + text).replace(/\r\n/g, '\n');
+    };
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        append(decoder.decode(value, { stream: true }));
+        drainFrames();
+        if (settled) return; // 취소됨
+      }
+      append(decoder.decode());
+      drainFrames();
+      settle(() => handlers.onComplete());
+    } catch {
+      // 사용자가 취소(abort)한 경우는 오류가 아니다.
+      if (controller.signal.aborted) {
+        settle();
+        return;
+      }
+      settle(() =>
+        handlers.onError(new ApiError(0, '응답을 받는 중 연결이 끊겼어요.', 'NETWORK_ERROR'))
+      );
+    }
+  })();
 
   return () => {
-    if (!settled) {
-      settled = true;
-      xhr.abort();
-    }
+    settle(() => controller.abort());
   };
 }

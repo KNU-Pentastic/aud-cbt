@@ -34,7 +34,7 @@ def _next_session_date(patient) -> "datetime.date | None":
 
 @router.get("/current-session", response_model=CurrentSessionInfo)
 def current_session(patient: CurrentPatient, db: DbSession) -> CurrentSessionInfo:
-    conv = conversation_service.active_conversation(db, patient.patient_id)
+    conv = conversation_service.active_conversation(db, patient.patient_id, context="session")
     return CurrentSessionInfo(
         active_conversation_id=conv.conversation_id if conv else None,
         current_week=patient.current_week,
@@ -51,7 +51,7 @@ def current_session(patient: CurrentPatient, db: DbSession) -> CurrentSessionInf
 def start_session(patient: CurrentPatient, db: DbSession) -> ConversationOut:
     if patient.llm_locked:
         raise locked("LLM dialogue is currently locked")
-    existing = conversation_service.active_conversation(db, patient.patient_id)
+    existing = conversation_service.active_conversation(db, patient.patient_id, context="session")
     if existing is not None:
         raise conflict("An active conversation already exists", code="CONVERSATION_ACTIVE")
     conv = conversation_service.start_session(db, patient)
@@ -66,8 +66,8 @@ def start_session(patient: CurrentPatient, db: DbSession) -> ConversationOut:
 def start_craving(patient: CurrentPatient, db: DbSession) -> ConversationOut:
     if patient.llm_locked:
         raise locked("LLM dialogue is currently locked")
-    existing = conversation_service.active_conversation(db, patient.patient_id)
-    if existing is not None and existing.context == "craving":
+    existing = conversation_service.active_conversation(db, patient.patient_id, context="craving")
+    if existing is not None:
         return ConversationOut.model_validate(existing)
     conv = conversation_service.start_craving(db, patient)
     return ConversationOut.model_validate(conv)

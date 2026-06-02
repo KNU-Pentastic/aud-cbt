@@ -33,12 +33,16 @@ from app.schemas.internal import (
     LLMInvokeRequest,
     OutputFilterRequest,
     SafetyClassifyRequest,
+    SessionSummarizeRequest,
+    StageTrackRequest,
 )
 from app.services import (
     context_builder,
     llm_gateway,
     output_filter,
     safety_classifier,
+    session_summarizer,
+    stage_tracker,
 )
 
 log = logging.getLogger(__name__)
@@ -47,16 +51,22 @@ log = logging.getLogger(__name__)
 # -------- DB helpers --------
 
 
-def active_conversation(db: Session, patient_id: str) -> Conversation | None:
+def active_conversation(
+    db: Session, patient_id: str, context: str | None = None
+) -> Conversation | None:
+    """가장 최근 active 대화. context 지정 시 해당 종류만 조회한다.
+
+    context 를 구분하지 않으면 갈망(craving) 대화가 메인 세션을 가려, 세션 진입 시
+    엉뚱한 대화가 로드되어 이전 세션 대화가 사라지는 것처럼 보인다(BUG C). 그래서
+    세션/갈망을 각각 독립적으로 조회할 수 있게 한다.
+    """
+    stmt = select(Conversation).where(
+        Conversation.patient_id == patient_id, Conversation.status == "active"
+    )
+    if context is not None:
+        stmt = stmt.where(Conversation.context == context)
     return (
-        db.execute(
-            select(Conversation)
-            .where(Conversation.patient_id == patient_id, Conversation.status == "active")
-            .order_by(Conversation.started_at.desc())
-            .limit(1)
-        )
-        .scalars()
-        .first()
+        db.execute(stmt.order_by(Conversation.started_at.desc()).limit(1)).scalars().first()
     )
 
 
@@ -121,8 +131,18 @@ def end_conversation(
 # -------- SSE helpers --------
 
 
-def _sse(event: str, data: dict) -> str:
-    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+def _sse(event: str, data: dict) -> dict:
+    """sse_starlette 가 인코딩할 SSE 이벤트를 dict 로 돌려준다.
+
+    주의: 직접 포맷한 문자열("event: x\\ndata: {...}\\n\\n")을 yield 하면
+    sse_starlette 가 그 문자열 '전체'를 다시 data 필드로 감싸
+    `data: event: x` / `data: data: {...}` 처럼 한 번 더 래핑한다. 그 결과
+    클라이언트는 event 라인이 없고 data 가 JSON 이 아닌 프레임을 받아 파싱에
+    실패하고, 토큰이 화면에 실시간으로 표시되지 않는다(대화방을 나갔다 들어와야
+    DB 에서 다시 불러와 보임). {event, data} dict 를 yield 하면 sse_starlette 가
+    올바른 SSE 프레임을 생성한다.
+    """
+    return {"event": event, "data": json.dumps(data, ensure_ascii=False)}
 
 
 def _recent_turns(db: Session, conversation_id: str, limit: int = 6) -> list[DialogueTurn]:
@@ -146,6 +166,80 @@ _FALLBACK_REPLY = (
 )
 
 
+def _phase_for_week(week: int) -> int:
+    """12주 → CBI Phase 결정 매핑 (context_builder 와 동일 규칙)."""
+    if week <= 1:
+        return 1
+    if week <= 3:
+        return 2
+    if week <= 11:
+        return 3
+    return 4
+
+
+def _summarize_session(db: Session, patient: Patient, conv: Conversation, sess: CbtSession) -> None:
+    """세션 종료 시 요약 생성 (실패해도 대화 흐름을 막지 않는다)."""
+    turns = _recent_turns(db, conv.conversation_id, limit=200)
+    full = [{"role": t.role, "text": t.text} for t in turns]
+    prev = context_builder._previous_summary_block(db, patient.patient_id)
+    session_summarizer.summarize(
+        db,
+        SessionSummarizeRequest(
+            session_id=sess.session_id,
+            patient_id=patient.patient_id,
+            week_number=conv.week_number or patient.current_week,
+            full_dialogue=full,
+            session_objectives=[],
+            previous_summary=prev,
+            patient_context={"current_week": patient.current_week},
+        ),
+    )
+
+
+def _advance_session_stage(db: Session, patient: Patient, conv: Conversation) -> bool:
+    """세션 대화의 5단계 진행을 stage_tracker 로 갱신한다.
+
+    5단계를 모두 마쳤다고 LLM 이 판단하면(세션 종료는 LLM 이 결정) 대화를 종료하고
+    요약 생성 + 다음 주차로 진행한 뒤 True 를 반환한다.
+    """
+    if not conv.session_id:
+        return False
+    sess = db.get(CbtSession, conv.session_id)
+    if sess is None or sess.status != "in_progress":
+        return False
+
+    dialogue = [
+        {"role": t.role, "text": t.text}
+        for t in _recent_turns(db, conv.conversation_id, limit=40)
+    ]
+    resp = stage_tracker.track(
+        db,
+        StageTrackRequest(
+            conversation_id=conv.conversation_id,
+            session_id=sess.session_id,
+            week_number=conv.week_number or patient.current_week,
+            current_step=sess.current_step,
+            step_objectives=[],
+            dialogue=dialogue,
+        ),
+    )
+    sess.current_step = resp.current_step
+    db.commit()
+
+    if resp.current_step >= 5 and resp.ready_to_advance:
+        end_conversation(db, conv, "completed")  # conv + session 모두 종료 처리
+        try:
+            _summarize_session(db, patient, conv, sess)
+        except Exception:
+            log.exception("session summarize failed")
+        if patient.current_week < 12:
+            patient.current_week += 1
+            patient.current_phase = _phase_for_week(patient.current_week)
+            db.commit()
+        return True
+    return False
+
+
 # -------- Orchestrated stream --------
 
 
@@ -154,7 +248,7 @@ async def stream_user_message(
     patient: Patient,
     conv: Conversation,
     user_text: str,
-) -> AsyncGenerator[str, None]:
+) -> AsyncGenerator[dict, None]:
     # 1) Persist user turn
     user_msg = Message(
         message_id=new_message_id(),
@@ -280,10 +374,22 @@ async def stream_user_message(
     patient.last_active_at = datetime.now(timezone.utc)
     db.commit()
 
-    yield _sse("done", {"message_id": assistant_msg_id, "finish_reason": "stop"})
+    # 9) 세션 대화면 5단계 진행을 추적 — LLM 이 세션 종료를 판단하면 자동 종료한다.
+    session_completed = False
+    if conv.context == "session":
+        try:
+            session_completed = _advance_session_stage(db, patient, conv)
+        except Exception:
+            log.exception("stage tracking failed")
+
+    if session_completed:
+        yield _sse("session_completed", {"week_number": patient.current_week})
+        yield _sse("done", {"message_id": assistant_msg_id, "finish_reason": "session_complete"})
+    else:
+        yield _sse("done", {"message_id": assistant_msg_id, "finish_reason": "stop"})
 
 
-async def safety_locked_stream(reason: str) -> AsyncGenerator[str, None]:
+async def safety_locked_stream(reason: str) -> AsyncGenerator[dict, None]:
     yield _sse("safety_classified", {"grade": "A", "event_type": reason})
     yield _sse("done", {"finish_reason": "safety_locked"})
     await asyncio.sleep(0)

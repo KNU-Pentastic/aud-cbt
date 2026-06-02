@@ -2251,7 +2251,7 @@ export interface components {
         };
         LLMInvokeRequest: {
             /** @enum {string} */
-            model: "claude-opus-4-7" | "claude-sonnet-4-6" | "claude-haiku-4-5";
+            model: "claude-opus-4-8" | "claude-opus-4-7" | "claude-sonnet-4-6" | "claude-haiku-4-5";
             /** @description Anthropic Messages 형식 */
             messages: Record<string, never>[];
             system?: string;

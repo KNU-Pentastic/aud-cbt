@@ -5,10 +5,10 @@ import { colors, spacing } from '@/constants/theme';
 type Props = {
   sessionNumber: number;
   onBack: () => void;
-  onEnd: () => void;
+  onLeave: () => void;
 };
 
-export function ChatHeader({ sessionNumber, onBack, onEnd }: Props) {
+export function ChatHeader({ sessionNumber, onBack, onLeave }: Props) {
   return (
     <View style={styles.container}>
       <Pressable onPress={onBack} hitSlop={12} style={styles.iconBtn}>
@@ -18,10 +18,10 @@ export function ChatHeader({ sessionNumber, onBack, onEnd }: Props) {
       <Text style={styles.title}>세션 {sessionNumber}</Text>
 
       <Pressable
-        onPress={onEnd}
+        onPress={onLeave}
         style={({ pressed }) => [styles.endBtn, pressed && { opacity: 0.7 }]}
       >
-        <Text style={styles.endText}>종료</Text>
+        <Text style={styles.endText}>나가기</Text>
       </Pressable>
     </View>
   );
