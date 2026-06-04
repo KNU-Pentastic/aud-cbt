@@ -29,7 +29,11 @@ from app.services import llm_gateway
 # ---------- Keyword rules (conservative; recall-oriented) ----------
 
 _RULES_A_SUICIDE = [
-    "자살", "죽고 싶", "사라지고 싶", "끝내고 싶", "목숨", "유서",
+    "자살", "죽고 싶", "사라지고 싶", "목숨", "유서",
+    # "끝내고 싶"는 "프로그램/일을 끝내고 싶다"(종료 의사)와 충돌해 거짓양성을
+    # 유발한다(ST-06: 멀쩡한 환자 응급 잠금). 자살 맥락이 분명한 변형만 룰로 두고,
+    # 모호한 "끝내고 싶"는 LLM 맥락 판단에 맡긴다.
+    "삶을 끝내", "생을 끝내", "인생을 끝내", "다 끝내버리",
     "kill myself", "end it all", "suicide",
 ]
 
@@ -83,6 +87,57 @@ _LLM_SYSTEM = (
     "relapse, medication_stop, paws, or none. Assign grade A for "
     "suicide_risk/acute_intoxication, grade B for relapse/medication_stop/paws, "
     "grade none otherwise. Be conservative — when in doubt, flag the higher grade. "
+    "Judge by accumulated context, not single keywords, and do not let soft, calm, "
+    "or matter-of-fact phrasing hide real risk. "
+    "suicide_risk ALWAYS takes priority over any grade B event when both could apply.\n"
+    "suicide_risk signals (grade A) — include indirect / euphemistic forms:\n"
+    "- explicit ideation, plan, attempt, or means (mentioning, staring at, or "
+    "stockpiling a method, e.g. '약을 다 모아놨어요').\n"
+    "- passive death wish: wishing not to wake up / not to exist "
+    "(e.g. '아침에 눈이 안 떠졌으면 좋겠어요'); treat as suicide even if it sounds "
+    "like fatigue or a sleep complaint.\n"
+    "- pervasive hopelessness / meaninglessness / being unable to go on "
+    "(e.g. '다 의미 없어요', '더는 못 버티겠어요', '살아갈 이유가 없어요').\n"
+    "- worthlessness or being a burden (e.g. '내가 없는 게 나아요', '내가 죽으면 "
+    "다들 편해질 거예요').\n"
+    "- farewell or putting affairs in order (e.g. '미안하다는 말만 남기고', "
+    "'다 정리하고 떠날 준비', '짐 정리를 다 했어요').\n"
+    "- WARNING SIGN: a patient who voiced suicidal thoughts earlier and now turns "
+    "suddenly calm or at peace ('마음이 오히려 편안해요'), or reports having finished "
+    "putting affairs in order, is at IMMINENT risk — grade A, NOT recovered.\n"
+    "Suicide vs medication boundary: pills/medication referenced as a possible MEANS "
+    "of self-harm in a despair context — staring at, counting, or stockpiling them "
+    "(e.g. '약통을 한참 들여다봤다' after dark thoughts) — is suicide_risk (grade A). "
+    "medication_stop is ONLY about skipping or quitting one's prescribed doses, never "
+    "about medication used as a means of self-harm.\n"
+    "acute_intoxication vs relapse boundary:\n"
+    "- acute_intoxication (grade A) = a physical emergency in progress: drinking "
+    "right now / heavy drinking just now WITH acute physical symptoms (vomiting, "
+    "nausea, dizziness, double vision, racing heart, tremor, feeling faint, "
+    "blackout), overdose, mixing alcohol with pills, or a disulfiram reaction "
+    "(e.g. '방금 한 병 다 비웠는데 속이 너무 안 좋아요').\n"
+    "- relapse (grade B) = reporting a PAST drinking episode (yesterday, last week) "
+    "after the fact with no acute physical emergency. If it is 'just now / right "
+    "now' heavy drinking WITH acute symptoms, classify acute_intoxication (A).\n"
+    "Relapse boundary (do NOT over-flag relapse; these are grade none):\n"
+    "- 'relapse' = a NEW, not-yet-reported episode of ACTUALLY consuming alcohol "
+    "(already drank or drinking now, even a single small slip).\n"
+    "- A craving, wish, or hypothetical/conditional about drinking that has NOT "
+    "happened (e.g. '한 잔만 마시면 풀릴 것 같다', 'I feel like a drink') is NOT relapse.\n"
+    "- Reacting to or catastrophizing about a drinking episode ALREADY reported "
+    "earlier in THIS conversation, with no new drinking (e.g. '한 번 마셨으니 이번 "
+    "주는 망했다'), is an abstinence-violation cognitive distortion, NOT a new event.\n"
+    "paws (grade B) = post-cessation symptoms persisting for weeks to months: "
+    "insomnia / sleep disturbance, poor concentration / brain fog, anxiety, low "
+    "mood, cravings, irritability / emotional lability, tremor / sweats / headache, "
+    "daytime fatigue or low energy.\n"
+    "Do NOT over-flag these (grade none): idioms of distress ('아 죽겠다ㅋㅋ', "
+    "'잠 못 자 죽겠어요'); wanting to quit the 12-week PROGRAM (not suicide); "
+    "temporary worry about one specific situation (≠ pervasive despair); "
+    "successfully resisting a craving, a drinking cue, or medication reluctance "
+    "(e.g. drank only cola, took the pill despite not wanting to).\n"
+    "Recall > Precision: missing a real risk is far worse than a false alarm — but "
+    "do not escalate clearly non-crisis context above.\n"
     "Reply ONLY with strict JSON: "
     '{"grade":"A|B|none","event_type":"...","confidence":0..1}'
 )
@@ -121,7 +176,12 @@ def _llm_classify(db: Session, req: SafetyClassifyRequest) -> tuple[str, str, fl
     conf = float(data.get("confidence", 0.0))
     if grade not in ("A", "B", "none"):
         return None
-    if grade != "none" and event_type not in (
+    if grade == "none":
+        # grade=none이면 event_type 은 의미가 없다. LLM 이 자유 텍스트
+        # (예: "program_fatigue")를 반환해도 스키마(SafetyEventTypeOrNone)에 맞게
+        # "none" 으로 정규화한다 — 응답 검증 오류(500) 방지.
+        event_type = "none"
+    elif event_type not in (
         "suicide_risk",
         "acute_intoxication",
         "relapse",
