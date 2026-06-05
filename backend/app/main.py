@@ -95,6 +95,18 @@ for r in (
     app.include_router(r, prefix=API_PREFIX)
 
 
+@app.on_event("startup")
+def _log_llm_mode() -> None:
+    from app.services import llm_gateway
+
+    mode = llm_gateway.effective_mode()
+    log = logging.getLogger("app.startup")
+    if mode["mode"] == "real":
+        log.info("LLM mode=real model=%s", mode["model"])
+    else:
+        log.warning("LLM mode=MOCK model=%s reason=%s", mode["model"], mode["reason"])
+
+
 @app.get("/", tags=["meta"])
 def root():
     return {

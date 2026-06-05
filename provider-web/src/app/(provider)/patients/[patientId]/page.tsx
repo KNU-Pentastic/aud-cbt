@@ -1,8 +1,9 @@
 "use client"
 
-import { use } from "react"
+import { use, useState } from "react"
 import Link from "next/link"
-import { Lock, RefreshCw, Pencil } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Lock, RefreshCw, Pencil, Trash2, KeyRound } from "lucide-react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
@@ -14,11 +15,26 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CheckinsChart } from "@/components/checkins-chart"
 import { SafetyEventList } from "@/components/safety-event-list"
-import { useRegenerateCode, usePatient } from "@/lib/queries"
+import {
+  useRegenerateCode,
+  useRegistrationCode,
+  useDeletePatient,
+  usePatient,
+} from "@/lib/queries"
 import {
   EMOTIONAL_TONE_LABELS,
   PROGRAM_STATUS_LABELS,
@@ -27,14 +43,61 @@ import {
 } from "@/lib/safety"
 import { formatDateKo, formatDateTimeKo } from "@/lib/format"
 
+const REG_CODE_STATUS_LABEL: Record<string, string> = {
+  active: "유효",
+  consumed: "사용됨",
+  expired: "만료",
+  none: "없음",
+}
+
 export default function PatientDetailPage({
   params,
 }: {
   params: Promise<{ patientId: string }>
 }) {
   const { patientId } = use(params)
+  const router = useRouter()
   const { data, isLoading, isError } = usePatient(patientId)
+  const regCode = useRegistrationCode(patientId)
   const regenerate = useRegenerateCode(patientId)
+  const deletePatient = useDeletePatient()
+  const [confirmRegen, setConfirmRegen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState("")
+
+  const runRegenerate = async () => {
+    try {
+      const r = await regenerate.mutateAsync()
+      toast.success(
+        `등록 코드 재발급: ${r.registration_code} (${formatDateKo(r.expires_at)}까지)`,
+      )
+    } catch (e) {
+      const msg = e instanceof Error && e.message ? e.message : "재발급 실패"
+      toast.error(msg)
+    } finally {
+      setConfirmRegen(false)
+    }
+  }
+
+  const onRegenerateClick = () => {
+    // 이미 가입한 환자는 재발급 시 기존 PIN/가입이 초기화되므로 먼저 확인한다.
+    if (regCode.data?.is_registered) {
+      setConfirmRegen(true)
+    } else {
+      void runRegenerate()
+    }
+  }
+
+  const runDelete = async () => {
+    try {
+      await deletePatient.mutateAsync(patientId)
+      toast.success("환자를 삭제했습니다.")
+      router.replace("/patients")
+    } catch (e) {
+      const msg = e instanceof Error && e.message ? e.message : "삭제 실패"
+      toast.error(msg)
+    }
+  }
 
   if (isError) {
     return (
@@ -79,23 +142,6 @@ export default function PatientDetailPage({
             </div>
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              disabled={regenerate.isPending}
-              onClick={async () => {
-                try {
-                  const r = await regenerate.mutateAsync()
-                  toast.success(
-                    `등록 코드 재발급: ${r.registration_code} (${formatDateKo(r.expires_at)}까지)`,
-                  )
-                } catch {
-                  toast.error("재발급 실패")
-                }
-              }}
-            >
-              <RefreshCw className="size-4" />
-              등록 코드 재발급
-            </Button>
             <Link
               href={`/patients/${patientId}/reassess`}
               className={`${buttonVariants()} rounded-full`}
@@ -124,6 +170,57 @@ export default function PatientDetailPage({
           />
         </div>
       </header>
+
+      {/* 등록 정보 — 현재 등록 코드 확인 + 재발급 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <KeyRound className="size-4" /> 등록 정보
+          </CardTitle>
+          <CardDescription>
+            환자 앱 등록에 사용하는 코드입니다. 분실 시 재발급할 수 있습니다.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-end justify-between gap-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Info
+              label="가입 상태"
+              value={
+                <Badge variant={regCode.data?.is_registered ? "secondary" : "outline"}>
+                  {regCode.data?.is_registered ? "가입 완료" : "미가입"}
+                </Badge>
+              }
+            />
+            <Info
+              label="현재 등록 코드"
+              value={
+                <span className="font-mono text-base font-semibold tracking-wider">
+                  {regCode.data?.registration_code ?? "—"}
+                  <span className="text-muted-foreground ml-2 text-xs font-normal">
+                    {REG_CODE_STATUS_LABEL[regCode.data?.status ?? "none"]}
+                  </span>
+                </span>
+              }
+            />
+            <Info
+              label="만료일"
+              value={
+                regCode.data?.expires_at
+                  ? formatDateKo(regCode.data.expires_at)
+                  : "—"
+              }
+            />
+          </div>
+          <Button
+            variant="outline"
+            disabled={regenerate.isPending}
+            onClick={onRegenerateClick}
+          >
+            <RefreshCw className="size-4" />
+            등록 코드 재발급
+          </Button>
+        </CardContent>
+      </Card>
 
       <section className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -304,6 +401,82 @@ export default function PatientDetailPage({
           </CardContent>
         </Card>
       </section>
+
+      {/* 위험 구역 — 환자 영구 삭제 */}
+      <section>
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="size-4" /> 위험 구역
+            </CardTitle>
+            <CardDescription>
+              환자와 모든 관련 데이터(대화·체크인·안전 이벤트·등록 코드 등)를 영구
+              삭제합니다. 되돌릴 수 없습니다.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setDeleteConfirmText("")
+                setConfirmDelete(true)
+              }}
+            >
+              <Trash2 className="size-4" />
+              환자 삭제
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* 재발급 확인 (가입 완료 환자) */}
+      <AlertDialog open={confirmRegen} onOpenChange={setConfirmRegen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>등록 코드를 재발급할까요?</AlertDialogTitle>
+            <AlertDialogDescription>
+              이미 가입을 완료한 환자입니다. 재발급하면 기존 PIN과 가입이 초기화되어,
+              환자는 새 코드로 다시 등록해야 합니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction disabled={regenerate.isPending} onClick={runRegenerate}>
+              재발급
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 삭제 확인 (환자명 입력) */}
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>환자를 영구 삭제할까요?</AlertDialogTitle>
+            <AlertDialogDescription>
+              이 작업은 되돌릴 수 없습니다. 확인을 위해 환자명{" "}
+              <span className="text-foreground font-semibold">{data.name}</span> 을(를)
+              입력하세요.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <input
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            placeholder={data.name}
+            className="border-input bg-background focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm outline-none focus-visible:ring-2"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deletePatient.isPending || deleteConfirmText !== data.name}
+              onClick={runDelete}
+            >
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

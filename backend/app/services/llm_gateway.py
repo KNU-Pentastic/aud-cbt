@@ -24,19 +24,62 @@ from app.schemas.internal import LLMInvokeRequest, LLMInvokeResponse, LLMUsageBl
 log = logging.getLogger(__name__)
 
 _anthropic_client = None
+# True once we have logged a loud warning about an unexpected mock fallback,
+# so we warn clearly the first time without spamming every request.
+_mock_fallback_warned = False
+
+# Models that no longer accept the `temperature` parameter (sending it → 400).
+_NO_TEMPERATURE_MODELS = {"claude-opus-4-8"}
+
+
+def _create_kwargs(req: LLMInvokeRequest) -> dict[str, Any]:
+    """Common kwargs for messages.create/stream. Omits params the model rejects."""
+    kwargs: dict[str, Any] = {
+        "model": req.model,
+        "max_tokens": req.max_tokens,
+        "system": req.system or "",
+        "messages": req.messages,
+    }
+    if req.model not in _NO_TEMPERATURE_MODELS:
+        kwargs["temperature"] = req.temperature if req.temperature is not None else 0.7
+    return kwargs
 
 
 def _get_client():
-    global _anthropic_client
+    global _anthropic_client, _mock_fallback_warned
     if _anthropic_client is None and not settings.llm_mock_enabled:
         try:
             from anthropic import Anthropic
 
             _anthropic_client = Anthropic(api_key=settings.anthropic_api_key)
         except Exception:
-            log.exception("Failed to init Anthropic client; falling back to mock.")
+            # USE_LLM_MOCK=false 인데 클라이언트 생성에 실패 → 의도치 않은 mock 폴백.
+            # 조용히 넘어가면 "왜 mock 응답이 나오지?"를 진단하기 어려우므로 명확히 알린다.
+            if not _mock_fallback_warned:
+                log.error(
+                    "USE_LLM_MOCK=false 이지만 Anthropic 클라이언트 초기화에 실패했습니다. "
+                    "mock 응답으로 폴백합니다. `pip install -r requirements.txt`(anthropic) "
+                    "설치 여부와 ANTHROPIC_API_KEY 를 확인하세요.",
+                    exc_info=True,
+                )
+                _mock_fallback_warned = True
             return None
     return _anthropic_client
+
+
+def effective_mode() -> dict:
+    """기동 진단용: 현재 LLM 모드(mock/real)와 대화 모델을 반환한다."""
+    if settings.llm_mock_enabled:
+        reason = "USE_LLM_MOCK=true" if settings.use_llm_mock else "ANTHROPIC_API_KEY 미설정"
+        return {"mode": "mock", "reason": reason, "model": settings.llm_model_dialogue}
+    client = _get_client()
+    if client is None:
+        return {
+            "mode": "mock",
+            "reason": "Anthropic 클라이언트 초기화 실패 (anthropic 패키지/키 확인)",
+            "model": settings.llm_model_dialogue,
+        }
+    return {"mode": "real", "reason": None, "model": settings.llm_model_dialogue}
 
 
 def _mock_response(req: LLMInvokeRequest) -> tuple[str, int, int]:
@@ -128,13 +171,7 @@ def invoke(db: Session, req: LLMInvokeRequest) -> LLMInvokeResponse:
         content, in_tok, out_tok = _mock_response(req)
     else:
         try:
-            resp = client.messages.create(
-                model=req.model,
-                max_tokens=req.max_tokens,
-                system=req.system or "",
-                messages=req.messages,
-                temperature=req.temperature if req.temperature is not None else 0.7,
-            )
+            resp = client.messages.create(**_create_kwargs(req))
             # SDK returns a list of TextBlocks
             content = "".join(getattr(b, "text", "") for b in (resp.content or []))
             in_tok = resp.usage.input_tokens
@@ -175,13 +212,7 @@ async def stream(db: Session, req: LLMInvokeRequest) -> AsyncGenerator[str, None
         return
 
     try:
-        with client.messages.stream(
-            model=req.model,
-            max_tokens=req.max_tokens,
-            system=req.system or "",
-            messages=req.messages,
-            temperature=req.temperature if req.temperature is not None else 0.7,
-        ) as s:
+        with client.messages.stream(**_create_kwargs(req)) as s:
             for chunk in s.text_stream:
                 yield chunk
                 await asyncio.sleep(0)

@@ -239,6 +239,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
               };
             });
             break;
+          case 'session_completed':
+            // 세션 종료는 LLM 이 판단 — 완료 표시 후 입력을 잠근다.
+            set((state) => {
+              const s = state.sessions[sessionId];
+              if (!s) return state;
+              return {
+                sessions: {
+                  ...state.sessions,
+                  [sessionId]: { ...s, isComplete: true },
+                },
+              };
+            });
+            break;
           case 'error':
             set({ error: ev.data.message || '응답 생성 중 오류가 발생했어요.' });
             break;
