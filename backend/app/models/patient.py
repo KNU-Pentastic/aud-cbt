@@ -36,6 +36,14 @@ class Patient(Base):
     llm_locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     llm_lock_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
+    # Provider unlock audit — who released the most recent safety lock, when, and why.
+    # Cleared whenever a new grade-A event re-locks the patient.
+    llm_unlocked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    llm_unlocked_by: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    llm_unlock_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

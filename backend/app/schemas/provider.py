@@ -130,6 +130,10 @@ class LLMLockStatus(BaseModel):
     locked: bool
     locked_at: datetime | None = None
     reason: str | None = None
+    # Audit of the most recent provider unlock (null if never unlocked since last lock).
+    unlocked_at: datetime | None = None
+    unlocked_by: str | None = None
+    unlock_note: str | None = None
 
 
 class PatientDetailDashboard(BaseModel):
@@ -174,3 +178,16 @@ class ProgramStatusOut(BaseModel):
     patient_id: str
     program_status: str
     changed_at: datetime
+
+
+class LLMUnlockIn(BaseModel):
+    # Optional clinical note recorded with the unlock (e.g. "외래에서 위험 평가 완료").
+    note: str | None = Field(default=None, max_length=500)
+
+
+class LLMUnlockOut(BaseModel):
+    patient_id: str
+    locked: bool
+    unlocked_at: datetime
+    unlocked_by: str
+    acknowledged_safety_events: int

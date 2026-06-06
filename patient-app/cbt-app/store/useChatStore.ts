@@ -1,5 +1,13 @@
 import { create } from 'zustand';
-import { api, streamMessage, ApiError, type SseEvent } from '@/lib/api';
+import {
+  api,
+  streamMessage,
+  ApiError,
+  type SseEvent,
+  type PromptTrace,
+  type StageProgress,
+  type UtteranceAnalysis,
+} from '@/lib/api';
 
 export type Message = {
   id: string;
@@ -11,6 +19,16 @@ export type Message = {
 };
 
 export type ConversationContext = 'session' | 'craving' | 'resu' | 'soma';
+
+/**
+ * 라이브 답변의 진단 정보(LLM_TRACE=on): 참고한 프롬프트(prompt) +
+ * 주차/단계 진행도(progress) + 직전 환자 발화 분석(analysis).
+ */
+export type SessionTrace = {
+  prompt?: PromptTrace;
+  progress?: StageProgress;
+  analysis?: UtteranceAnalysis;
+};
 
 export type ChatSession = {
   id: string; // 백엔드 conversation_id
@@ -63,6 +81,8 @@ type StartKind = 'session' | 'craving';
 
 type ChatState = {
   sessions: Record<string, ChatSession>;
+  /** conversation_id → 라이브 트레이스(참고 프롬프트 + 진행도). LLM_TRACE=on 일 때 채워짐. */
+  traces: Record<string, SessionTrace>;
   currentSessionId: string | null;
   isTyping: boolean;
   llmLocked: boolean;
@@ -88,6 +108,7 @@ type ChatState = {
 
 export const useChatStore = create<ChatState>((set, get) => ({
   sessions: {},
+  traces: {},
   currentSessionId: null,
   isTyping: false,
   llmLocked: false,
@@ -104,6 +125,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (info.llm_locked) {
         set({ llmLocked: true, lockReason: 'safety_lock', safetyTripped: true });
         return null;
+      }
+      // 서버가 잠금 해제 상태를 보고하면(의료진이 웹에서 해제했을 수 있음)
+      // 로컬에 남아 있던 잠금 표시도 정리해 환자가 다시 대화할 수 있게 한다.
+      if (get().llmLocked) {
+        set({ llmLocked: false, lockReason: null });
       }
 
       // 2) 갈망 대화: 활성 갈망이 있으면 재사용, 없으면 생성 (백엔드 /craving 정책)
@@ -238,6 +264,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 },
               };
             });
+            break;
+          case 'context_used':
+            // 이 답변이 참고한 프롬프트 블록·phase·선택 모듈 (LLM_TRACE=on)
+            set((state) => ({
+              traces: {
+                ...state.traces,
+                [sessionId]: { ...state.traces[sessionId], prompt: ev.data },
+              },
+            }));
+            break;
+          case 'stage_progress':
+            // 치료 주차/단계 진행도 (LLM_TRACE=on)
+            set((state) => ({
+              traces: {
+                ...state.traces,
+                [sessionId]: { ...state.traces[sessionId], progress: ev.data },
+              },
+            }));
+            break;
+          case 'utterance_analysis':
+            // 직전 환자 발화의 구조화 분석 + 안전 분류 (LLM_TRACE=on)
+            set((state) => ({
+              traces: {
+                ...state.traces,
+                [sessionId]: { ...state.traces[sessionId], analysis: ev.data },
+              },
+            }));
             break;
           case 'session_completed':
             // 세션 종료는 LLM 이 판단 — 완료 표시 후 입력을 잠근다.

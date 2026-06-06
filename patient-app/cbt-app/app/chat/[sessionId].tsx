@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useChatStore } from '@/store/useChatStore';
 import { ChatHeader } from '@/components/chat/ChatHeader';
+import { TraceStrip } from '@/components/chat/TraceStrip';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { ChatInput } from '@/components/chat/ChatInput';
@@ -92,6 +93,8 @@ export default function ChatScreen() {
         onBack={() => router.back()}
         onLeave={handleLeave}
       />
+
+      <TraceStrip sessionId={session.id} />
 
       <KeyboardAvoidingView
         style={styles.flex}

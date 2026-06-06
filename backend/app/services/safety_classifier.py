@@ -58,6 +58,14 @@ _RULES_B_PAWS = [
 ]
 
 
+# 자살 의사를 '부정'하는 표현("죽고 싶지 않아", "사라지고 싶진 않아", "죽고 싶지도 않")은
+# 룰 키워드 "죽고 싶"의 부분문자열로 잡혀 suicide_risk 오탐을 낸다. 환자가 "죽고 싶지
+# 않아, 그냥 술 마시고 싶어"처럼 부정을 반복하면 잠금→해제→재잠금 루프가 된다(ST 계열
+# 오탐, "끝내고 싶" 제외와 같은 맥락). 죽음 욕구에 붙은 부정("...싶지/싶진 ...않")만 골라
+# 룰 매칭에서 제외한다. LLM 분류는 그대로 돌아가므로 진짜 위험은 여전히 잡힌다.
+_SUICIDE_NEGATION_RE = re.compile(r"(죽고|사라지고)\s*싶(지|진)[^않]{0,3}않")
+
+
 def _scan(text: str, rules: list[str]) -> str | None:
     low = text.lower()
     for r in rules:
@@ -66,9 +74,26 @@ def _scan(text: str, rules: list[str]) -> str | None:
     return None
 
 
+def _suicide_match(text: str) -> str | None:
+    """자살 룰 매칭 — 단, 죽음 욕구의 '부정형'만 있는 경우는 제외한다.
+
+    '죽고 싶지 않아'(자살 의사 부정)는 "죽고 싶" 부분문자열로 잡혀 grade A 오탐을 내고,
+    환자가 부정을 반복하면 잠금→해제→재잠금 루프가 된다. 부정된 죽음 욕구를 지운 뒤에도
+    남는 자살 신호(예: '자살', '유서', 부정 안 된 '죽고 싶어')가 있으면 그것을 반환해
+    recall 은 유지한다.
+    """
+    m = _scan(text, _RULES_A_SUICIDE)
+    if m is None:
+        return None
+    if m in ("죽고 싶", "사라지고 싶") and _SUICIDE_NEGATION_RE.search(text):
+        residual = _SUICIDE_NEGATION_RE.sub(" ", text)
+        return _scan(residual, _RULES_A_SUICIDE)
+    return m
+
+
 def _rule_classify(text: str) -> tuple[str, str, str] | None:
     """Returns (grade, event_type, matched_keyword) or None."""
-    if m := _scan(text, _RULES_A_SUICIDE):
+    if m := _suicide_match(text):
         return "A", "suicide_risk", m
     if m := _scan(text, _RULES_A_INTOX):
         return "A", "acute_intoxication", m
@@ -255,6 +280,10 @@ def classify(db: Session, req: SafetyClassifyRequest) -> SafetyClassifyResponse:
                 patient.llm_locked = True
                 patient.llm_locked_at = datetime.now(timezone.utc)
                 patient.llm_lock_reason = event_type
+                # A fresh lock supersedes any previous provider unlock.
+                patient.llm_unlocked_at = None
+                patient.llm_unlocked_by = None
+                patient.llm_unlock_note = None
 
         db.commit()
         db.refresh(evt)

@@ -147,6 +147,9 @@ export type PatientDetail = {
     locked: boolean
     since: string | null
     reason: string | null
+    unlocked_at?: string | null
+    unlocked_by?: string | null
+    unlock_note?: string | null
   }
 }
 
@@ -343,4 +346,30 @@ export function getMockPatientDetail(patientId: string): PatientDetail | null {
   const summary = mockPatients.find((p) => p.patient_id === patientId)
   if (!summary) return null
   return synthDetailFromSummary(summary)
+}
+
+/**
+ * Clear a mock patient's LLM safety lock so the detail/list views reflect the
+ * unlock on the next refetch. Returns the unlock audit echoed by the endpoint.
+ */
+export function unlockMockPatient(
+  patientId: string,
+  unlockedBy: string,
+  note?: string,
+): { unlocked_at: string; unlocked_by: string } {
+  const unlocked_at = new Date().toISOString()
+  const detail = MOCK_PATIENT_DETAILS[patientId]
+  if (detail) {
+    detail.llm_lock_status = {
+      locked: false,
+      since: detail.llm_lock_status.since,
+      reason: detail.llm_lock_status.reason,
+      unlocked_at,
+      unlocked_by: unlockedBy,
+      unlock_note: note ?? null,
+    }
+  }
+  const summary = mockPatients.find((p) => p.patient_id === patientId)
+  if (summary) summary.llm_locked = false
+  return { unlocked_at, unlocked_by: unlockedBy }
 }

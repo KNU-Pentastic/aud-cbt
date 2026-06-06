@@ -87,11 +87,68 @@ export const api = {
 // expo/fetch 의 ReadableStream(getReader) 으로 SSE 프레임을 직접 파싱한다.
 // ---------------------------------------------------------------------------
 
+/** 이 답변에서 LLM 이 참고한 가이드라인 블록 (식별자 + 제목 + 본문). */
+export type PromptBlock = { target: string; title: string; body: string };
+
+/** context_used: 라이브 답변이 어떤 프롬프트를 참고했는지 (LLM_TRACE=on 일 때만 옴). */
+export type PromptTrace = {
+  context_type: 'session' | 'craving' | 'resu' | 'soma';
+  phase: number | null;
+  week_number: number | null;
+  prompt_version: string;
+  prompt_blocks: PromptBlock[];
+  selected_modules: { selected_modules: string[]; rationale: string; confidence: number } | null;
+  system_prompt_chars: number;
+  /** LLM 에 실제로 전달된 조립 완료 시스템 프롬프트 전문 (환자 컨텍스트 포함). */
+  system_prompt: string;
+};
+
+/** utterance_analysis: 방금 환자 발화에 대한 구조화 분석 (LLM_TRACE=on 일 때만 옴). */
+export type UtteranceAnalysis = {
+  /** 분석 대상이 된 환자 발화 (최대 500자). */
+  text: string;
+  analysis: {
+    primary_emotion: string;
+    emotions: string[];
+    intent: string;
+    cognitive_distortions: string[];
+    craving_intensity: number; // 0~10
+    topics: string[];
+    relevant_step: number | null; // 1~5
+    summary: string;
+  };
+  /** 안전 분류기(매 발화 실행) 결과. */
+  safety: {
+    grade: 'A' | 'B' | 'none';
+    event_type: string;
+    confidence: number;
+    matched_by: 'rule_keyword' | 'llm_classifier' | 'both' | 'none';
+    recommended_action: string;
+  };
+};
+
+/** stage_progress: 치료의 주차/단계 진행도 (세션 대화에서만, LLM_TRACE=on 일 때만 옴). */
+export type StageProgress = {
+  week_number: number;
+  total_weeks: number;
+  phase: number;
+  current_step: number;
+  total_steps: number;
+  ready_to_advance: boolean;
+  step_completion: number;
+  drift: 'low' | 'medium' | 'high';
+  session_advanced: boolean;
+  next_week: number | null;
+};
+
 export type SseEvent =
   | { event: 'start'; data: { message_id: string; conversation_id: string } }
   | { event: 'token'; data: { text: string } }
   | { event: 'safety_classified'; data: { grade: 'A' | 'B'; event_type: string } }
   | { event: 'context_switched'; data: { from: string; to: string } }
+  | { event: 'context_used'; data: PromptTrace }
+  | { event: 'utterance_analysis'; data: UtteranceAnalysis }
+  | { event: 'stage_progress'; data: StageProgress }
   | { event: 'session_completed'; data: { week_number?: number } }
   | { event: 'done'; data: { message_id?: string; finish_reason: string } }
   | { event: 'error'; data: { code: string; message: string } };

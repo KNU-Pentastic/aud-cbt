@@ -201,5 +201,8 @@ def get_dashboard(
             locked=patient.llm_locked,
             locked_at=patient.llm_locked_at,
             reason=patient.llm_lock_reason,
+            unlocked_at=patient.llm_unlocked_at,
+            unlocked_by=patient.llm_unlocked_by,
+            unlock_note=patient.llm_unlock_note,
         ),
     )

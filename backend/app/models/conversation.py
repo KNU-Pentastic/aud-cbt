@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -45,6 +45,13 @@ class Message(Base):
     text: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    # 안전 위기(grade A)로 분류된 발화 표시. True 면 이후 같은 대화의 LLM 맥락
+    # (분류기·코치·단계추적)에서 제외해, 잠금 해제 후 재잠금/위기 고착을 막는다.
+    # 화면 표시와 세션 종료 요약(임상 기록)에는 그대로 남는다.
+    safety_excluded: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
     )
 
     conversation = relationship("Conversation", back_populates="messages")

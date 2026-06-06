@@ -396,6 +396,11 @@ paths:
         SafetyEvent 기록 및 llm_locked 상태 노출만 수행하며, 클라이언트(환자 앱)가
         시간 기반(24시간) 또는 사용자의 명시적 확인(P4 '다시 시작하기' 탭)으로
         잠금 처리.
+
+        트레이스 이벤트(`LLM_TRACE=true` 일 때만 — 정량 평가/라이브 관찰용,
+        운영 빌드에서는 끈다): `context_used`(② context_builder / ③ module_classifier),
+        `output_filter`(⑤ output_filter), `utterance_analysis`(⑥ utterance + ① safety),
+        `stage_progress`(⑦ stage_tracker), `session_summary`(⑧ session_summarizer).
       parameters:
         - $ref: '#/components/parameters/ConversationId'
       requestBody:
@@ -423,7 +428,9 @@ paths:
                 type: string
                 description: |
                   SSE 이벤트 타입: start, token, safety_classified,
-                  context_switched, done, error
+                  context_switched, session_completed, done, error.
+                  LLM_TRACE=true 일 때 추가: context_used, output_filter,
+                  utterance_analysis, stage_progress, session_summary
         '409':
           description: CONVERSATION_ENDED — 이미 종료된 대화에는 메시지를 보낼 수 없음
           content:
@@ -940,6 +947,50 @@ paths:
                   patient_id: { type: string }
                   program_status: { type: string }
                   changed_at: { type: string, format: date-time }
+        '403':
+          description: 담당 환자가 아님
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /provider/patients/{patient_id}/unlock-llm:
+    post:
+      tags: [Provider - D4]
+      summary: LLM 안전 잠금 해제
+      description: |
+        자살 위험·급성 중독(등급 A) 감지 시 백엔드가 환자의 LLM 대화를 잠그며,
+        환자 앱에는 스스로 해제할 수단이 없다. 담당 의료진이 환자 위험도를
+        평가한 뒤 이 엔드포인트로 잠금을 해제한다. 해제 시 누가·언제·사유를
+        기록하고, 아직 확인되지 않은 등급 A 안전 이벤트를 확인 처리한다.
+        멱등(idempotent): 이미 해제된 환자에 호출해도 오류 없이 현재 상태를 반환.
+      parameters:
+        - $ref: '#/components/parameters/PatientId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                  maxLength: 500
+                  description: 해제 사유(선택). 감사 기록에 저장된다.
+      responses:
+        '200':
+          description: 잠금 해제됨
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  patient_id: { type: string }
+                  locked: { type: boolean }
+                  unlocked_at: { type: string, format: date-time }
+                  unlocked_by: { type: string }
+                  acknowledged_safety_events: { type: integer }
         '403':
           description: 담당 환자가 아님
           content:
@@ -1633,6 +1684,9 @@ components:
             locked: { type: boolean }
             locked_at: { type: string, format: date-time, nullable: true }
             reason: { type: string, nullable: true }
+            unlocked_at: { type: string, format: date-time, nullable: true }
+            unlocked_by: { type: string, nullable: true }
+            unlock_note: { type: string, nullable: true }
 
     # ---------- Internal: Safety Classifier ----------
     SafetyClassifyRequest:
