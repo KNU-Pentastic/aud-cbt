@@ -40,3 +40,18 @@ function resolveApiBase(): string {
 }
 
 export const API_BASE = resolveApiBase();
+
+/**
+ * 구글 OAuth 2.1 클라이언트 ID (플랫폼별).
+ * Google Cloud Console 에서 발급한 OAuth 클라이언트 ID 를 환경변수로 주입한다.
+ * 하나라도 설정돼 있어야 로그인 화면에 구글 버튼이 노출된다.
+ */
+export const GOOGLE_OAUTH = {
+  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+  androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+};
+
+export const GOOGLE_OAUTH_ENABLED = Boolean(
+  GOOGLE_OAUTH.iosClientId || GOOGLE_OAUTH.androidClientId || GOOGLE_OAUTH.webClientId,
+);

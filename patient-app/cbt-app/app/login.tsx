@@ -1,27 +1,91 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import { useAuthStore } from '@/store/useAuthStore';
 import { ApiError } from '@/lib/api';
+import { GOOGLE_OAUTH, GOOGLE_OAUTH_ENABLED } from '@/lib/config';
 import { colors, spacing, radius } from '@/constants/theme';
+
+// 구글 로그인 후 인앱 브라우저 세션을 정리한다(리다이렉트 완료 처리).
+WebBrowser.maybeCompleteAuthSession();
 
 type Mode = 'register' | 'login';
 
 export default function LoginScreen() {
   const register = useAuthStore((s) => s.register);
   const login = useAuthStore((s) => s.login);
+  const googleSignIn = useAuthStore((s) => s.googleSignIn);
 
   const [mode, setMode] = useState<Mode>('register');
   const [code, setCode] = useState('');
   const [pin, setPin] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
 
   const codeValid = /^[A-Z0-9]{8}$/.test(code);
   const pinValid = /^[0-9]{6}$/.test(pin);
   const canSubmit = codeValid && pinValid && !submitting;
+
+  // OAuth 2.1 Authorization Code + PKCE. 성공 시 id_token 을 백엔드로 보낸다.
+  const [, googleResponse, promptGoogle] = Google.useAuthRequest({
+    iosClientId: GOOGLE_OAUTH.iosClientId,
+    androidClientId: GOOGLE_OAUTH.androidClientId,
+    webClientId: GOOGLE_OAUTH.webClientId,
+    scopes: ['openid', 'email', 'profile'],
+  });
+
+  useEffect(() => {
+    if (!googleResponse) return;
+    if (googleResponse.type !== 'success') {
+      if (googleResponse.type === 'error') {
+        setGoogleBusy(false);
+        Alert.alert('구글 로그인 실패', '다시 시도해주세요.');
+      } else {
+        setGoogleBusy(false); // dismiss/cancel
+      }
+      return;
+    }
+    const idToken =
+      googleResponse.authentication?.idToken ??
+      (googleResponse.params?.id_token as string | undefined);
+    if (!idToken) {
+      setGoogleBusy(false);
+      Alert.alert('구글 로그인 실패', 'id_token 을 받지 못했어요.');
+      return;
+    }
+    (async () => {
+      try {
+        // 최초 연동이면 등록 코드로 신원을 바인딩한다(이미 연동된 계정은 코드 무시).
+        await googleSignIn(idToken, codeValid ? code : undefined);
+      } catch (e) {
+        if (e instanceof ApiError && e.code === 'OAUTH_LINK_REQUIRED') {
+          Alert.alert(
+            '등록 코드가 필요해요',
+            '처음 구글로 가입할 때는 의료진에게 받은 등록 코드를 먼저 입력한 뒤 다시 시도해주세요.'
+          );
+        } else {
+          const msg = e instanceof ApiError ? e.message : '구글 로그인에 실패했어요.';
+          Alert.alert('구글 로그인 실패', msg);
+        }
+      } finally {
+        setGoogleBusy(false);
+      }
+    })();
+  }, [googleResponse]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleGoogle = async () => {
+    setGoogleBusy(true);
+    try {
+      await promptGoogle();
+    } catch {
+      setGoogleBusy(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -105,6 +169,34 @@ export default function LoginScreen() {
                 : '처음이신가요? · 등록하기'}
             </Text>
           </Pressable>
+
+          {GOOGLE_OAUTH_ENABLED && (
+            <>
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>또는</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <Pressable
+                onPress={handleGoogle}
+                disabled={googleBusy || submitting}
+                style={[styles.googleBtn, (googleBusy || submitting) && styles.googleBtnDisabled]}
+              >
+                {googleBusy ? (
+                  <ActivityIndicator color={colors.textPrimary} />
+                ) : (
+                  <Text style={styles.googleText}>구글로 계속하기</Text>
+                )}
+              </Pressable>
+
+              {mode === 'register' && (
+                <Text style={styles.googleHint}>
+                  처음이라면 위에 등록 코드를 입력한 뒤 구글로 계속하기를 눌러주세요.
+                </Text>
+              )}
+            </>
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -151,4 +243,26 @@ const styles = StyleSheet.create({
   submitText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
   switchBtn: { marginTop: 20, alignItems: 'center' },
   switchText: { fontSize: 13, color: colors.sageDark, fontWeight: '500' },
+  divider: { flexDirection: 'row', alignItems: 'center', marginTop: 28, marginBottom: 16 },
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+  dividerText: { marginHorizontal: 12, fontSize: 12, color: colors.textTertiary },
+  googleBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  googleBtnDisabled: { opacity: 0.6 },
+  googleText: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  googleHint: {
+    marginTop: 10,
+    fontSize: 12,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
 });
