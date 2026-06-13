@@ -1,0 +1,224 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1130" font-family="Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif">
+  <defs>
+    <style>
+      text{ font-family:Pretendard,'Apple SD Gothic Neo','Malgun Gothic','Segoe UI',sans-serif; }
+      .t{ font-size:15px; font-weight:700; fill:#10162b; }
+      .s{ font-size:11px; fill:#5b647b; font-family:ui-monospace,Consolas,monospace; }
+      .bn{ font-size:16px; font-weight:800; fill:#ffffff; }
+      .pl{ font-size:11px; font-weight:700; }
+      .hd{ font-size:27px; font-weight:800; fill:#ffffff; letter-spacing:-.3px; }
+      .hs{ font-size:13px; fill:#c5cbe8; }
+      .lg{ font-size:12px; fill:#5b647b; }
+      .cap{ font-size:11px; fill:#5b647b; }
+      .mt{ font-size:13px; font-weight:800; fill:#10162b; }
+      .gw{ font-size:18px; font-weight:800; fill:#ffffff; letter-spacing:1px; }
+      .gws{ font-size:10px; fill:#cdd3ea; }
+      .mdl{ font-size:14px; font-weight:800; font-family:ui-monospace,Consolas,monospace; }
+      .mds{ font-size:11px; fill:#5b647b; }
+      .tag{ font-size:12px; font-weight:800; fill:#ffffff; }
+      .lb{ font-size:12.5px; font-weight:700; fill:#10162b; }
+      .lbs{ font-size:11px; }
+    </style>
+    <marker id="ar-gray"   viewBox="0 0 10 10" markerWidth="9" markerHeight="9" refX="8.5" refY="5" orient="auto"><path d="M0,1 L9,5 L0,9 z" fill="#94a3b8"/></marker>
+    <marker id="ar-slate"  viewBox="0 0 10 10" markerWidth="9" markerHeight="9" refX="8.5" refY="5" orient="auto"><path d="M0,1 L9,5 L0,9 z" fill="#64748b"/></marker>
+    <marker id="ar-haiku"  viewBox="0 0 10 10" markerWidth="9" markerHeight="9" refX="8.5" refY="5" orient="auto"><path d="M0,1 L9,5 L0,9 z" fill="#0ea5a4"/></marker>
+    <marker id="ar-sonnet" viewBox="0 0 10 10" markerWidth="9" markerHeight="9" refX="8.5" refY="5" orient="auto"><path d="M0,1 L9,5 L0,9 z" fill="#d97706"/></marker>
+    <marker id="ar-opus"   viewBox="0 0 10 10" markerWidth="9" markerHeight="9" refX="8.5" refY="5" orient="auto"><path d="M0,1 L9,5 L0,9 z" fill="#6d4aff"/></marker>
+    <marker id="ar-danger" viewBox="0 0 10 10" markerWidth="9" markerHeight="9" refX="8.5" refY="5" orient="auto"><path d="M0,1 L9,5 L0,9 z" fill="#e23b54"/></marker>
+    <marker id="ar-warn"   viewBox="0 0 10 10" markerWidth="9" markerHeight="9" refX="8.5" refY="5" orient="auto"><path d="M0,1 L9,5 L0,9 z" fill="#c2410c"/></marker>
+  </defs>
+
+  <!-- background -->
+  <rect x="0" y="0" width="1800" height="1130" fill="#f7f9fc"/>
+
+  <!-- ===== HEADER ===== -->
+  <rect x="0" y="0" width="1800" height="104" fill="#0b1020"/>
+  <rect x="0" y="100" width="1800" height="4" fill="#6d4aff" opacity="0.85"/>
+  <text class="hd" x="40" y="50">AUD-CBT · LLM 오케스트레이션</text>
+  <text class="hs" x="40" y="82">한 번의 환자 메시지가 거치는 8개 역할별 LLM 호출 — 안전 게이트 → 맞춤 프롬프트 → 코치 응답 → 사후 가드, 모두 단일 게이트웨이 경유</text>
+  <text class="hs" x="1760" y="50" text-anchor="end">단일 다이어그램 · 코드 검증본</text>
+
+  <!-- ===== TOP BAND: legend / patient entry / pre-gate ===== -->
+  <!-- legend -->
+  <text class="lg" x="60" y="157" font-weight="700">범례</text>
+  <rect x="108" y="146" width="13" height="13" rx="3" fill="#16a34a"/><text class="lg" x="127" y="157">DB / 비-LLM</text>
+  <rect x="214" y="146" width="13" height="13" rx="3" fill="#64748b"/><text class="lg" x="233" y="157">규칙</text>
+  <rect x="276" y="146" width="13" height="13" rx="3" fill="#0ea5a4"/><text class="lg" x="295" y="157">Haiku</text>
+  <rect x="350" y="146" width="13" height="13" rx="3" fill="#d97706"/><text class="lg" x="369" y="157">Sonnet</text>
+  <rect x="430" y="146" width="13" height="13" rx="3" fill="#6d4aff"/><text class="lg" x="449" y="157">Opus</text>
+  <rect x="500" y="146" width="13" height="13" rx="3" fill="#6d4aff" opacity="0.45"/><text class="lg" x="519" y="157">트레이스(옵션)</text>
+
+  <!-- patient entry -->
+  <rect x="740" y="134" width="340" height="50" rx="12" fill="#10162b"/>
+  <text x="910" y="165" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700">📱  환자 앱 — 메시지 1건 전송</text>
+  <path d="M910,184 V200" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ar-gray)"/>
+
+  <!-- pre-gate note -->
+  <rect x="1120" y="130" width="650" height="56" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-dasharray="5 4"/>
+  <rect x="1126" y="140" width="4" height="36" rx="2" fill="#64748b"/>
+  <text x="1148" y="154" class="lb">🔒 사전 게이트 (라우터)</text>
+  <text x="1148" y="173" font-size="11.5" fill="#5b647b">이미 llm_locked 환자는 파이프라인 진입 불가 — 의료진이 해제할 때까지 차단</text>
+
+  <!-- ===== SPINE LINE (behind nodes) ===== -->
+  <line x1="910" y1="239" x2="910" y2="991" stroke="#cbd5e1" stroke-width="3"/>
+
+  <!-- ===== LEFT: safety branch ===== -->
+  <text class="lg" x="60" y="288" font-weight="700">① 안전등급 분기</text>
+  <!-- A -->
+  <rect x="60" y="296" width="500" height="64" rx="12" fill="#fdecef" stroke="#f6b9c4"/>
+  <rect x="76" y="313" width="30" height="30" rx="7" fill="#e23b54"/><text class="tag" x="91" y="333" text-anchor="middle">A</text>
+  <text class="lb" x="120" y="322">응급 → 즉시 LLM 잠금 · 파이프라인 종료</text>
+  <text class="lbs" x="120" y="342" fill="#7a2230">자살 · 급성중독  (코치 LLM 미도달, 119/1393 안내)</text>
+  <!-- B -->
+  <rect x="60" y="372" width="500" height="64" rx="12" fill="#fff7e8" stroke="#f3d9a3"/>
+  <rect x="76" y="389" width="30" height="30" rx="7" fill="#c2410c"/><text class="tag" x="91" y="409" text-anchor="middle">B</text>
+  <text class="lb" x="120" y="398">비응급 → 컨텍스트 전환 · 대화 계속</text>
+  <text class="lbs" x="120" y="418" fill="#6b3410">재음주→RESU · 복약중단→SOMA · PAWS→자원 안내</text>
+  <!-- arrows from step1 -->
+  <path d="M638,328 H564" stroke="#e23b54" stroke-width="2" fill="none" marker-end="url(#ar-danger)"/>
+  <path d="M638,340 C600,340 600,404 564,404" stroke="#c2410c" stroke-width="2" fill="none" marker-end="url(#ar-warn)"/>
+
+  <!-- ===== LEFT: system prompt assembly ===== -->
+  <text class="mt" x="60" y="480">🧩 system_prompt — 5겹 조립</text>
+  <g font-size="12.5" font-weight="700" fill="#10162b">
+    <rect x="76" y="492" width="468" height="40" rx="9" fill="#f3f0ff" stroke="#d8ccff"/><rect x="84" y="500" width="4" height="24" rx="2" fill="#6d4aff"/><text x="102" y="517">① 코치 페르소나 · 한국어 CBT (진단/처방 금지)</text>
+    <rect x="76" y="538" width="468" height="40" rx="9" fill="#eafaf6" stroke="#b6e8db"/><rect x="84" y="546" width="4" height="24" rx="2" fill="#0e9488"/><text x="102" y="563">② MI 공통 헤더 — 동기강화상담 원칙</text>
+    <rect x="76" y="584" width="468" height="40" rx="9" fill="#fff4e6" stroke="#f4d8ac"/><rect x="84" y="592" width="4" height="24" rx="2" fill="#c2410c"/><text x="102" y="609">③ Phase 가이드 (1~4 중 1개 · 주차로 결정)</text>
+    <rect x="76" y="630" width="468" height="40" rx="9" fill="#eef3ff" stroke="#cbd9f7"/><rect x="84" y="638" width="4" height="24" rx="2" fill="#3b5bdb"/><text x="102" y="655">④ 선택 모듈 1~2개 (Phase 3 · 분류기)</text>
+    <rect x="76" y="676" width="468" height="40" rx="9" fill="#f6f7fb" stroke="#dde3ee"/><rect x="84" y="684" width="4" height="24" rx="2" fill="#5b647b"/><text x="102" y="701">⑤ 환자 컨텍스트 · 직전 요약 · 7일 체크인</text>
+  </g>
+  <path d="M544,604 C598,604 598,615 638,615" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ar-gray)"/>
+  <text x="548" y="600" font-size="10" fill="#5b647b">→ system_prompt</text>
+
+  <!-- module classifier feeds layer 4 -->
+  <text class="cap" x="60" y="734">Phase 3에서만 모듈 분류기(③)가 ④ 모듈을 선택해 주입</text>
+
+  <!-- ===== CENTER: PIPELINE NODES ===== -->
+  <!-- node 0 -->
+  <g>
+    <rect x="640" y="200" width="540" height="78" rx="13" fill="#ffffff" stroke="#e6e9f2"/>
+    <rect x="646" y="210" width="5" height="58" rx="2" fill="#16a34a"/>
+    <rect x="668" y="222" width="34" height="34" rx="9" fill="#16a34a"/><text class="bn" x="685" y="244" text-anchor="middle">0</text>
+    <text class="t" x="716" y="233">환자 발화 저장</text>
+    <text class="s" x="716" y="254">messages 테이블 기록 · 이후 모든 단계가 참조</text>
+    <rect x="1048" y="226" width="120" height="26" rx="13" fill="#e9f9ee" stroke="#a7e6bd"/><text class="pl" x="1108" y="243" text-anchor="middle" fill="#16a34a">DB write</text>
+  </g>
+  <!-- node 1 -->
+  <g>
+    <rect x="640" y="294" width="540" height="78" rx="13" fill="#ffffff" stroke="#e6e9f2"/>
+    <rect x="646" y="304" width="5" height="58" rx="2" fill="#64748b"/>
+    <rect x="668" y="316" width="34" height="34" rx="9" fill="#64748b"/><text class="bn" x="685" y="338" text-anchor="middle">1</text>
+    <text class="t" x="716" y="327">안전 분류 — 1순위 게이트</text>
+    <text class="s" x="716" y="348">safety_classifier · 규칙 + LLM 하이브리드 (재현율 우선)</text>
+    <rect x="1038" y="320" width="130" height="26" rx="13" fill="#e6fbfa" stroke="#9fe7e5"/><text class="pl" x="1103" y="337" text-anchor="middle" fill="#0ea5a4">규칙 + Haiku</text>
+  </g>
+  <!-- node 2 -->
+  <g>
+    <rect x="640" y="388" width="540" height="78" rx="13" fill="#ffffff" stroke="#e6e9f2"/>
+    <rect x="646" y="398" width="5" height="58" rx="2" fill="#64748b"/>
+    <rect x="668" y="410" width="34" height="34" rx="9" fill="#64748b"/><text class="bn" x="685" y="432" text-anchor="middle">2</text>
+    <text class="t" x="716" y="421">컨텍스트 · 시스템프롬프트 조립</text>
+    <text class="s" x="716" y="442">context_builder · 좌측 5겹 결합 (비-LLM)</text>
+    <rect x="1048" y="414" width="120" height="26" rx="13" fill="#eef2f7" stroke="#cbd5e1"/><text class="pl" x="1108" y="431" text-anchor="middle" fill="#64748b">조립</text>
+  </g>
+  <!-- node 3 -->
+  <g>
+    <rect x="640" y="482" width="540" height="78" rx="13" fill="#ffffff" stroke="#e6e9f2"/>
+    <rect x="646" y="492" width="5" height="58" rx="2" fill="#0ea5a4"/>
+    <rect x="668" y="504" width="34" height="34" rx="9" fill="#0ea5a4"/><text class="bn" x="685" y="526" text-anchor="middle">3</text>
+    <text class="t" x="716" y="515">모듈 분류 (Phase 3 한정)</text>
+    <text class="s" x="716" y="536">module_classifier · ② 안에서 호출 · 9개 중 1~2개</text>
+    <rect x="1078" y="508" width="90" height="26" rx="13" fill="#e6fbfa" stroke="#9fe7e5"/><text class="pl" x="1123" y="525" text-anchor="middle" fill="#0ea5a4">Haiku</text>
+  </g>
+  <!-- node 4 -->
+  <g>
+    <rect x="640" y="576" width="540" height="78" rx="13" fill="#ffffff" stroke="#e6e9f2"/>
+    <rect x="646" y="586" width="5" height="58" rx="2" fill="#6d4aff"/>
+    <rect x="668" y="598" width="34" height="34" rx="9" fill="#6d4aff"/><text class="bn" x="685" y="620" text-anchor="middle">4</text>
+    <text class="t" x="716" y="609">메인 코치 응답 (스트리밍)</text>
+    <text class="s" x="716" y="630">llm_gateway.stream · 환자가 읽는 답변 · 토큰 단위 SSE</text>
+    <rect x="1078" y="602" width="90" height="26" rx="13" fill="#efeaff" stroke="#cdc0ff"/><text class="pl" x="1123" y="619" text-anchor="middle" fill="#6d4aff">Opus</text>
+  </g>
+  <!-- node 5 -->
+  <g>
+    <rect x="640" y="670" width="540" height="78" rx="13" fill="#ffffff" stroke="#e6e9f2"/>
+    <rect x="646" y="680" width="5" height="58" rx="2" fill="#0ea5a4"/>
+    <rect x="668" y="692" width="34" height="34" rx="9" fill="#0ea5a4"/><text class="bn" x="685" y="714" text-anchor="middle">5</text>
+    <text class="t" x="716" y="703">출력 가드 (사후 검수)</text>
+    <text class="s" x="716" y="724">output_filter · 고위험 시 안전 문구로 대체 (비차단)</text>
+    <rect x="1078" y="696" width="90" height="26" rx="13" fill="#e6fbfa" stroke="#9fe7e5"/><text class="pl" x="1123" y="713" text-anchor="middle" fill="#0ea5a4">Haiku</text>
+  </g>
+  <!-- node 6 -->
+  <g>
+    <rect x="640" y="764" width="540" height="78" rx="13" fill="#ffffff" stroke="#e6e9f2"/>
+    <rect x="646" y="774" width="5" height="58" rx="2" fill="#0ea5a4"/>
+    <rect x="668" y="786" width="34" height="34" rx="9" fill="#0ea5a4"/><text class="bn" x="685" y="808" text-anchor="middle">6</text>
+    <text class="t" x="716" y="797">답변 저장 + 발화 분석</text>
+    <text class="s" x="716" y="818">utterance_analyzer · 트레이스 전용 (응답 이후 실행)</text>
+    <rect x="1028" y="790" width="140" height="26" rx="13" fill="#f1edff" stroke="#d6caff"/><text class="pl" x="1098" y="807" text-anchor="middle" fill="#6d4aff">Haiku · 트레이스</text>
+  </g>
+  <!-- node 7 -->
+  <g>
+    <rect x="640" y="858" width="540" height="78" rx="13" fill="#ffffff" stroke="#e6e9f2"/>
+    <rect x="646" y="868" width="5" height="58" rx="2" fill="#d97706"/>
+    <rect x="668" y="880" width="34" height="34" rx="9" fill="#d97706"/><text class="bn" x="685" y="902" text-anchor="middle">7</text>
+    <text class="t" x="716" y="891">5단계 진행 추적 (세션 한정)</text>
+    <text class="s" x="716" y="912">stage_tracker · 세션 종료 시점을 LLM이 판단</text>
+    <rect x="1068" y="884" width="100" height="26" rx="13" fill="#fff3e0" stroke="#facf96"/><text class="pl" x="1118" y="901" text-anchor="middle" fill="#d97706">Sonnet</text>
+  </g>
+  <!-- node 8 -->
+  <g>
+    <rect x="640" y="952" width="540" height="78" rx="13" fill="#ffffff" stroke="#e6e9f2"/>
+    <rect x="646" y="962" width="5" height="58" rx="2" fill="#d97706"/>
+    <rect x="668" y="974" width="34" height="34" rx="9" fill="#d97706"/><text class="bn" x="685" y="996" text-anchor="middle">8</text>
+    <text class="t" x="716" y="985">세션 요약 (종료 시 · 주차 +1)</text>
+    <text class="s" x="716" y="1006">session_summarizer · 임상 핸드오프 → 다음 세션 컨텍스트</text>
+    <rect x="1068" y="978" width="100" height="26" rx="13" fill="#fff3e0" stroke="#facf96"/><text class="pl" x="1118" y="995" text-anchor="middle" fill="#d97706">Sonnet</text>
+  </g>
+
+  <!-- ===== LLM steps -> gateway funnel ===== -->
+  <path d="M1180,333 H1256" stroke="#64748b" stroke-width="2" fill="none" marker-end="url(#ar-slate)"/>
+  <path d="M1180,521 H1256" stroke="#0ea5a4" stroke-width="2" fill="none" marker-end="url(#ar-haiku)"/>
+  <path d="M1180,615 H1256" stroke="#6d4aff" stroke-width="2" fill="none" marker-end="url(#ar-opus)"/>
+  <path d="M1180,709 H1256" stroke="#0ea5a4" stroke-width="2" fill="none" marker-end="url(#ar-haiku)"/>
+  <path d="M1180,803 H1256" stroke="#0ea5a4" stroke-width="2" fill="none" marker-end="url(#ar-haiku)"/>
+  <path d="M1180,897 H1256" stroke="#d97706" stroke-width="2" fill="none" marker-end="url(#ar-sonnet)"/>
+  <path d="M1180,991 H1256" stroke="#d97706" stroke-width="2" fill="none" marker-end="url(#ar-sonnet)"/>
+
+  <!-- ===== GATEWAY ===== -->
+  <rect x="1260" y="290" width="120" height="740" rx="16" fill="#1b2240" stroke="#2c365e"/>
+  <text class="gw" transform="rotate(-90 1320 560)" x="1320" y="560" text-anchor="middle">LLM 게이트웨이</text>
+  <text class="gws" x="1320" y="940" text-anchor="middle" font-weight="700" fill="#aab2da">단일 관문</text>
+  <text class="gws" x="1320" y="958" text-anchor="middle">모델 선택</text>
+  <text class="gws" x="1320" y="974" text-anchor="middle">일일 쿼터 20만</text>
+  <text class="gws" x="1320" y="990" text-anchor="middle">사용량 로깅</text>
+  <text class="gws" x="1320" y="1006" text-anchor="middle">mock 폴백</text>
+
+  <!-- gateway -> models -->
+  <path d="M1380,427 H1456" stroke="#0ea5a4" stroke-width="2.5" fill="none" marker-end="url(#ar-haiku)"/>
+  <path d="M1380,603 H1456" stroke="#d97706" stroke-width="2.5" fill="none" marker-end="url(#ar-sonnet)"/>
+  <path d="M1380,779 H1456" stroke="#6d4aff" stroke-width="2.5" fill="none" marker-end="url(#ar-opus)"/>
+
+  <!-- ===== CLAUDE MODELS ===== -->
+  <text class="mt" x="1610" y="362" text-anchor="middle">☁  Anthropic Claude</text>
+  <!-- haiku -->
+  <rect x="1460" y="384" width="300" height="86" rx="13" fill="#e6fbfa" stroke="#9fe7e5"/>
+  <rect x="1460" y="384" width="6" height="86" rx="3" fill="#0ea5a4"/>
+  <text class="mdl" x="1486" y="420" fill="#0ea5a4">claude-haiku-4-5</text>
+  <text class="mds" x="1486" y="444">⚡ 분류 · 출력가드 · 발화분석</text>
+  <!-- sonnet -->
+  <rect x="1460" y="560" width="300" height="86" rx="13" fill="#fff3e0" stroke="#facf96"/>
+  <rect x="1460" y="560" width="6" height="86" rx="3" fill="#d97706"/>
+  <text class="mdl" x="1486" y="596" fill="#d97706">claude-sonnet-4-6</text>
+  <text class="mds" x="1486" y="620">🧭 단계추적 · 세션요약</text>
+  <!-- opus -->
+  <rect x="1460" y="736" width="300" height="86" rx="13" fill="#efeaff" stroke="#cdc0ff"/>
+  <rect x="1460" y="736" width="6" height="86" rx="3" fill="#6d4aff"/>
+  <text class="mdl" x="1486" y="772" fill="#6d4aff">claude-opus-4-7</text>
+  <text class="mds" x="1486" y="796">💬 메인 코치 대화 (스트리밍)</text>
+
+  <!-- ===== FOOTER ===== -->
+  <line x1="40" y1="1052" x2="1760" y2="1052" stroke="#e6e9f2" stroke-width="1"/>
+  <text class="cap" x="40" y="1075">코드 기준: backend/app/services/* · backend/app/prompts/cbi/v3  —  모델 id는 config.py 설정값(haiku-4-5 / sonnet-4-6 / opus-4-7).</text>
+  <text class="cap" x="40" y="1094">＊ 키 미설정 시(USE_LLM_MOCK=true 기본) 실제 Anthropic 호출 없이 결정적 mock으로 동작 · 트레이스 이벤트는 LLM_TRACE=on에서만 노출.</text>
+</svg>
