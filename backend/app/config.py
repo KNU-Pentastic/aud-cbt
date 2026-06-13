@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     # 비워두면 개발 편의를 위해 jwt_secret 에서 결정론적으로 파생한다(운영 금지).
     pii_encryption_key: str = ""
 
+    # 환자 구글 OAuth 2.1 로그인용 허용 client_id 목록(웹/iOS/안드 여러 개 가능, 콤마 구분).
+    google_client_ids: str = ""
+
     internal_service_keys: str = "dev-internal-key-change-me"
 
     anthropic_api_key: str = ""
@@ -89,6 +92,10 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> List[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def google_client_id_set(self) -> set[str]:
+        return {c.strip() for c in self.google_client_ids.split(",") if c.strip()}
 
     @property
     def pii_key_material(self) -> bytes:

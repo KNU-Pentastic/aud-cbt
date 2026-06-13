@@ -10,12 +10,14 @@ from app.models.provider import Provider
 from app.models.registration_code import RegistrationCode
 from app.schemas.auth import (
     PatientLoginIn,
+    PatientOAuthGoogleIn,
     PatientRegisterIn,
     PinChangeIn,
     ProviderLoginIn,
 )
 from app.schemas.common import TokenResponse
 from app.security import create_access_token, hash_secret, token_ttl, verify_secret
+from app.services import google_oauth
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -59,6 +61,52 @@ def patient_login(body: PatientLoginIn, db: DbSession) -> TokenResponse:
     if not verify_secret(body.pin, patient.pin_hash):
         raise unauthorized("Invalid credentials", code="INVALID_CREDENTIALS")
     patient.last_active_at = datetime.now(timezone.utc)
+    db.commit()
+    token = create_access_token(subject=patient.patient_id, role="patient")
+    return TokenResponse(access_token=token, expires_in=token_ttl("patient"))
+
+
+@router.post("/patient/oauth/google", response_model=TokenResponse)
+def patient_oauth_google(body: PatientOAuthGoogleIn, db: DbSession) -> TokenResponse:
+    """구글 OAuth 2.1 회원가입/로그인.
+
+    - 이미 구글 계정이 연동된 환자: registration_code 없이 바로 로그인.
+    - 최초 연동: 의료진이 발급한 registration_code 로 환자 신원을 바인딩(회원가입).
+    환자앱은 PKCE 로 받은 id_token 만 보내고, 백엔드가 구글 JWKS 로 검증한다.
+    """
+    try:
+        claims = google_oauth.verify_id_token(body.id_token)
+    except google_oauth.GoogleTokenError:
+        raise unauthorized("Invalid Google token", code="INVALID_GOOGLE_TOKEN")
+
+    google_sub = str(claims["sub"])
+    email = claims.get("email")
+    now = datetime.now(timezone.utc)
+
+    # 1) 이미 연동된 환자 → 로그인
+    patient = db.execute(
+        select(Patient).where(Patient.google_sub == google_sub)
+    ).scalar_one_or_none()
+    if patient is not None:
+        if email and not patient.email:
+            patient.email = email
+        patient.last_active_at = now
+        db.commit()
+        token = create_access_token(subject=patient.patient_id, role="patient")
+        return TokenResponse(access_token=token, expires_in=token_ttl("patient"))
+
+    # 2) 최초 연동 → 등록 코드로 신원 바인딩(회원가입)
+    if not body.registration_code:
+        raise not_found(
+            "Google account not linked; registration code required",
+            code="OAUTH_LINK_REQUIRED",
+        )
+    patient = _consume_code(db, body.registration_code)
+    patient.google_sub = google_sub
+    if email:
+        patient.email = email
+    patient.is_registered = True
+    patient.last_active_at = now
     db.commit()
     token = create_access_token(subject=patient.patient_id, role="patient")
     return TokenResponse(access_token=token, expires_in=token_ttl("patient"))
