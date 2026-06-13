@@ -4,6 +4,7 @@ from sqlalchemy import DateTime, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.encryption import EncryptedString
 
 
 class SafetyEvent(Base):
@@ -20,7 +21,8 @@ class SafetyEvent(Base):
     matched_by: Mapped[str] = mapped_column(String(20), default="none")
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
 
-    raw_text: Mapped[str | None] = mapped_column(String(4000), nullable=True)
+    # 발화 원문은 건강정보(민감정보) → 저장 시 암호화.
+    raw_text: Mapped[str | None] = mapped_column(EncryptedString(4000), nullable=True)
     conversation_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
     detected_at: Mapped[datetime] = mapped_column(

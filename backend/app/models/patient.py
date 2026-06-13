@@ -4,6 +4,7 @@ from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Tim
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.encryption import EncryptedString
 
 
 class Patient(Base):
@@ -12,8 +13,9 @@ class Patient(Base):
     patient_id: Mapped[str] = mapped_column(String(40), primary_key=True)
     provider_id: Mapped[str] = mapped_column(ForeignKey("providers.provider_id"), index=True)
 
-    name: Mapped[str] = mapped_column(String(120))
-    phone: Mapped[str] = mapped_column(String(40))
+    # 이름·연락처는 식별정보 → 저장 시 암호화(안전성 확보조치 기준 §7 / 의료기관 가이드라인).
+    name: Mapped[str] = mapped_column(EncryptedString(120))
+    phone: Mapped[str] = mapped_column(EncryptedString(40))
     date_of_birth: Mapped[date] = mapped_column(Date)
     sex: Mapped[str] = mapped_column(String(16))
 
