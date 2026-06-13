@@ -52,6 +52,14 @@ export const GOOGLE_OAUTH = {
   webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
 };
 
-export const GOOGLE_OAUTH_ENABLED = Boolean(
-  GOOGLE_OAUTH.iosClientId || GOOGLE_OAUTH.androidClientId || GOOGLE_OAUTH.webClientId,
-);
+// 현재 플랫폼에 필요한 client ID 가 있을 때만 활성화한다. expo-auth-session 의
+// Google.useAuthRequest 는 해당 플랫폼 client ID 가 없으면 즉시 throw 하므로,
+// 이 플래그로 버튼(=훅을 가진 자식 컴포넌트) 렌더 자체를 막아야 한다.
+const _platformGoogleClientId =
+  Platform.OS === 'ios'
+    ? GOOGLE_OAUTH.iosClientId
+    : Platform.OS === 'android'
+      ? GOOGLE_OAUTH.androidClientId
+      : GOOGLE_OAUTH.webClientId;
+
+export const GOOGLE_OAUTH_ENABLED = Boolean(_platformGoogleClientId);

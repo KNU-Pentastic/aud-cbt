@@ -19,73 +19,15 @@ type Mode = 'register' | 'login';
 export default function LoginScreen() {
   const register = useAuthStore((s) => s.register);
   const login = useAuthStore((s) => s.login);
-  const googleSignIn = useAuthStore((s) => s.googleSignIn);
 
   const [mode, setMode] = useState<Mode>('register');
   const [code, setCode] = useState('');
   const [pin, setPin] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [googleBusy, setGoogleBusy] = useState(false);
 
   const codeValid = /^[A-Z0-9]{8}$/.test(code);
   const pinValid = /^[0-9]{6}$/.test(pin);
   const canSubmit = codeValid && pinValid && !submitting;
-
-  // OAuth 2.1 Authorization Code + PKCE. 성공 시 id_token 을 백엔드로 보낸다.
-  const [, googleResponse, promptGoogle] = Google.useAuthRequest({
-    iosClientId: GOOGLE_OAUTH.iosClientId,
-    androidClientId: GOOGLE_OAUTH.androidClientId,
-    webClientId: GOOGLE_OAUTH.webClientId,
-    scopes: ['openid', 'email', 'profile'],
-  });
-
-  useEffect(() => {
-    if (!googleResponse) return;
-    if (googleResponse.type !== 'success') {
-      if (googleResponse.type === 'error') {
-        setGoogleBusy(false);
-        Alert.alert('구글 로그인 실패', '다시 시도해주세요.');
-      } else {
-        setGoogleBusy(false); // dismiss/cancel
-      }
-      return;
-    }
-    const idToken =
-      googleResponse.authentication?.idToken ??
-      (googleResponse.params?.id_token as string | undefined);
-    if (!idToken) {
-      setGoogleBusy(false);
-      Alert.alert('구글 로그인 실패', 'id_token 을 받지 못했어요.');
-      return;
-    }
-    (async () => {
-      try {
-        // 최초 연동이면 등록 코드로 신원을 바인딩한다(이미 연동된 계정은 코드 무시).
-        await googleSignIn(idToken, codeValid ? code : undefined);
-      } catch (e) {
-        if (e instanceof ApiError && e.code === 'OAUTH_LINK_REQUIRED') {
-          Alert.alert(
-            '등록 코드가 필요해요',
-            '처음 구글로 가입할 때는 의료진에게 받은 등록 코드를 먼저 입력한 뒤 다시 시도해주세요.'
-          );
-        } else {
-          const msg = e instanceof ApiError ? e.message : '구글 로그인에 실패했어요.';
-          Alert.alert('구글 로그인 실패', msg);
-        }
-      } finally {
-        setGoogleBusy(false);
-      }
-    })();
-  }, [googleResponse]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleGoogle = async () => {
-    setGoogleBusy(true);
-    try {
-      await promptGoogle();
-    } catch {
-      setGoogleBusy(false);
-    }
-  };
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -171,35 +113,116 @@ export default function LoginScreen() {
           </Pressable>
 
           {GOOGLE_OAUTH_ENABLED && (
-            <>
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>또는</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              <Pressable
-                onPress={handleGoogle}
-                disabled={googleBusy || submitting}
-                style={[styles.googleBtn, (googleBusy || submitting) && styles.googleBtnDisabled]}
-              >
-                {googleBusy ? (
-                  <ActivityIndicator color={colors.textPrimary} />
-                ) : (
-                  <Text style={styles.googleText}>구글로 계속하기</Text>
-                )}
-              </Pressable>
-
-              {mode === 'register' && (
-                <Text style={styles.googleHint}>
-                  처음이라면 위에 등록 코드를 입력한 뒤 구글로 계속하기를 눌러주세요.
-                </Text>
-              )}
-            </>
+            <GoogleAuthButton
+              registrationCode={codeValid ? code : undefined}
+              disabled={submitting}
+              showHint={mode === 'register'}
+            />
           )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+/**
+ * 구글 로그인 버튼 — Google.useAuthRequest 훅을 품고 있다.
+ *
+ * 이 훅은 현재 플랫폼의 client ID 가 없으면 즉시 throw 하므로, 부모는 반드시
+ * GOOGLE_OAUTH_ENABLED 가 true 일 때만 이 컴포넌트를 렌더해야 한다(훅은 조건부
+ * 호출이 불가능하므로 '조건부 렌더되는 자식'으로 격리한다).
+ */
+function GoogleAuthButton({
+  registrationCode,
+  disabled,
+  showHint,
+}: {
+  registrationCode?: string;
+  disabled?: boolean;
+  showHint?: boolean;
+}) {
+  const googleSignIn = useAuthStore((s) => s.googleSignIn);
+  const [busy, setBusy] = useState(false);
+
+  // OAuth 2.1 Authorization Code + PKCE. 성공 시 id_token 을 백엔드로 보낸다.
+  const [, response, promptAsync] = Google.useAuthRequest({
+    iosClientId: GOOGLE_OAUTH.iosClientId,
+    androidClientId: GOOGLE_OAUTH.androidClientId,
+    webClientId: GOOGLE_OAUTH.webClientId,
+    scopes: ['openid', 'email', 'profile'],
+  });
+
+  useEffect(() => {
+    if (!response) return;
+    if (response.type !== 'success') {
+      setBusy(false);
+      if (response.type === 'error') {
+        Alert.alert('구글 로그인 실패', '다시 시도해주세요.');
+      }
+      return;
+    }
+    const idToken =
+      response.authentication?.idToken ?? (response.params?.id_token as string | undefined);
+    if (!idToken) {
+      setBusy(false);
+      Alert.alert('구글 로그인 실패', 'id_token 을 받지 못했어요.');
+      return;
+    }
+    (async () => {
+      try {
+        // 최초 연동이면 등록 코드로 신원을 바인딩한다(이미 연동된 계정은 코드 무시).
+        await googleSignIn(idToken, registrationCode);
+      } catch (e) {
+        if (e instanceof ApiError && e.code === 'OAUTH_LINK_REQUIRED') {
+          Alert.alert(
+            '등록 코드가 필요해요',
+            '처음 구글로 가입할 때는 의료진에게 받은 등록 코드를 먼저 입력한 뒤 다시 시도해주세요.'
+          );
+        } else {
+          const msg = e instanceof ApiError ? e.message : '구글 로그인에 실패했어요.';
+          Alert.alert('구글 로그인 실패', msg);
+        }
+      } finally {
+        setBusy(false);
+      }
+    })();
+  }, [response]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onPress = async () => {
+    setBusy(true);
+    try {
+      await promptAsync();
+    } catch {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <View style={styles.divider}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>또는</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
+      <Pressable
+        onPress={onPress}
+        disabled={busy || disabled}
+        style={[styles.googleBtn, (busy || disabled) && styles.googleBtnDisabled]}
+      >
+        {busy ? (
+          <ActivityIndicator color={colors.textPrimary} />
+        ) : (
+          <Text style={styles.googleText}>구글로 계속하기</Text>
+        )}
+      </Pressable>
+
+      {showHint && (
+        <Text style={styles.googleHint}>
+          처음이라면 위에 등록 코드를 입력한 뒤 구글로 계속하기를 눌러주세요.
+        </Text>
+      )}
+    </>
   );
 }
 
