@@ -163,13 +163,23 @@ _LLM_SYSTEM = (
     "(e.g. drank only cola, took the pill despite not wanting to).\n"
     "Recall > Precision: missing a real risk is far worse than a false alarm — but "
     "do not escalate clearly non-crisis context above.\n"
+    "`reasoning` MUST be ONE short Korean sentence a clinician can read, explaining why "
+    "you assigned this grade/event_type. `evidence_span` MUST be the short verbatim quote "
+    "from the patient text that drove the decision (empty string if none).\n"
     "Reply ONLY with strict JSON: "
-    '{"grade":"A|B|none","event_type":"...","confidence":0..1}'
+    '{"grade":"A|B|none","event_type":"...","confidence":0..1,'
+    '"reasoning":"<한국어 한 문장>","evidence_span":"<원문 인용>"}'
 )
 
 
-def _llm_classify(db: Session, req: SafetyClassifyRequest) -> tuple[str, str, float] | None:
-    """Returns (grade, event_type, confidence). None on failure → caller treats as miss."""
+def _llm_classify(
+    db: Session, req: SafetyClassifyRequest
+) -> tuple[str, str, float, str, str] | None:
+    """Returns (grade, event_type, confidence, reasoning, evidence_span).
+
+    None on failure → caller treats as miss. reasoning/evidence_span 은 의료진에게
+    '왜 잡혔는지'를 보여주기 위한 LLM 의 한국어 사유와 원문 인용이다.
+    """
     messages = []
     for turn in (req.recent_dialogue or [])[-4:]:
         messages.append({"role": turn.role, "content": turn.text})
@@ -181,7 +191,7 @@ def _llm_classify(db: Session, req: SafetyClassifyRequest) -> tuple[str, str, fl
                 model=settings.llm_model_classifier,
                 messages=messages,
                 system=_LLM_SYSTEM,
-                max_tokens=200,
+                max_tokens=300,
                 temperature=0.0,
                 stream=False,
                 patient_id=req.patient_id,
@@ -199,6 +209,8 @@ def _llm_classify(db: Session, req: SafetyClassifyRequest) -> tuple[str, str, fl
     grade = str(data.get("grade", "none"))
     event_type = str(data.get("event_type", "none"))
     conf = float(data.get("confidence", 0.0))
+    reasoning = str(data.get("reasoning", ""))[:1000]
+    evidence = str(data.get("evidence_span", ""))[:500]
     if grade not in ("A", "B", "none"):
         return None
     if grade == "none":
@@ -214,7 +226,7 @@ def _llm_classify(db: Session, req: SafetyClassifyRequest) -> tuple[str, str, fl
         "paws",
     ):
         return None
-    return grade, event_type, conf
+    return grade, event_type, conf, reasoning, evidence
 
 
 def _recommended_action(grade: str, event_type: str) -> str:
@@ -233,10 +245,15 @@ def classify(db: Session, req: SafetyClassifyRequest) -> SafetyClassifyResponse:
     rule_hit = _rule_classify(req.text)
     llm_hit = _llm_classify(db, req)
 
+    # 의료진 알림용 사유/근거 — 룰 키워드, LLM 한 줄 사유, 원문 내 근거 구간.
+    matched_keyword: str | None = rule_hit[2] if rule_hit else None
+    llm_reasoning: str = llm_hit[3] if llm_hit else ""
+    llm_evidence: str = llm_hit[4] if llm_hit else ""
+
     if rule_hit and llm_hit:
         # Take the higher-severity result
         r_grade, r_event, _ = rule_hit
-        l_grade, l_event, l_conf = llm_hit
+        l_grade, l_event, l_conf = llm_hit[0], llm_hit[1], llm_hit[2]
         if r_grade == "A" or l_grade == "A":
             grade, event_type = ("A", r_event if r_grade == "A" else l_event)
         elif r_grade == "B" or l_grade == "B":
@@ -250,11 +267,24 @@ def classify(db: Session, req: SafetyClassifyRequest) -> SafetyClassifyResponse:
         matched_by = "rule_keyword"
         confidence = 0.8
     elif llm_hit:
-        grade, event_type, llm_conf = llm_hit
+        grade, event_type, llm_conf = llm_hit[0], llm_hit[1], llm_hit[2]
         matched_by = "llm_classifier"
         confidence = llm_conf
     else:
         grade, event_type, matched_by, confidence = "none", "none", "none", 0.05
+
+    # 사유/근거 합성: LLM 사유 우선, 없으면 룰 키워드 기반으로 만든다.
+    if llm_reasoning and matched_keyword and matched_by == "both":
+        reasoning: str | None = f"{llm_reasoning} (규칙 키워드 '{matched_keyword}' 동시 일치)"
+    elif llm_reasoning:
+        reasoning = llm_reasoning
+    elif matched_keyword:
+        reasoning = f"규칙 키워드 '{matched_keyword}' 일치로 분류"
+    else:
+        reasoning = None
+    evidence_span: str | None = (llm_evidence or matched_keyword or "")[:500] or None
+    if reasoning:
+        reasoning = reasoning[:1000]
 
     se_id: str | None = None
     recommended = _recommended_action(grade, event_type) if grade != "none" else "none"
@@ -270,6 +300,9 @@ def classify(db: Session, req: SafetyClassifyRequest) -> SafetyClassifyResponse:
             recommended_action=recommended,
             matched_by=matched_by,
             confidence=confidence,
+            reasoning=reasoning,
+            matched_keyword=matched_keyword,
+            evidence_span=evidence_span,
             raw_text=req.text[:4000],
         )
         db.add(evt)
@@ -297,4 +330,7 @@ def classify(db: Session, req: SafetyClassifyRequest) -> SafetyClassifyResponse:
         matched_by=matched_by,  # type: ignore[arg-type]
         safety_event_id=se_id,
         recommended_action=recommended,  # type: ignore[arg-type]
+        reasoning=reasoning,
+        matched_keyword=matched_keyword,
+        evidence_span=evidence_span,
     )

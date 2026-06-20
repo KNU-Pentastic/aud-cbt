@@ -70,6 +70,10 @@ def llm_invocation_id() -> str:
     return new_id("inv", 12)
 
 
+def access_log_id() -> str:
+    return new_id("al", 12)
+
+
 def registration_code() -> str:
     """8-character uppercase alphanumeric. Excludes 0, O, 1, I to avoid OCR confusion."""
     excluded = {"0", "O", "1", "I"}

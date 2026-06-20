@@ -4,11 +4,14 @@ from fastapi import APIRouter, Response, status
 from sqlalchemy import select
 
 from app.deps import CurrentPatient, DbSession
-from app.exceptions import gone, not_found, unauthorized
+from app.encryption import blind_index
+from app.exceptions import conflict, gone, not_found, unauthorized
 from app.models.patient import Patient
 from app.models.provider import Provider
 from app.models.registration_code import RegistrationCode
 from app.schemas.auth import (
+    PatientEmailLoginIn,
+    PatientEmailRegisterIn,
     PatientLoginIn,
     PatientRegisterIn,
     PinChangeIn,
@@ -57,6 +60,49 @@ def patient_login(body: PatientLoginIn, db: DbSession) -> TokenResponse:
     if patient is None or not patient.pin_hash or not patient.is_registered:
         raise unauthorized("Invalid credentials", code="INVALID_CREDENTIALS")
     if not verify_secret(body.pin, patient.pin_hash):
+        raise unauthorized("Invalid credentials", code="INVALID_CREDENTIALS")
+    patient.last_active_at = datetime.now(timezone.utc)
+    db.commit()
+    token = create_access_token(subject=patient.patient_id, role="patient")
+    return TokenResponse(access_token=token, expires_in=token_ttl("patient"))
+
+
+@router.post("/patient/email/register", response_model=TokenResponse)
+def patient_email_register(body: PatientEmailRegisterIn, db: DbSession) -> TokenResponse:
+    """이메일 회원가입 — 등록 코드로 신원을 바인딩하고 이메일/비밀번호를 설정한다.
+
+    이메일은 암호화 저장하되 결정론적 blind index(email_lookup)로 중복을 막고
+    이후 로그인 조회를 가능하게 한다.
+    """
+    lookup = blind_index(body.email)
+    existing = db.execute(
+        select(Patient).where(Patient.email_lookup == lookup)
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise conflict("Email already in use", code="EMAIL_IN_USE")
+
+    patient = _consume_code(db, body.registration_code)
+    patient.email = str(body.email)
+    patient.email_lookup = lookup
+    patient.password_hash = hash_secret(body.password)
+    patient.is_registered = True
+    patient.last_active_at = datetime.now(timezone.utc)
+    db.commit()
+    token = create_access_token(subject=patient.patient_id, role="patient")
+    return TokenResponse(access_token=token, expires_in=token_ttl("patient"))
+
+
+@router.post("/patient/email/login", response_model=TokenResponse)
+def patient_email_login(body: PatientEmailLoginIn, db: DbSession) -> TokenResponse:
+    lookup = blind_index(body.email)
+    patient = (
+        db.execute(select(Patient).where(Patient.email_lookup == lookup)).scalar_one_or_none()
+        if lookup
+        else None
+    )
+    if patient is None or not patient.password_hash or not patient.is_registered:
+        raise unauthorized("Invalid credentials", code="INVALID_CREDENTIALS")
+    if not verify_secret(body.password, patient.password_hash):
         raise unauthorized("Invalid credentials", code="INVALID_CREDENTIALS")
     patient.last_active_at = datetime.now(timezone.utc)
     db.commit()

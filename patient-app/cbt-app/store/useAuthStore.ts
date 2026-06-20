@@ -20,6 +20,10 @@ type AuthState = {
   register: (registrationCode: string, pin: string) => Promise<void>;
   /** 등록 코드 + PIN 으로 로그인 */
   login: (registrationCode: string, pin: string) => Promise<void>;
+  /** 등록 코드 + 이메일/비밀번호로 회원가입 */
+  emailRegister: (registrationCode: string, email: string, password: string) => Promise<void>;
+  /** 이메일/비밀번호로 로그인 */
+  emailLogin: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -67,6 +71,26 @@ export const useAuthStore = create<AuthState>((set) => ({
     const res = await api.post<TokenResponse>(
       '/auth/patient/login',
       { registration_code: registrationCode, pin },
+      { auth: false }
+    );
+    await persistToken(res.access_token);
+    set({ status: 'authenticated' });
+  },
+
+  emailRegister: async (registrationCode, email, password) => {
+    const res = await api.post<TokenResponse>(
+      '/auth/patient/email/register',
+      { registration_code: registrationCode, email, password },
+      { auth: false }
+    );
+    await persistToken(res.access_token);
+    set({ status: 'authenticated' });
+  },
+
+  emailLogin: async (email, password) => {
+    const res = await api.post<TokenResponse>(
+      '/auth/patient/email/login',
+      { email, password },
       { auth: false }
     );
     await persistToken(res.access_token);
