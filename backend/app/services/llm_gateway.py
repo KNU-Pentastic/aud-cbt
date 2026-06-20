@@ -101,6 +101,19 @@ def _mock_response(req: LLMInvokeRequest) -> tuple[str, int, int]:
         text = '{"passed": true, "violations": []}'
     elif req.purpose == "trigger_normalization":
         text = '{"normalized_tags": ["work_stress"], "confidence": 0.6}'
+    elif req.purpose == "utterance_analysis":
+        # 데모/평가용 발화 분석 mock — 입력 키워드로 갈망/감정을 가볍게 추정.
+        blob = last_user
+        craving = any(k in blob for k in ("마시", "한 잔", "술", "갈망", "drink", "crav"))
+        anxious = any(k in blob for k in ("불안", "걱정", "무섭", "초조", "anxious", "worried"))
+        emo = "불안" if anxious else ("갈망" if craving else "중립")
+        text = (
+            '{"primary_emotion": "' + emo + '", "emotions": ["' + emo + '"], '
+            '"intent": "mock: 현재 상태 공유", "cognitive_distortions": [], '
+            '"craving_intensity": ' + ("6" if craving else "1") + ', '
+            '"topics": ["mock"], "relevant_step": 3, '
+            '"summary": "mock 분석 — 실제 분석은 ANTHROPIC_API_KEY 설정 시 동작합니다."}'
+        )
     elif req.purpose == "module_classification":
         # Light keyword match over the classifier input so the demo is illustrative.
         blob = last_user

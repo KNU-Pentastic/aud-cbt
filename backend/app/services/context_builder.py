@@ -117,6 +117,33 @@ def _join(parts: list[str]) -> str:
     return "\n\n".join(p for p in parts if p and p.strip())
 
 
+def _prompt_blocks_meta(targets: list[str]) -> list[dict[str, str]]:
+    """주입된 curated 자산 중 실제 내용이 있는 것만 [{target, title, body}] 로 돌려준다.
+
+    '이 답변에서 LLM 이 무슨 가이드라인을 참고했는지'를 정량 평가용으로 노출하기 위한
+    메타데이터. body 는 시스템 프롬프트에 실제로 박힌 블록 본문(render_block 결과)과
+    동일하다 — 평가자가 '정확히 이 가이드라인을 봤다'를 확인할 수 있게 한다.
+    환자 PII(이름·체크인 등)는 블록 본문이 아니라 별도 영역에 들어가므로 여기엔 없다.
+    """
+    out: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for t in targets:
+        if not t or t in seen:
+            continue
+        asset = prompt_assets.load_asset(t)
+        if not asset or not (asset.get("principles_ko") or asset.get("rules_ko")):
+            continue
+        seen.add(t)
+        out.append(
+            {
+                "target": t,
+                "title": asset.get("title_ko", t),
+                "body": prompt_assets.render_block(t),
+            }
+        )
+    return out
+
+
 def _select_modules(db: Session, patient: Patient, dp: DischargeProfile | None, week: int) -> tuple[list[str], dict]:
     """Run the Phase 3 module classifier; returns (module_codes, debug_block)."""
     req = ModuleClassifyRequest(
@@ -160,16 +187,20 @@ def build(db: Session, req: ContextBuildRequest) -> ContextBuildResponse:
 
         if phase == 3:
             codes, module_debug = _select_modules(db, patient, dp, week)
-            module_blocks = [prompt_assets.render_block(prompt_assets.module_routing_target(c)) for c in codes]
+            module_targets = [prompt_assets.module_routing_target(c) for c in codes]
+            module_blocks = [prompt_assets.render_block(t) for t in module_targets]
             module_names = ", ".join(
                 next((m["name_ko"] for m in prompt_assets.load_modules() if m["code"] == c), c) for c in codes
             )
             focus = f"[이번 세션 초점] Phase 3 — {module_names or '갈망 대처'}"
             content = _join(module_blocks)
             blocks["selected_modules"] = module_debug
+            prompt_targets = [_COMMON_TARGET, *module_targets]
         else:
             focus = f"[이번 세션 초점] Phase {phase}"
             content = prompt_assets.render_block(_phase_target(phase))
+            prompt_targets = [_COMMON_TARGET, _phase_target(phase)]
+        blocks["prompt_blocks"] = _prompt_blocks_meta(prompt_targets)
 
         system_prompt = _join(
             [
@@ -198,13 +229,19 @@ def build(db: Session, req: ContextBuildRequest) -> ContextBuildResponse:
                 f"[최근 7일 체크인] {recent}",
             ]
         )
-        blocks = {"recent_checkins_summary": recent}
+        blocks = {
+            "recent_checkins_summary": recent,
+            "prompt_blocks": _prompt_blocks_meta([_COMMON_TARGET, "phase_3_crav_system_prompt"]),
+        }
 
     elif req.context_type == "resu":
         system_prompt = _join(
             [_BASE_PERSONA, common, prompt_assets.render_block("pullout_resu_prompt")]
         )
-        blocks = {"patient_id": patient.patient_id}
+        blocks = {
+            "patient_id": patient.patient_id,
+            "prompt_blocks": _prompt_blocks_meta([_COMMON_TARGET, "pullout_resu_prompt"]),
+        }
 
     elif req.context_type == "soma":
         meds = dp.medications if dp else []
@@ -216,7 +253,10 @@ def build(db: Session, req: ContextBuildRequest) -> ContextBuildResponse:
                 f"[처방 약물] {meds}",
             ]
         )
-        blocks = {"medications": meds}
+        blocks = {
+            "medications": meds,
+            "prompt_blocks": _prompt_blocks_meta([_COMMON_TARGET, "pullout_soma_prompt"]),
+        }
 
     else:  # pragma: no cover — pydantic enforces
         raise ValueError(f"unknown context_type {req.context_type}")

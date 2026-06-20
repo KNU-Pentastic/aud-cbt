@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     llm_model_dialogue: str = "claude-opus-4-7"
     llm_model_tracking: str = "claude-sonnet-4-6"
     llm_model_classifier: str = "claude-haiku-4-5"
+    # 라이브 대화 SSE 에 prompt-trace(참고 프롬프트)·stage_progress(주차/단계 진행도)
+    # 이벤트를 실어 보낼지. 데모·디버깅용으로 기본 on. 운영에서는 LLM_TRACE=false 권장.
+    llm_trace: bool = True
 
     registration_code_ttl_days: int = 7
 

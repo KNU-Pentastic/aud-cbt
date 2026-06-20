@@ -3,7 +3,15 @@
 import { use, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Lock, RefreshCw, Pencil, Trash2, KeyRound } from "lucide-react"
+import {
+  Lock,
+  LockOpen,
+  RefreshCw,
+  Pencil,
+  Trash2,
+  KeyRound,
+  ShieldAlert,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
@@ -27,6 +35,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea"
 import { CheckinsChart } from "@/components/checkins-chart"
 import { SafetyEventList } from "@/components/safety-event-list"
 import {
@@ -34,14 +43,24 @@ import {
   useRegistrationCode,
   useDeletePatient,
   usePatient,
+  useUnlockLlm,
 } from "@/lib/queries"
 import {
   EMOTIONAL_TONE_LABELS,
   PROGRAM_STATUS_LABELS,
+  SAFETY_EVENT_LABELS,
   SEVERITY_LABELS,
   SUICIDE_HISTORY_LABELS,
+  type SafetyEventType,
 } from "@/lib/safety"
 import { formatDateKo, formatDateTimeKo } from "@/lib/format"
+
+function lockReasonLabel(reason: string | null): string {
+  if (!reason) return "안전 이벤트"
+  if (reason in SAFETY_EVENT_LABELS)
+    return SAFETY_EVENT_LABELS[reason as SafetyEventType]
+  return "안전 이벤트"
+}
 
 const REG_CODE_STATUS_LABEL: Record<string, string> = {
   active: "유효",
@@ -61,9 +80,30 @@ export default function PatientDetailPage({
   const regCode = useRegistrationCode(patientId)
   const regenerate = useRegenerateCode(patientId)
   const deletePatient = useDeletePatient()
+  const unlockLlm = useUnlockLlm(patientId)
   const [confirmRegen, setConfirmRegen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState("")
+  const [confirmUnlock, setConfirmUnlock] = useState(false)
+  const [unlockNote, setUnlockNote] = useState("")
+
+  const runUnlock = async () => {
+    try {
+      const r = await unlockLlm.mutateAsync({
+        note: unlockNote.trim() || undefined,
+      })
+      toast.success(
+        r.acknowledged_safety_events > 0
+          ? `LLM 잠금을 해제했습니다. 안전 이벤트 ${r.acknowledged_safety_events}건 확인 처리됨.`
+          : "LLM 잠금을 해제했습니다.",
+      )
+      setConfirmUnlock(false)
+      setUnlockNote("")
+    } catch (e) {
+      const msg = e instanceof Error && e.message ? e.message : "잠금 해제 실패"
+      toast.error(msg)
+    }
+  }
 
   const runRegenerate = async () => {
     try {
@@ -170,6 +210,94 @@ export default function PatientDetailPage({
           />
         </div>
       </header>
+
+      {/* LLM 안전 잠금 — 자살 위험·급성 중독 감지 시 잠금, 의료진이 해제 */}
+      <Card
+        className={
+          data.llm_lock_status.locked ? "border-destructive/50" : undefined
+        }
+      >
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            {data.llm_lock_status.locked ? (
+              <ShieldAlert className="text-destructive size-4" />
+            ) : (
+              <LockOpen className="size-4 text-emerald-600" />
+            )}
+            LLM 안전 잠금
+          </CardTitle>
+          <CardDescription>
+            등급 A(자살 위험·급성 중독) 감지 시 환자 앱의 LLM 대화가 자동
+            잠깁니다. 환자는 스스로 해제할 수 없으며, 위험도 평가 후 담당
+            의료진이 해제합니다.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-end justify-between gap-4">
+          {data.llm_lock_status.locked ? (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Info
+                  label="상태"
+                  value={
+                    <Badge variant="destructive" className="gap-1 rounded-full">
+                      <Lock className="size-3" /> 잠금
+                    </Badge>
+                  }
+                />
+                <Info
+                  label="사유"
+                  value={lockReasonLabel(data.llm_lock_status.reason)}
+                />
+                <Info
+                  label="잠금 시각"
+                  value={
+                    data.llm_lock_status.since
+                      ? formatDateTimeKo(data.llm_lock_status.since)
+                      : "—"
+                  }
+                />
+              </div>
+              <Button
+                disabled={unlockLlm.isPending}
+                onClick={() => {
+                  setUnlockNote("")
+                  setConfirmUnlock(true)
+                }}
+              >
+                <LockOpen className="size-4" />
+                잠금 해제
+              </Button>
+            </>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Info
+                label="상태"
+                value={
+                  <Badge variant="secondary" className="gap-1 rounded-full">
+                    <LockOpen className="size-3" /> 정상
+                  </Badge>
+                }
+              />
+              {data.llm_lock_status.unlocked_at && (
+                <Info
+                  label="최근 해제"
+                  value={`${formatDateTimeKo(data.llm_lock_status.unlocked_at)}${
+                    data.llm_lock_status.unlocked_by
+                      ? ` · ${data.llm_lock_status.unlocked_by}`
+                      : ""
+                  }`}
+                />
+              )}
+              {data.llm_lock_status.unlock_note && (
+                <Info
+                  label="해제 메모"
+                  value={data.llm_lock_status.unlock_note}
+                />
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* 등록 정보 — 현재 등록 코드 확인 + 재발급 */}
       <Card>
@@ -428,6 +556,38 @@ export default function PatientDetailPage({
           </CardContent>
         </Card>
       </section>
+
+      {/* LLM 잠금 해제 확인 */}
+      <AlertDialog open={confirmUnlock} onOpenChange={setConfirmUnlock}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>LLM 잠금을 해제할까요?</AlertDialogTitle>
+            <AlertDialogDescription>
+              해제하면 환자가 다시 LLM 대화를 사용할 수 있습니다. 환자의 위험도를
+              충분히 평가한 뒤 진행하세요. 해제 사실은 담당자·시각과 함께
+              기록됩니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-1.5">
+            <label className="text-muted-foreground text-xs" htmlFor="unlock-note">
+              해제 사유 (선택)
+            </label>
+            <Textarea
+              id="unlock-note"
+              value={unlockNote}
+              onChange={(e) => setUnlockNote(e.target.value)}
+              maxLength={500}
+              placeholder="예: 외래에서 위험 평가 완료, 보호자 동석 확인"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction disabled={unlockLlm.isPending} onClick={runUnlock}>
+              잠금 해제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* 재발급 확인 (가입 완료 환자) */}
       <AlertDialog open={confirmRegen} onOpenChange={setConfirmRegen}>

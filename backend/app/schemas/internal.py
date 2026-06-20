@@ -36,6 +36,25 @@ class SafetyClassifyResponse(BaseModel):
     recommended_action: RecommendedAction
 
 
+# ---- Utterance analyzer (정량 평가용 발화 분석; LLM_TRACE 전용) ----
+class UtteranceAnalysisRequest(BaseModel):
+    patient_id: str
+    text: str
+    conversation_context: ConversationContextLit | None = None
+    recent_dialogue: list[DialogueTurn] = Field(default_factory=list)
+
+
+class UtteranceAnalysisResponse(BaseModel):
+    primary_emotion: str = ""
+    emotions: list[str] = Field(default_factory=list)
+    intent: str = ""
+    cognitive_distortions: list[str] = Field(default_factory=list)
+    craving_intensity: int = Field(default=0, ge=0, le=10)
+    topics: list[str] = Field(default_factory=list)
+    relevant_step: int | None = Field(default=None, ge=1, le=5)
+    summary: str = ""
+
+
 # ---- Stage tracker ----
 class StageTrackRequest(BaseModel):
     conversation_id: str
@@ -133,6 +152,7 @@ class LLMInvokeRequest(BaseModel):
         "output_filtering",
         "trigger_normalization",
         "module_classification",
+        "utterance_analysis",
     ]
     caller_component: Literal[
         "orchestrator",
@@ -142,6 +162,7 @@ class LLMInvokeRequest(BaseModel):
         "output_filter",
         "trigger_normalizer",
         "module_classifier",
+        "utterance_analyzer",
     ]
 
 

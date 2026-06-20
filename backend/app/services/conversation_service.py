@@ -5,8 +5,20 @@ Event protocol (matches openapi.yaml + API doc §5.3):
   token              { text }
   safety_classified  { grade, event_type }
   context_switched   { from, to }
+  session_completed  { week_number }
   done               { message_id, finish_reason }
   error              { code, message }
+
+Trace events (LLM_TRACE=on 일 때만 — 정량 평가/라이브 관찰용; 운영 빌드에선 끈다):
+  context_used       { context_type, phase, week_number, prompt_version,
+                       prompt_blocks[], selected_modules, system_prompt_chars,
+                       system_prompt }                       # ② context_builder / ③ module
+  output_filter      { passed, recommended_action, violations[],
+                       replaced_with_fallback }              # ⑤ output_filter
+  utterance_analysis { text, analysis{...}, safety{...} }    # ⑥ utterance (+ ① safety)
+  stage_progress     { week_number, phase, current_step, ready_to_advance,
+                       step_completion, drift, session_advanced, next_week }  # ⑦ stage
+  session_summary    { ...SessionSummary }                   # ⑧ session_summarizer
 """
 
 from __future__ import annotations
@@ -33,8 +45,10 @@ from app.schemas.internal import (
     LLMInvokeRequest,
     OutputFilterRequest,
     SafetyClassifyRequest,
+    SessionSummary,
     SessionSummarizeRequest,
     StageTrackRequest,
+    UtteranceAnalysisRequest,
 )
 from app.services import (
     context_builder,
@@ -43,6 +57,7 @@ from app.services import (
     safety_classifier,
     session_summarizer,
     stage_tracker,
+    utterance_analyzer,
 )
 
 log = logging.getLogger(__name__)
@@ -145,14 +160,28 @@ def _sse(event: str, data: dict) -> dict:
     return {"event": event, "data": json.dumps(data, ensure_ascii=False)}
 
 
-def _recent_turns(db: Session, conversation_id: str, limit: int = 6) -> list[DialogueTurn]:
+def _recent_turns(
+    db: Session,
+    conversation_id: str,
+    limit: int = 6,
+    exclude_safety: bool = False,
+) -> list[DialogueTurn]:
+    """최근 대화 턴을 시간순으로 돌려준다.
+
+    exclude_safety=True 면 안전 위기(grade A)로 표시된(safety_excluded) 발화를 빼고
+    돌려준다. 의료진이 잠금을 푼 뒤 환자가 같은 대화를 이어갈 때, 위기 발화 한 줄만
+    LLM 맥락(분류기·코치·단계추적)에서 도려내기 위함이다. 이렇게 하면:
+      (a) 분류기가 옛 위기 발화를 '누적 맥락'으로 다시 보고 재잠금하지 않고,
+      (b) 코치 답변이 그 위기('죽고 싶다')에 고착되지 않으며,
+      (c) 위기 외의 정상 대화는 원문 그대로 남아 진료 후에도 맥락이 끊기지 않는다.
+    기본값(False)은 전체를 돌려준다 — 세션 종료 요약은 위기를 임상 기록으로 남겨야
+    하므로 제외하지 않는다.
+    """
+    stmt = select(Message).where(Message.conversation_id == conversation_id)
+    if exclude_safety:
+        stmt = stmt.where(Message.safety_excluded.is_(False))
     rows = (
-        db.execute(
-            select(Message)
-            .where(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at.desc())
-            .limit(limit)
-        )
+        db.execute(stmt.order_by(Message.created_at.desc()).limit(limit))
         .scalars()
         .all()
     )
@@ -177,12 +206,18 @@ def _phase_for_week(week: int) -> int:
     return 4
 
 
-def _summarize_session(db: Session, patient: Patient, conv: Conversation, sess: CbtSession) -> None:
-    """세션 종료 시 요약 생성 (실패해도 대화 흐름을 막지 않는다)."""
+def _summarize_session(
+    db: Session, patient: Patient, conv: Conversation, sess: CbtSession
+) -> SessionSummary | None:
+    """세션 종료 시 요약 생성 (실패해도 대화 흐름을 막지 않는다).
+
+    생성된 SessionSummary DTO 를 돌려준다(LLM_TRACE=on 일 때 session_summary 이벤트로
+    라이브 노출하기 위함). 호출부에서 예외를 잡으므로 여기선 그대로 던진다.
+    """
     turns = _recent_turns(db, conv.conversation_id, limit=200)
     full = [{"role": t.role, "text": t.text} for t in turns]
     prev = context_builder._previous_summary_block(db, patient.patient_id)
-    session_summarizer.summarize(
+    return session_summarizer.summarize(
         db,
         SessionSummarizeRequest(
             session_id=sess.session_id,
@@ -196,21 +231,28 @@ def _summarize_session(db: Session, patient: Patient, conv: Conversation, sess: 
     )
 
 
-def _advance_session_stage(db: Session, patient: Patient, conv: Conversation) -> bool:
-    """세션 대화의 5단계 진행을 stage_tracker 로 갱신한다.
+def _advance_session_stage(
+    db: Session, patient: Patient, conv: Conversation
+) -> dict | None:
+    """세션 대화의 5단계 진행을 stage_tracker 로 갱신하고 진행도 dict 를 돌려준다.
 
     5단계를 모두 마쳤다고 LLM 이 판단하면(세션 종료는 LLM 이 결정) 대화를 종료하고
-    요약 생성 + 다음 주차로 진행한 뒤 True 를 반환한다.
+    요약 생성 + 다음 주차로 진행한다. 반환 dict 는 stage_progress SSE 이벤트로 그대로
+    노출되어, 클라이언트가 '지금 몇 주차·몇 단계인지'를 표시할 수 있다.
+    세션 대화가 아니거나 진행 가능한 세션이 없으면 None.
     """
     if not conv.session_id:
-        return False
+        return None
     sess = db.get(CbtSession, conv.session_id)
     if sess is None or sess.status != "in_progress":
-        return False
+        return None
 
+    # 단계 진행 판단에서도 위기 발화는 뺀다(exclude_safety). 위기 발화로 '주제
+    # 이탈(drift)'이 잡혀 세션이 멈추는 것을 막는다. 위기 외 정상 대화는 그대로 보므로
+    # 진행 맥락이 끊기지 않고, current_step 은 sess 에 보존돼 단계가 되돌아가지 않는다.
     dialogue = [
         {"role": t.role, "text": t.text}
-        for t in _recent_turns(db, conv.conversation_id, limit=40)
+        for t in _recent_turns(db, conv.conversation_id, limit=40, exclude_safety=True)
     ]
     resp = stage_tracker.track(
         db,
@@ -223,21 +265,43 @@ def _advance_session_stage(db: Session, patient: Patient, conv: Conversation) ->
             dialogue=dialogue,
         ),
     )
+    week = conv.week_number or patient.current_week
     sess.current_step = resp.current_step
     db.commit()
 
+    advanced = False
+    next_week: int | None = None
+    summary_dump: dict | None = None
     if resp.current_step >= 5 and resp.ready_to_advance:
         end_conversation(db, conv, "completed")  # conv + session 모두 종료 처리
         try:
-            _summarize_session(db, patient, conv, sess)
+            dto = _summarize_session(db, patient, conv, sess)
+            if dto is not None:
+                summary_dump = dto.model_dump(mode="json")  # datetime → ISO 문자열
         except Exception:
             log.exception("session summarize failed")
         if patient.current_week < 12:
             patient.current_week += 1
             patient.current_phase = _phase_for_week(patient.current_week)
             db.commit()
-        return True
-    return False
+            next_week = patient.current_week
+        advanced = True
+
+    return {
+        "week_number": week,
+        "total_weeks": 12,
+        "phase": _phase_for_week(week),
+        "current_step": resp.current_step,
+        "total_steps": 5,
+        "ready_to_advance": resp.ready_to_advance,
+        "step_completion": round(resp.step_completion_estimate, 2),
+        "drift": resp.step_drift_risk,
+        "session_advanced": advanced,
+        "next_week": next_week,
+        # 세션 종료 시 생성된 요약(⑧ session_summarizer). stage_progress 와 분리해
+        # 아래 stream_user_message 에서 별도 session_summary 이벤트로 노출한다.
+        "session_summary": summary_dump,
+    }
 
 
 # -------- Orchestrated stream --------
@@ -260,16 +324,26 @@ async def stream_user_message(
     db.commit()
 
     # 2) Safety classify
+    #    맥락(recent_dialogue)에서 위기로 표시된 옛 발화는 뺀다(exclude_safety). 의료진이
+    #    잠금을 푼 뒤 같은 대화를 이어가도, 분류기가 그 위기 발화를 '누적 맥락'으로 다시
+    #    보고 무해한 새 발화를 grade A 로 재잠금하지 않게 한다. 방금 저장한 현재 발화는
+    #    아직 표시 전이라 그대로 분류되며(위기면 아래에서 표시), 위기 외 정상 대화는
+    #    원문 그대로 남아 맥락이 끊기지 않는다.
     classify_req = SafetyClassifyRequest(
         patient_id=patient.patient_id,
         text=user_text,
         source="conversation_message",
         conversation_context=conv.context,  # type: ignore[arg-type]
-        recent_dialogue=_recent_turns(db, conv.conversation_id),
+        recent_dialogue=_recent_turns(db, conv.conversation_id, exclude_safety=True),
     )
     classification = safety_classifier.classify(db, classify_req)
 
     if classification.grade == "A":
+        # 이 발화가 위기다 — 표시해 둔다. 이후 같은 대화의 LLM 맥락(분류기·코치·단계추적)
+        # 에서 이 한 줄만 도려내, 잠금 해제 후 재잠금/고착 없이 정상 대화를 이어가게 한다.
+        # (화면·세션 종료 요약에는 그대로 남아 임상 기록은 보존된다.)
+        user_msg.safety_excluded = True
+        db.commit()
         yield _sse(
             "safety_classified",
             {"grade": "A", "event_type": classification.event_type},
@@ -314,8 +388,30 @@ async def stream_user_message(
         yield _sse("done", {"finish_reason": "error"})
         return
 
+    # 4b) prompt-trace: 이 답변에서 LLM 이 정확히 어떤 가이드라인을 참고했는지 노출한다.
+    #     블록 식별자·제목·본문 + 조립된 전체 시스템 프롬프트(환자 컨텍스트 포함).
+    #     정량 평가용(LLM_TRACE=on) — 운영 배포 빌드에서는 LLM_TRACE=false 로 끈다.
+    if settings.llm_trace:
+        cb = ctx.context_blocks
+        yield _sse(
+            "context_used",
+            {
+                "context_type": conv.context,
+                "phase": cb.get("phase"),
+                "week_number": cb.get("week_number") or conv.week_number,
+                "prompt_version": ctx.prompt_version,
+                "prompt_blocks": cb.get("prompt_blocks", []),
+                "selected_modules": cb.get("selected_modules"),
+                "system_prompt_chars": len(ctx.system_prompt),
+                "system_prompt": ctx.system_prompt,
+            },
+        )
+
     # 5) Compose messages from recent dialogue + new user turn
-    history = _recent_turns(db, conv.conversation_id, limit=20)
+    #    exclude_safety=True: 위기로 표시된 발화만 빼고 코치에게 전달한다. 위기 외 정상
+    #    대화는 원문 그대로 남아 진료 후에도 맥락이 끊기지 않고, 코치 답변이 옛 위기에
+    #    고착되지 않는다.
+    history = _recent_turns(db, conv.conversation_id, limit=20, exclude_safety=True)
     messages = [{"role": h.role, "content": h.text} for h in history]
 
     assistant_msg_id = new_message_id()
@@ -357,8 +453,20 @@ async def stream_user_message(
             db,
             OutputFilterRequest(text=full, conversation_context=conv.context),  # type: ignore[arg-type]
         )
-        if not verdict.passed and verdict.recommended_action == "fallback":
+        replaced = not verdict.passed and verdict.recommended_action == "fallback"
+        if replaced:
             full = _FALLBACK_REPLY
+        # 출력 가드(⑤ output_filter): 통과 여부·위반 항목·폴백 대체 여부를 트레이스로 노출.
+        if settings.llm_trace:
+            yield _sse(
+                "output_filter",
+                {
+                    "passed": verdict.passed,
+                    "recommended_action": verdict.recommended_action,
+                    "violations": [v.model_dump() for v in verdict.violations],
+                    "replaced_with_fallback": replaced,
+                },
+            )
     except Exception:
         log.exception("output_filter failed")
 
@@ -374,15 +482,58 @@ async def stream_user_message(
     patient.last_active_at = datetime.now(timezone.utc)
     db.commit()
 
+    # 8b) 발화 분석(정량 평가용): 방금 환자 발화를 감정·의도·인지왜곡·갈망강도·관련
+    #     CBT 단계로 구조화 분석하고, 이미 step 2 에서 돌린 안전 분류 결과와 함께 노출한다.
+    #     답변 스트림 이후에 실행해 첫 토큰 지연을 막는다. LLM_TRACE=on 일 때만.
+    if settings.llm_trace:
+        try:
+            analysis = utterance_analyzer.analyze(
+                db,
+                UtteranceAnalysisRequest(
+                    patient_id=patient.patient_id,
+                    text=user_text,
+                    conversation_context=conv.context,  # type: ignore[arg-type]
+                    recent_dialogue=history[:-1],  # 직전 맥락(현재 발화 제외)
+                ),
+            )
+            yield _sse(
+                "utterance_analysis",
+                {
+                    "text": user_text[:500],
+                    "analysis": analysis.model_dump(),
+                    "safety": {
+                        "grade": classification.grade,
+                        "event_type": classification.event_type,
+                        "confidence": classification.confidence,
+                        "matched_by": classification.matched_by,
+                        "recommended_action": classification.recommended_action,
+                    },
+                },
+            )
+        except Exception:
+            log.exception("utterance analysis failed")
+
     # 9) 세션 대화면 5단계 진행을 추적 — LLM 이 세션 종료를 판단하면 자동 종료한다.
-    session_completed = False
+    #    진행도(stage_progress)를 라이브 응답에 실어, 지금 몇 주차·몇 단계인지 노출한다.
+    progress: dict | None = None
     if conv.context == "session":
         try:
-            session_completed = _advance_session_stage(db, patient, conv)
+            progress = _advance_session_stage(db, patient, conv)
         except Exception:
             log.exception("stage tracking failed")
 
-    if session_completed:
+    if progress is not None and settings.llm_trace:
+        # stage_progress 페이로드에서 큰 요약 본문은 분리해, 세션 종료 시에만 별도
+        # session_summary(⑧) 이벤트로 보낸다.
+        summary_dump = progress.get("session_summary")
+        yield _sse(
+            "stage_progress",
+            {k: v for k, v in progress.items() if k != "session_summary"},
+        )
+        if summary_dump:
+            yield _sse("session_summary", summary_dump)
+
+    if progress is not None and progress["session_advanced"]:
         yield _sse("session_completed", {"week_number": patient.current_week})
         yield _sse("done", {"message_id": assistant_msg_id, "finish_reason": "session_complete"})
     else:

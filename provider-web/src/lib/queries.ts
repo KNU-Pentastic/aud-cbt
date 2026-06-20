@@ -135,7 +135,14 @@ type BackendPatientDetail = {
     grade_a: BackendSafetyEvent[]
     grade_b: BackendSafetyEvent[]
   }
-  llm_lock_status: { locked: boolean; locked_at: string | null; reason: string | null }
+  llm_lock_status: {
+    locked: boolean
+    locked_at: string | null
+    reason: string | null
+    unlocked_at?: string | null
+    unlocked_by?: string | null
+    unlock_note?: string | null
+  }
 }
 
 function adaptPatientDetail(raw: BackendPatientDetail): PatientDetail {
@@ -187,6 +194,9 @@ function adaptPatientDetail(raw: BackendPatientDetail): PatientDetail {
       locked: raw.llm_lock_status.locked,
       since: raw.llm_lock_status.locked_at,
       reason: raw.llm_lock_status.reason,
+      unlocked_at: raw.llm_lock_status.unlocked_at ?? null,
+      unlocked_by: raw.llm_lock_status.unlocked_by ?? null,
+      unlock_note: raw.llm_lock_status.unlock_note ?? null,
     },
   }
 }
@@ -370,6 +380,35 @@ export function useUpdateProgramStatus(patientId: string) {
       )
       if (error) throw error
       return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.patient(patientId) })
+      qc.invalidateQueries({ queryKey: qk.patients() })
+    },
+  })
+}
+
+export type UnlockLlmResponse = {
+  patient_id: string
+  locked: boolean
+  unlocked_at: string
+  unlocked_by: string
+  acknowledged_safety_events: number
+}
+
+export function useUnlockLlm(patientId: string) {
+  const qc = useQueryClient()
+  return useMutation<UnlockLlmResponse, Error, { note?: string }>({
+    mutationFn: async (body) => {
+      const { data, error } = await apiClient.POST(
+        "/provider/patients/{patient_id}/unlock-llm" as never,
+        {
+          params: { path: { patient_id: patientId } },
+          body,
+        } as never,
+      )
+      if (error) throw error
+      return data as UnlockLlmResponse
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.patient(patientId) })

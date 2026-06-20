@@ -62,6 +62,7 @@ export default async function ProviderLayout({
           </div>
           <form action={logoutAction}>
             <Button
+              type="submit"
               variant="outline"
               size="sm"
               className="border-sidebar-border bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent w-full"

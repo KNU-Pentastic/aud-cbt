@@ -1,6 +1,11 @@
 import { http, HttpResponse, delay } from "msw"
 import { API_BASE_URL } from "@/lib/env"
-import { getMockPatientDetail, mockPatients, mockProvider } from "./fixtures"
+import {
+  getMockPatientDetail,
+  mockPatients,
+  mockProvider,
+  unlockMockPatient,
+} from "./fixtures"
 
 const url = (path: string) => `${API_BASE_URL}${path}`
 
@@ -160,6 +165,29 @@ export const handlers = [
         program_status: body.new_status,
         reason: body.reason,
         updated_at: new Date().toISOString(),
+      })
+    },
+  ),
+
+  http.post(
+    url("/provider/patients/:patientId/unlock-llm"),
+    async ({ request, params }) => {
+      await delay(300)
+      const body = (await request
+        .json()
+        .catch(() => ({}))) as { note?: string }
+      const patientId = String(params.patientId)
+      const { unlocked_at, unlocked_by } = unlockMockPatient(
+        patientId,
+        mockProvider.provider_id,
+        body.note,
+      )
+      return HttpResponse.json({
+        patient_id: patientId,
+        locked: false,
+        unlocked_at,
+        unlocked_by,
+        acknowledged_safety_events: 1,
       })
     },
   ),

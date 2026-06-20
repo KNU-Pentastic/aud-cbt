@@ -688,6 +688,15 @@ export interface paths {
                         "text/event-stream": string;
                     };
                 };
+                /** @description CONVERSATION_ENDED — 이미 종료된 대화에는 메시지를 보낼 수 없음 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
                 /** @description SAFETY_LOCKED — 잠금 상태 (v3.0에서는 약화, 클라이언트 측 처리) */
                 423: {
                     headers: {
@@ -746,6 +755,15 @@ export interface paths {
                             /** Format: date-time */
                             next_session_available_at?: string | null;
                         };
+                    };
+                };
+                /** @description CONVERSATION_ENDED — 이미 종료된 대화 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
             };
@@ -1154,6 +1172,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/provider/patients/{patient_id}/registration-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 현재(가장 최근) 등록 코드 + 가입 상태 조회
+         * @description 의료진이 환자의 등록 코드를 다시 확인할 때 사용.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    patient_id: components["parameters"]["PatientId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 현재 등록 코드 상태 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            registration_code?: string | null;
+                            /** @enum {string} */
+                            status: "active" | "consumed" | "expired" | "none";
+                            /** Format: date-time */
+                            expires_at?: string | null;
+                            is_registered: boolean;
+                        };
+                    };
+                };
+                /** @description 담당 환자가 아님 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/provider/patients/{patient_id}/registration-code/regenerate": {
         parameters: {
             query?: never;
@@ -1163,7 +1239,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 등록 코드 분실·만료 시 재발급 */
+        /**
+         * 등록 코드 분실·만료 시 재발급
+         * @description 새 코드를 발급하고 기존 미소비 코드를 무효화한다. 이미 가입을 완료한
+         *     환자라면 가입 상태(is_registered)와 PIN 을 초기화해 새 코드로 다시
+         *     등록할 수 있게 한다.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -1188,8 +1269,8 @@ export interface paths {
                         };
                     };
                 };
-                /** @description PATIENT_ALREADY_REGISTERED — 이미 환자가 등록 완료한 상태 */
-                409: {
+                /** @description 담당 환자가 아님 */
+                403: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -1197,6 +1278,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                404: components["responses"]["NotFound"];
             };
         };
         delete?: never;
@@ -1252,7 +1334,40 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * 환자 영구 삭제 (비가역)
+         * @description 환자와 모든 관련 데이터(대화·체크인·세션·안전 이벤트·등록 코드 등)를 영구 삭제한다.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    patient_id: components["parameters"]["PatientId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 삭제 완료 */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 담당 환자가 아님 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -1300,6 +1415,16 @@ export interface paths {
                         };
                     };
                 };
+                /** @description 담당 환자가 아님 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
             };
         };
         post?: never;
@@ -1372,6 +1497,16 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                /** @description 담당 환자가 아님 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
             };
         };
         trace?: never;
@@ -1427,8 +1562,87 @@ export interface paths {
                         };
                     };
                 };
+                /** @description 담당 환자가 아님 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
             };
         };
+        trace?: never;
+    };
+    "/provider/patients/{patient_id}/unlock-llm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * LLM 안전 잠금 해제
+         * @description 자살 위험·급성 중독(등급 A) 감지 시 백엔드가 환자의 LLM 대화를 잠그며,
+         *     환자 앱에는 스스로 해제할 수단이 없다. 담당 의료진이 환자 위험도를
+         *     평가한 뒤 이 엔드포인트로 잠금을 해제한다. 해제 시 누가·언제·사유를
+         *     기록하고, 아직 확인되지 않은 등급 A 안전 이벤트를 확인 처리한다.
+         *     멱등(idempotent): 이미 해제된 환자에 호출해도 오류 없이 현재 상태를 반환.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    patient_id: components["parameters"]["PatientId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @description 해제 사유(선택). 감사 기록에 저장된다. */
+                        note?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description 잠금 해제됨 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            patient_id?: string;
+                            locked?: boolean;
+                            /** Format: date-time */
+                            unlocked_at?: string;
+                            unlocked_by?: string;
+                            acknowledged_safety_events?: number;
+                        };
+                    };
+                };
+                /** @description 담당 환자가 아님 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/internal/safety/classify": {
@@ -2148,6 +2362,10 @@ export interface components {
                 /** Format: date-time */
                 locked_at?: string | null;
                 reason?: string | null;
+                /** Format: date-time */
+                unlocked_at?: string | null;
+                unlocked_by?: string | null;
+                unlock_note?: string | null;
             };
         };
         SafetyClassifyRequest: {
@@ -2240,7 +2458,7 @@ export interface components {
             passed?: boolean;
             violations?: {
                 /** @enum {string} */
-                filter?: "medical_terminology" | "ave_violation";
+                filter?: "medical_terminology" | "ave_violation" | "mi_style";
                 /** @enum {string} */
                 severity?: "low" | "medium" | "high";
                 matched_text?: string;
@@ -2262,9 +2480,9 @@ export interface components {
             stream: boolean;
             patient_id: string;
             /** @enum {string} */
-            purpose: "patient_dialogue" | "safety_classification" | "stage_tracking" | "session_summarization" | "output_filtering" | "trigger_normalization";
+            purpose: "patient_dialogue" | "safety_classification" | "stage_tracking" | "session_summarization" | "output_filtering" | "trigger_normalization" | "module_classification";
             /** @enum {string} */
-            caller_component: "orchestrator" | "safety_classifier" | "stage_tracker" | "session_summarizer" | "output_filter" | "trigger_normalizer";
+            caller_component: "orchestrator" | "safety_classifier" | "stage_tracker" | "session_summarizer" | "output_filter" | "trigger_normalizer" | "module_classifier";
         };
         /** @description stream=false 응답 */
         LLMInvokeResponse: {
