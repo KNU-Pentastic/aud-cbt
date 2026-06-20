@@ -20,6 +20,10 @@ type AuthState = {
   register: (registrationCode: string, pin: string) => Promise<void>;
   /** 등록 코드 + PIN 으로 로그인 */
   login: (registrationCode: string, pin: string) => Promise<void>;
+  /** 등록 코드 + 이메일/비밀번호로 회원가입 */
+  emailRegister: (registrationCode: string, email: string, password: string) => Promise<void>;
+  /** 이메일/비밀번호로 로그인 */
+  emailLogin: (email: string, password: string) => Promise<void>;
   /**
    * 구글 OAuth 2.1 로그인/회원가입.
    * 최초 연동 시에는 등록 코드로 신원을 바인딩하고, 이후엔 코드 없이 로그인된다.
@@ -72,6 +76,26 @@ export const useAuthStore = create<AuthState>((set) => ({
     const res = await api.post<TokenResponse>(
       '/auth/patient/login',
       { registration_code: registrationCode, pin },
+      { auth: false }
+    );
+    await persistToken(res.access_token);
+    set({ status: 'authenticated' });
+  },
+
+  emailRegister: async (registrationCode, email, password) => {
+    const res = await api.post<TokenResponse>(
+      '/auth/patient/email/register',
+      { registration_code: registrationCode, email, password },
+      { auth: false }
+    );
+    await persistToken(res.access_token);
+    set({ status: 'authenticated' });
+  },
+
+  emailLogin: async (email, password) => {
+    const res = await api.post<TokenResponse>(
+      '/auth/patient/email/login',
+      { email, password },
       { auth: false }
     );
     await persistToken(res.access_token);
