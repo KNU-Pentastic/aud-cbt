@@ -40,26 +40,3 @@ function resolveApiBase(): string {
 }
 
 export const API_BASE = resolveApiBase();
-
-/**
- * 구글 OAuth 2.1 클라이언트 ID (플랫폼별).
- * Google Cloud Console 에서 발급한 OAuth 클라이언트 ID 를 환경변수로 주입한다.
- * 하나라도 설정돼 있어야 로그인 화면에 구글 버튼이 노출된다.
- */
-export const GOOGLE_OAUTH = {
-  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-  androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-};
-
-// 현재 플랫폼에 필요한 client ID 가 있을 때만 활성화한다. expo-auth-session 의
-// Google.useAuthRequest 는 해당 플랫폼 client ID 가 없으면 즉시 throw 하므로,
-// 이 플래그로 버튼(=훅을 가진 자식 컴포넌트) 렌더 자체를 막아야 한다.
-const _platformGoogleClientId =
-  Platform.OS === 'ios'
-    ? GOOGLE_OAUTH.iosClientId
-    : Platform.OS === 'android'
-      ? GOOGLE_OAUTH.androidClientId
-      : GOOGLE_OAUTH.webClientId;
-
-export const GOOGLE_OAUTH_ENABLED = Boolean(_platformGoogleClientId);

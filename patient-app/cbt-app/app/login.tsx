@@ -1,18 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
 import { useAuthStore } from '@/store/useAuthStore';
 import { ApiError } from '@/lib/api';
-import { GOOGLE_OAUTH, GOOGLE_OAUTH_ENABLED } from '@/lib/config';
 import { colors, spacing, radius } from '@/constants/theme';
-
-// 구글 로그인 후 인앱 브라우저 세션을 정리한다(리다이렉트 완료 처리).
-WebBrowser.maybeCompleteAuthSession();
 
 type Mode = 'register' | 'login';
 type Method = 'pin' | 'email';
@@ -186,132 +180,9 @@ export default function LoginScreen() {
                 : '처음이신가요? · 등록하기'}
             </Text>
           </Pressable>
-
-          {GOOGLE_OAUTH_ENABLED && (
-            <GoogleAuthButton
-              registrationCode={codeValid ? code : undefined}
-              disabled={submitting}
-              showHint={mode === 'register'}
-            />
-          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );
-}
-
-/**
- * 구글 로그인 버튼 — Google.useAuthRequest 훅을 품고 있다.
- *
- * 이 훅은 현재 플랫폼의 client ID 가 없으면 즉시 throw 하므로, 부모는 반드시
- * GOOGLE_OAUTH_ENABLED 가 true 일 때만 이 컴포넌트를 렌더해야 한다(훅은 조건부
- * 호출이 불가능하므로 '조건부 렌더되는 자식'으로 격리한다).
- */
-function GoogleAuthButton({
-  registrationCode,
-  disabled,
-  showHint,
-}: {
-  registrationCode?: string;
-  disabled?: boolean;
-  showHint?: boolean;
-}) {
-  const googleSignIn = useAuthStore((s) => s.googleSignIn);
-  const [busy, setBusy] = useState(false);
-
-  // OAuth 2.1 Authorization Code + PKCE. 네이티브에서는 라이브러리가 코드를
-  // 자동 교환해 response.params.id_token 을 채운다. 성공 시 백엔드로 전달.
-  const [, response, promptAsync] = Google.useAuthRequest({
-    iosClientId: GOOGLE_OAUTH.iosClientId,
-    androidClientId: GOOGLE_OAUTH.androidClientId,
-    webClientId: GOOGLE_OAUTH.webClientId,
-    scopes: ['openid', 'email', 'profile'],
-  });
-
-  useEffect(() => {
-    if (!response) return;
-    if (response.type === 'error') {
-      setBusy(false);
-      // 실제 원인(redirect_uri_mismatch 등)을 그대로 노출해 진단을 돕는다.
-      const detail =
-        response.error?.message ??
-        (response.params?.error_description as string | undefined) ??
-        (response.params?.error as string | undefined);
-      Alert.alert('구글 로그인 실패', detail || '다시 시도해주세요.');
-      return;
-    }
-    if (response.type !== 'success') {
-      setBusy(false); // dismiss / cancel / locked
-      return;
-    }
-    const idToken =
-      response.authentication?.idToken || (response.params?.id_token as string | undefined);
-    if (!idToken) {
-      setBusy(false);
-      Alert.alert(
-        '구글 로그인 실패',
-        'id_token 을 받지 못했어요. 구글 클라이언트 ID(플랫폼·리다이렉트) 설정을 확인해주세요.'
-      );
-      return;
-    }
-    (async () => {
-      try {
-        // 최초 연동이면 등록 코드로 신원을 바인딩한다(이미 연동된 계정은 코드 무시).
-        await googleSignIn(idToken, registrationCode);
-      } catch (e) {
-        if (e instanceof ApiError && e.code === 'OAUTH_LINK_REQUIRED') {
-          Alert.alert(
-            '등록 코드가 필요해요',
-            '처음 구글로 가입할 때는 의료진에게 받은 등록 코드를 먼저 입력한 뒤 다시 시도해주세요.'
-          );
-        } else {
-          const msg = e instanceof ApiError ? e.message : '구글 로그인에 실패했어요.';
-          Alert.alert('구글 로그인 실패', msg);
-        }
-      } finally {
-        setBusy(false);
-      }
-    })();
-  }, [response]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const onPress = async () => {
-    setBusy(true);
-    try {
-      const res = await promptAsync();
-      // 성공(코드 수신)이면 자동 교환→effect 에서 마무리하므로 busy 유지.
-      // 취소·실패면 즉시 해제(effect 가 success 외에도 해제하지만 안전망).
-      if (!res || res.type !== 'success') setBusy(false);
-    } catch {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <>
-      <View style={styles.divider}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>또는</Text>
-        <View style={styles.dividerLine} />
-      </View>
-
-      <Pressable
-        onPress={onPress}
-        disabled={busy || disabled}
-        style={[styles.googleBtn, (busy || disabled) && styles.googleBtnDisabled]}
-      >
-        {busy ? (
-          <ActivityIndicator color={colors.textPrimary} />
-        ) : (
-          <Text style={styles.googleText}>구글로 계속하기</Text>
-        )}
-      </Pressable>
-
-      {showHint && (
-        <Text style={styles.googleHint}>
-          처음이라면 위에 등록 코드를 입력한 뒤 구글로 계속하기를 눌러주세요.
-        </Text>
-      )}
-    </>
   );
 }
 
@@ -366,26 +237,4 @@ const styles = StyleSheet.create({
   submitText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
   switchBtn: { marginTop: 20, alignItems: 'center' },
   switchText: { fontSize: 13, color: colors.sageDark, fontWeight: '500' },
-  divider: { flexDirection: 'row', alignItems: 'center', marginTop: 28, marginBottom: 16 },
-  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  dividerText: { marginHorizontal: 12, fontSize: 12, color: colors.textTertiary },
-  googleBtn: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 15,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  googleBtnDisabled: { opacity: 0.6 },
-  googleText: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
-  googleHint: {
-    marginTop: 10,
-    fontSize: 12,
-    color: colors.textTertiary,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
 });
