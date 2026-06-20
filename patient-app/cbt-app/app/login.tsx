@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/useAuthStore';
 import { ApiError } from '@/lib/api';
 import { colors, spacing, radius } from '@/constants/theme';
+import ConsentSheet from '@/components/ConsentSheet';
 
 type Mode = 'register' | 'login';
 type Method = 'pin' | 'email';
@@ -26,6 +27,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [consentVisible, setConsentVisible] = useState(false);
 
   const codeValid = /^[A-Z0-9]{8}$/.test(code);
   const pinValid = /^[0-9]{6}$/.test(pin);
@@ -40,8 +42,18 @@ export default function LoginScreen() {
     (needsCode ? codeValid : true) &&
     (method === 'pin' ? pinValid : emailValid && passwordValid);
 
-  const handleSubmit = async () => {
+  // 회원가입은 개인정보 수집동의 화면을 거친 뒤 실제 가입을 진행한다.
+  const handleSubmit = () => {
     if (!canSubmit) return;
+    if (mode === 'register') {
+      setConsentVisible(true);
+      return;
+    }
+    void performAuth();
+  };
+
+  // 실제 자격 증명으로 등록/로그인을 수행한다.
+  const performAuth = async () => {
     setSubmitting(true);
     try {
       if (mode === 'register') {
@@ -59,6 +71,11 @@ export default function LoginScreen() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleConsentAgree = () => {
+    setConsentVisible(false);
+    void performAuth();
   };
 
   return (
@@ -182,6 +199,12 @@ export default function LoginScreen() {
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <ConsentSheet
+        visible={consentVisible}
+        onClose={() => setConsentVisible(false)}
+        onAgree={handleConsentAgree}
+      />
     </SafeAreaView>
   );
 }
