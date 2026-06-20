@@ -22,10 +22,16 @@ class Patient(Base):
     pin_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_registered: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # 이메일 회원가입(비밀번호) — pin_hash 와 별개의 자격 증명.
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     # OAuth 2.1 (구글) 로그인 연동 — id_token 의 sub(고유 식별자)와 이메일.
     # 등록코드로 신원을 바인딩한 뒤 채워지며, 이후 로그인은 google_sub 로 환자를 찾는다.
     google_sub: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     email: Mapped[str | None] = mapped_column(EncryptedString(255), nullable=True)
+    # 이메일은 암호화(비결정적) 저장이라 직접 조회가 불가 → 결정론적 blind index 로
+    # 로그인 조회·중복 방지를 한다(이메일 회원가입에서만 채움).
+    email_lookup: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
 
     discharge_date: Mapped[date] = mapped_column(Date)
     next_outpatient_date: Mapped[date | None] = mapped_column(Date, nullable=True)

@@ -12,6 +12,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 from functools import lru_cache
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -21,6 +23,22 @@ from sqlalchemy.types import TypeDecorator
 from app.config import settings
 
 _PREFIX = "enc:v1:"
+
+
+def blind_index(value: str | None) -> str | None:
+    """결정론적 조회용 인덱스(HMAC-SHA256).
+
+    이메일처럼 암호화(EncryptedString, 비결정적) 저장하면서도 동등 조회·유니크 제약이
+    필요한 값에 사용한다. 정규화(트림+소문자) 후 HMAC 해시하므로 같은 입력은 항상 같은
+    인덱스를 내고, 원문은 복원되지 않는다. 키는 PII 키에서 파생(암호화 키와 분리).
+    """
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    if not normalized:
+        return None
+    key = hashlib.sha256(b"blind-index::" + settings.pii_key_material).digest()
+    return hmac.new(key, normalized.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 @lru_cache(maxsize=1)
