@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from collections.abc import AsyncGenerator
 from datetime import date
 from typing import Any
@@ -100,9 +101,32 @@ def _mock_response(req: LLMInvokeRequest) -> tuple[str, int, int]:
     if req.purpose == "safety_classification":
         text = '{"grade": "none", "event_type": "none", "confidence": 0.1}'
     elif req.purpose == "stage_tracking":
-        text = '{"ready_to_advance": false, "drift": "low"}'
+        # mock 모드에서도 세션이 실제로 진행·종료되도록 매 호출 한 단계씩 전진하고,
+        # 5단계에 도달한 다음 턴에 세션을 완결(session_complete)한다.
+        # (예전엔 ready_to_advance 가 항상 false 라 세션이 영영 끝나지 않았다 — BUG #6)
+        m = re.search(r"(?:current_step|last_known_step):\s*(\d+)", last_user)
+        step = int(m.group(1)) if m else 1
+        assessed = min(step + 1, 5)
+        complete = "true" if step >= 5 else "false"
+        text = (
+            '{"current_step": ' + str(assessed)
+            + ', "session_complete": ' + complete
+            + ', "completion": ' + f"{min(1.0, assessed / 5):.2f}"
+            + ', "drift": "low", "delivered": []}'
+        )
     elif req.purpose == "session_summarization":
-        text = '{"key_insights": [], "homework": ""}'
+        # 데모/개발용 요약 — summarizer 가 읽는 키(completed/unaddressed/insights/
+        # triggers/homework/tone/handoff/safety_flags)에 맞춘 대표 내용. 이래야 다음
+        # 세션의 [직전 세션 요약]·TRACE 의 '직전 세션 참고'가 비어 있지 않게 표출된다.
+        text = (
+            '{"completed": ["감정 체크인 완료", "지난주 과제 리뷰"], '
+            '"unaddressed": ["수면 패턴 점검"], '
+            '"insights": ["회식 상황에서 갈망이 높아짐을 인식"], '
+            '"triggers": [{"tag": "work_stress", "context": "업무 마감 후 음주 충동"}], '
+            '"homework": "이번 주 갈망 일지 3회 작성", "tone": "engaged", '
+            '"handoff": "다음 주에는 회식 거절 스크립트를 함께 연습할 것", '
+            '"safety_flags": []}'
+        )
     elif req.purpose == "output_filtering":
         text = '{"passed": true, "violations": []}'
     elif req.purpose == "trigger_normalization":
