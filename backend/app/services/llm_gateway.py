@@ -20,6 +20,7 @@ from app.exceptions import too_many, upstream_unavailable
 from app.ids import llm_invocation_id
 from app.models.llm_usage import LLMUsage
 from app.schemas.internal import LLMInvokeRequest, LLMInvokeResponse, LLMUsageBlock, LLMUsageOut
+from app.services import deidentify
 
 log = logging.getLogger(__name__)
 
@@ -33,12 +34,17 @@ _NO_TEMPERATURE_MODELS = {"claude-opus-4-8"}
 
 
 def _create_kwargs(req: LLMInvokeRequest) -> dict[str, Any]:
-    """Common kwargs for messages.create/stream. Omits params the model rejects."""
+    """Common kwargs for messages.create/stream. Omits params the model rejects.
+
+    외부(Anthropic)로 나가기 직전이므로 발화/시스템 프롬프트의 정형 식별자
+    (주민번호·전화·이메일·카드/계좌번호)를 가명처리한다. 국외이전 노출 최소화.
+    DB 에 저장된 원문은 그대로 유지되고, 여기서 만든 사본만 마스킹된다.
+    """
     kwargs: dict[str, Any] = {
         "model": req.model,
         "max_tokens": req.max_tokens,
-        "system": req.system or "",
-        "messages": req.messages,
+        "system": deidentify.mask_text(req.system or ""),
+        "messages": deidentify.mask_messages(req.messages),
     }
     if req.model not in _NO_TEMPERATURE_MODELS:
         kwargs["temperature"] = req.temperature if req.temperature is not None else 0.7

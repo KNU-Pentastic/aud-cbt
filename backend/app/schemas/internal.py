@@ -34,6 +34,10 @@ class SafetyClassifyResponse(BaseModel):
     matched_by: Literal["rule_keyword", "llm_classifier", "both", "none"]
     safety_event_id: str | None = None
     recommended_action: RecommendedAction
+    # 의료진 알림에 '왜 잡혔는지' 표시하기 위한 사유/근거.
+    reasoning: str | None = None
+    matched_keyword: str | None = None
+    evidence_span: str | None = None
 
 
 # ---- Utterance analyzer (정량 평가용 발화 분석; LLM_TRACE 전용) ----
