@@ -1,15 +1,20 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { colors, spacing, radius } from '@/constants/theme';
 
 type Props = { days: number; bestStreak: number; goal: number };
 
 export function SobrietyCounterCard({ days, goal }: Props) {
+  const router = useRouter();
   const progress = Math.min(days / Math.max(goal, 1), 1);
   const barProgress = Math.round(progress * 100);
 
   return (
-    <View style={styles.card}>
+    <Pressable
+      onPress={() => router.push('/progress')}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+    >
       <View style={styles.iconCircle}>
         <Ionicons name="leaf-outline" size={30} color={colors.coral} />
       </View>
@@ -22,9 +27,15 @@ export function SobrietyCounterCard({ days, goal }: Props) {
         <View style={styles.barBg}>
           <View style={[styles.barFill, { width: `${barProgress}%` as any }]} />
         </View>
-        <Text style={styles.barLabel}>목표 {goal}일 중 {barProgress}%</Text>
+        <View style={styles.bottomRow}>
+          <Text style={styles.barLabel}>목표 {goal}일 중 {barProgress}%</Text>
+          <View style={styles.journeyHint}>
+            <Text style={styles.journeyHintText}>12주 여정 보기</Text>
+            <Ionicons name="chevron-forward" size={13} color={colors.coral} />
+          </View>
+        </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -42,6 +53,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
   },
+  cardPressed: { opacity: 0.9 },
   iconCircle: {
     width: 56,
     height: 56,
@@ -64,5 +76,12 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   barFill: { height: '100%', backgroundColor: colors.coral, borderRadius: radius.pill },
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   barLabel: { fontSize: 11, color: colors.textTertiary },
+  journeyHint: { flexDirection: 'row', alignItems: 'center', gap: 1 },
+  journeyHintText: { fontSize: 11, fontWeight: '500', color: colors.coral },
 });
