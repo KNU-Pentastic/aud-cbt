@@ -266,12 +266,15 @@ def _advance_session_stage(
         ),
     )
     week = conv.week_number or patient.current_week
+    # stage_tracker 가 대화 기준으로 평가해 단조 증가시킨 '절대 단계'. 이전엔 ±1 만
+    # 움직여 진행도가 대화를 못 따라가고 2단계에 멈췄다. 이제 대화가 도달한 단계를 그대로 반영한다.
     sess.current_step = resp.current_step
     db.commit()
 
     advanced = False
     next_week: int | None = None
     summary_dump: dict | None = None
+    # 종료: 5단계까지 도달했고 세션이 완결됐다고(ready_to_advance=session_complete) 판단될 때.
     if resp.current_step >= 5 and resp.ready_to_advance:
         end_conversation(db, conv, "completed")  # conv + session 모두 종료 처리
         try:
@@ -402,6 +405,10 @@ async def stream_user_message(
                 "prompt_version": ctx.prompt_version,
                 "prompt_blocks": cb.get("prompt_blocks", []),
                 "selected_modules": cb.get("selected_modules"),
+                # 이 세션이 직전 세션 대화를 어떻게 참고하는지 표출(#5): context_builder 가
+                # 이미 만들어 둔 직전 세션 요약 블록을 트레이스에 실어 보낸다. 세션 외
+                # 컨텍스트(craving/resu/soma)에선 키가 없어 null 로 전달된다.
+                "previous_session_summary": cb.get("previous_session_summary"),
                 "system_prompt_chars": len(ctx.system_prompt),
                 "system_prompt": ctx.system_prompt,
             },
