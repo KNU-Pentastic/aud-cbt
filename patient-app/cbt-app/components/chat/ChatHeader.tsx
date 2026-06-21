@@ -11,17 +11,22 @@ type Props = {
 export function ChatHeader({ sessionNumber, onBack, onLeave }: Props) {
   return (
     <View style={styles.container}>
-      <Pressable onPress={onBack} hitSlop={12} style={styles.iconBtn}>
-        <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-      </Pressable>
-
-      <Text style={styles.title}>세션 {sessionNumber}</Text>
+      <View style={styles.left}>
+        <Pressable onPress={onBack} hitSlop={12} style={styles.iconBtn}>
+          <Ionicons name="chevron-back" size={20} color={colors.textSecondary} />
+        </Pressable>
+        <View>
+          <Text style={styles.title}>세션 {sessionNumber}</Text>
+          <Text style={styles.subtitle}>핵심 콘텐츠</Text>
+        </View>
+      </View>
 
       <Pressable
         onPress={onLeave}
-        style={({ pressed }) => [styles.endBtn, pressed && { opacity: 0.7 }]}
+        hitSlop={8}
+        style={({ pressed }) => [pressed && { opacity: 0.7 }]}
       >
-        <Text style={styles.endText}>나가기</Text>
+        <Ionicons name="stop-circle-outline" size={22} color={colors.textTertiary} />
       </Pressable>
     </View>
   );
@@ -32,23 +37,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.xxl,
+    paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.borderSoft,
+    paddingBottom: 14,
   },
-  iconBtn: { width: 32 },
+  left: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconBtn: { width: 28 },
   title: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '500',
     color: colors.textPrimary,
+    lineHeight: 20,
   },
-  endBtn: {
-    backgroundColor: colors.coralSofter,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 99,
+  subtitle: {
+    fontSize: 10,
+    color: colors.textTertiary,
+    marginTop: 1,
   },
-  endText: { fontSize: 12, fontWeight: '600', color: colors.coral },
 });

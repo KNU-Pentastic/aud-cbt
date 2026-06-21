@@ -183,8 +183,9 @@ export default function CheckinScreen() {
                   label="갈망"
                   value={value}
                   onChange={onChange}
-                  minLabel="전혀 없음 0"
-                  maxLabel="극심함 10"
+                  minLabel="전혀 없음"
+                  maxLabel="극심함"
+                  isCraving
                 />
               )}
             />
@@ -274,19 +275,19 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
   scroll: { paddingBottom: 20 },
   intro: { paddingHorizontal: spacing.xxl, paddingBottom: 18 },
-  title: { fontSize: 20, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
-  subtitle: { fontSize: 12, color: colors.textSecondary },
+  title: { fontSize: 18, fontWeight: '500', color: colors.textPrimary, marginBottom: 3 },
+  subtitle: { fontSize: 12, color: colors.textTertiary },
   noteCard: {
     marginHorizontal: spacing.xl,
     marginBottom: spacing.lg,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    paddingHorizontal: 16,
+    borderRadius: radius.card,
+    paddingHorizontal: 14,
     paddingVertical: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderSoft,
+    borderWidth: 0.5,
+    borderColor: colors.border,
   },
-  noteLabel: { fontSize: 13, fontWeight: '600', color: colors.textPrimary, marginBottom: 10 },
+  noteLabel: { fontSize: 13, fontWeight: '500', color: colors.textPrimary, marginBottom: 10 },
   noteInput: {
     minHeight: 64,
     backgroundColor: colors.background,
@@ -295,7 +296,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     color: colors.textPrimary,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 0.5,
     borderColor: colors.border,
     textAlignVertical: 'top',
   },
@@ -307,7 +308,7 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.xl,
     marginTop: 8,
     backgroundColor: colors.coral,
-    paddingVertical: 16,
+    paddingVertical: 13,
     borderRadius: radius.md,
   },
   submitBtnPressed: { opacity: 0.85 },

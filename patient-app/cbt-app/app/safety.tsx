@@ -64,7 +64,7 @@ export default function SafetyScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </Pressable>
-        <Text style={styles.headerTitle}>긴급 도움</Text>
+        <Text style={styles.headerTitle}>긴급 안내</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -167,11 +167,11 @@ const styles = StyleSheet.create({
   ssoCard: {
     marginHorizontal: spacing.xl,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    paddingHorizontal: 18,
+    borderRadius: radius.card,
+    paddingHorizontal: 14,
     paddingVertical: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderSoft,
+    borderWidth: 0.5,
+    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -180,20 +180,20 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.sageSoft,
+    backgroundColor: colors.coralSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarText: { fontSize: 13, fontWeight: '600', color: colors.sageDark },
+  avatarText: { fontSize: 13, fontWeight: '600', color: colors.coral },
   ssoInfo: { flex: 1 },
-  ssoName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary, marginBottom: 2 },
+  ssoName: { fontSize: 14, fontWeight: '500', color: colors.textPrimary, marginBottom: 2 },
   ssoDetail: { fontSize: 11, color: colors.textSecondary },
   ssoActionBtn: {
     width: 38,
     height: 38,
     borderRadius: 12,
     backgroundColor: colors.background,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 0.5,
     borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
@@ -204,11 +204,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderSoft,
+    borderRadius: radius.card,
+    borderWidth: 0.5,
+    borderColor: colors.border,
     borderStyle: 'dashed',
   },
   emptyText: { fontSize: 12, color: colors.textSecondary },
-  tilesRow: { flexDirection: 'row', paddingHorizontal: spacing.xl, gap: 10 },
+  tilesRow: { flexDirection: 'row', paddingHorizontal: spacing.xl, gap: 9 },
 });

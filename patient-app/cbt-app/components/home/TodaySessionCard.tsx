@@ -16,21 +16,13 @@ export function TodaySessionCard({ sessionNumber, title, duration }: Props) {
       onPress={() => router.push('/chat/new' as any)}
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
     >
-      <View style={styles.iconCircle}>
-        <Ionicons name="chatbubble-ellipses-outline" size={14} color={colors.coral} />
+      <View style={styles.left}>
+        <Text style={styles.label}>세션 {sessionNumber} · 오늘의 대화 🌱</Text>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.subtitle}>예상 {duration} · 주 1회 핵심 세션</Text>
       </View>
-
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>오늘의 세션</Text>
-      </View>
-
-      <Text style={styles.sessionLabel}>세션 {sessionNumber}</Text>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>예상 {duration} · 채팅형 대화</Text>
-
-      <View style={styles.button}>
-        <Ionicons name="arrow-forward-circle-outline" size={18} color="#FFFFFF" />
-        <Text style={styles.buttonText}>오늘의 대화 시작하기</Text>
+      <View style={styles.arrowCircle}>
+        <Ionicons name="arrow-forward" size={20} color={colors.textOnDark} />
       </View>
     </Pressable>
   );
@@ -39,46 +31,27 @@ export function TodaySessionCard({ sessionNumber, title, duration }: Props) {
 const styles = StyleSheet.create({
   card: {
     marginHorizontal: spacing.xl,
-    marginBottom: spacing.md,
+    marginBottom: 10,
     backgroundColor: colors.dark,
-    borderRadius: radius.lg,
-    paddingHorizontal: 22,
-    paddingTop: 18,
-    paddingBottom: 18,
-  },
-  iconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.darkSoft,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'absolute',
-    top: 18,
-    right: 22,
-  },
-  badge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.darkSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-    marginBottom: 14,
-  },
-  badgeText: { fontSize: 11, color: '#FFFFFF', fontWeight: '500' },
-  sessionLabel: { fontSize: 11, color: colors.coral, marginBottom: 2 },
-  title: { fontSize: 20, fontWeight: '700', color: '#FFFFFF', marginBottom: 4 },
-  subtitle: { fontSize: 11, color: colors.textOnDarkMuted, marginBottom: 14 },
-  button: {
+    borderRadius: radius.card,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.coral,
-    paddingVertical: 13,
-    borderRadius: 14,
+    justifyContent: 'space-between',
   },
   cardPressed: { opacity: 0.88 },
-  buttonPressed: { opacity: 0.88 },
-  buttonText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+  left: { flex: 1, paddingRight: 12 },
+  label: { fontSize: 11, color: colors.primarySoft, marginBottom: 2 },
+  title: { fontSize: 15, fontWeight: '500', color: colors.textOnDark, marginBottom: 3 },
+  subtitle: { fontSize: 10, color: colors.primaryMuted },
+  arrowCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
 });
