@@ -1,129 +1,87 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Circle } from 'react-native-svg';
+import { useRouter } from 'expo-router';
 import { colors, spacing, radius } from '@/constants/theme';
 
 type Props = { days: number; bestStreak: number; goal: number };
 
-const RING_SIZE = 78;
-const STROKE_WIDTH = 4;
-const RADIUS = (RING_SIZE - STROKE_WIDTH) / 2;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-
-function getEncouragement(days: number): string {
-  if (days === 0) return '오늘부터 시작이에요';
-  if (days < 7) return '꾸준히 이어가고 있어요';
-  if (days < 30) return '정말 잘 해내고 있어요';
-  if (days < 90) return '엄청난 변화를 만들고 있어요';
-  return '회복의 길을 단단히 걷고 있어요';
-}
-
-export function SobrietyCounterCard({ days, bestStreak, goal }: Props) {
+export function SobrietyCounterCard({ days, goal }: Props) {
+  const router = useRouter();
   const progress = Math.min(days / Math.max(goal, 1), 1);
-  const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
-  const daysToGoal = Math.max(0, goal - days);
-  const barProgress = progress * 100;
+  const barProgress = Math.round(progress * 100);
 
   return (
-    <View style={styles.card}>
-      <View style={styles.topRow}>
-        <View style={styles.ringContainer}>
-          <Svg width={RING_SIZE} height={RING_SIZE}>
-            <Circle
-              cx={RING_SIZE / 2}
-              cy={RING_SIZE / 2}
-              r={RADIUS}
-              stroke={colors.coralSofter}
-              strokeWidth={STROKE_WIDTH}
-              fill="none"
-            />
-            <Circle
-              cx={RING_SIZE / 2}
-              cy={RING_SIZE / 2}
-              r={RADIUS}
-              stroke={colors.coral}
-              strokeWidth={STROKE_WIDTH}
-              fill="none"
-              strokeDasharray={`${CIRCUMFERENCE}`}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              transform={`rotate(-90, ${RING_SIZE / 2}, ${RING_SIZE / 2})`}
-            />
-          </Svg>
-          <View style={styles.ringInner}>
-            <Text style={styles.daysNumber}>{days}</Text>
-            <Text style={styles.daysUnit}>일째</Text>
-          </View>
-        </View>
-
-        <View style={styles.info}>
-          <Text style={styles.label}>단주 카운터</Text>
-          <Text style={styles.message}>{getEncouragement(days)}</Text>
-          <Text style={styles.stats}>
-            최장 {bestStreak}일 · 목표 {goal}일
-          </Text>
-        </View>
-
-        <View style={styles.leafCircle}>
-          <Ionicons name="leaf-outline" size={13} color={colors.sageDark} />
-        </View>
+    <Pressable
+      onPress={() => router.push('/progress')}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+    >
+      <View style={styles.iconCircle}>
+        <Ionicons name="leaf-outline" size={30} color={colors.coral} />
       </View>
-
-      <View style={styles.barContainer}>
+      <View style={styles.info}>
+        <Text style={styles.label}>단주 이어가는 중</Text>
+        <View style={styles.daysRow}>
+          <Text style={styles.daysNumber}>{days}</Text>
+          <Text style={styles.daysUnit}>일째</Text>
+        </View>
         <View style={styles.barBg}>
           <View style={[styles.barFill, { width: `${barProgress}%` as any }]} />
         </View>
-        <Text style={styles.barLabel}>
-          {goal}일 목표까지 {daysToGoal}일 남았어요
-        </Text>
+        <View style={styles.bottomRow}>
+          <Text style={styles.barLabel}>목표 {goal}일 중 {barProgress}%</Text>
+          <View style={styles.journeyHint}>
+            <Text style={styles.journeyHintText}>12주 여정 보기</Text>
+            <Ionicons name="chevron-forward" size={13} color={colors.coral} />
+          </View>
+        </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
     marginHorizontal: spacing.xl,
-    marginBottom: spacing.md,
+    marginBottom: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  cardPressed: { opacity: 0.9 },
+  iconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: colors.coralSoft,
-    borderRadius: radius.lg,
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 16,
-  },
-  topRow: { flexDirection: 'row', alignItems: 'center' },
-  ringContainer: {
-    width: RING_SIZE,
-    height: RING_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
+    flexShrink: 0,
   },
-  ringInner: { position: 'absolute', alignItems: 'center' },
-  daysNumber: { fontSize: 24, fontWeight: '700', color: colors.textPrimary, lineHeight: 26 },
-  daysUnit: { fontSize: 10, color: colors.textSecondary, marginTop: 2 },
-  info: { flex: 1, marginLeft: 16 },
-  label: { fontSize: 11, color: colors.textSecondary, marginBottom: 4 },
-  message: { fontSize: 14, fontWeight: '600', color: colors.textPrimary, marginBottom: 4 },
-  stats: { fontSize: 11, color: colors.textSecondary },
-  leafCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: colors.sageSoft,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'absolute',
-    top: 0,
-    right: 0,
-  },
-  barContainer: { marginTop: 14 },
+  info: { flex: 1 },
+  label: { fontSize: 12, color: colors.textSecondary, marginBottom: 1 },
+  daysRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2, marginBottom: 7 },
+  daysNumber: { fontSize: 26, fontWeight: '500', color: colors.coral, lineHeight: 30 },
+  daysUnit: { fontSize: 14, fontWeight: '400', color: colors.textSecondary },
   barBg: {
-    height: 3,
-    backgroundColor: colors.coralSofter,
-    borderRadius: 2,
+    height: 6,
+    backgroundColor: colors.border,
+    borderRadius: radius.pill,
     overflow: 'hidden',
-    marginBottom: 8,
+    marginBottom: 5,
   },
-  barFill: { height: '100%', backgroundColor: colors.coral, borderRadius: 2 },
-  barLabel: { fontSize: 10, color: colors.textSecondary },
+  barFill: { height: '100%', backgroundColor: colors.coral, borderRadius: radius.pill },
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  barLabel: { fontSize: 11, color: colors.textTertiary },
+  journeyHint: { flexDirection: 'row', alignItems: 'center', gap: 1 },
+  journeyHintText: { fontSize: 11, fontWeight: '500', color: colors.coral },
 });

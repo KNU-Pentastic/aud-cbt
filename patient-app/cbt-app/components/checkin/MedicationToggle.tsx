@@ -13,10 +13,7 @@ export function MedicationToggle({ value, onChange }: Props) {
       <View style={styles.row}>
         <Pressable
           onPress={() => onChange(true)}
-          style={[
-            styles.option,
-            value === true ? styles.optionActive : styles.optionInactive,
-          ]}
+          style={[styles.option, value === true ? styles.optionActive : styles.optionInactive]}
         >
           <Text style={value === true ? styles.textActive : styles.textInactive}>
             예 · 복용함
@@ -24,12 +21,9 @@ export function MedicationToggle({ value, onChange }: Props) {
         </Pressable>
         <Pressable
           onPress={() => onChange(false)}
-          style={[
-            styles.option,
-            value === false ? styles.optionActive : styles.optionInactive,
-          ]}
+          style={[styles.option, value === false ? styles.optionInactive2 : styles.optionInactive]}
         >
-          <Text style={value === false ? styles.textActive : styles.textInactive}>
+          <Text style={value === false ? styles.textInactive2 : styles.textInactive}>
             아니오
           </Text>
         </Pressable>
@@ -43,27 +37,36 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.xl,
     marginBottom: spacing.lg,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    paddingHorizontal: 16,
+    borderRadius: radius.card,
+    paddingHorizontal: 14,
     paddingVertical: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderSoft,
+    borderWidth: 0.5,
+    borderColor: colors.border,
   },
-  label: { fontSize: 13, fontWeight: '600', color: colors.textPrimary, marginBottom: 10 },
+  label: { fontSize: 13, fontWeight: '500', color: colors.textPrimary, marginBottom: 10 },
   row: { flexDirection: 'row', gap: 8 },
   option: {
     flex: 1,
-    flexBasis: 0,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 9,
+    borderRadius: 11,
     alignItems: 'center',
   },
-  optionActive: { backgroundColor: colors.coral },
+  optionActive: {
+    backgroundColor: colors.coralSoft,
+    borderWidth: 1.5,
+    borderColor: colors.coral,
+  },
   optionInactive: {
-    backgroundColor: colors.background,
-    borderWidth: StyleSheet.hairlineWidth,
+    backgroundColor: colors.surfaceDim,
+    borderWidth: 0.5,
     borderColor: colors.border,
   },
-  textActive: { fontSize: 12, fontWeight: '600', color: '#FFFFFF' },
-  textInactive: { fontSize: 12, color: colors.textSecondary },
+  optionInactive2: {
+    backgroundColor: colors.surfaceDim,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+  },
+  textActive: { fontSize: 13, fontWeight: '500', color: colors.coralDark },
+  textInactive: { fontSize: 13, color: colors.textTertiary },
+  textInactive2: { fontSize: 13, color: colors.textTertiary },
 });
