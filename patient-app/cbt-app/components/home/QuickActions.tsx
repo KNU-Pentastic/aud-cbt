@@ -8,38 +8,23 @@ type Action = {
   label: string;
   subtitle: string;
   icon: React.ComponentProps<typeof Ionicons>['name'];
-  iconBg: string;
-  iconColor: string;
-  href?: string;
+  href: string;
 };
 
 const actions: Action[] = [
   {
-    id: 'workbook',
-    label: '생각 노트',
-    subtitle: '생각을 기록해요',
-    icon: 'create-outline',
-    iconBg: colors.sageSoft,
-    iconColor: colors.sageDark,
-    href: '/notes',
-  },
-  {
     id: 'craving',
-    label: '갈망 대응',
-    subtitle: 'AI와 즉시 대화',
-    icon: 'pulse-outline',
-    iconBg: colors.coralSofter,
-    iconColor: colors.coral,
+    label: '갈망 대화',
+    subtitle: '언제든 바로',
+    icon: 'chatbubble-ellipses-outline',
     href: '/chat/new?kind=craving',
   },
   {
-    id: 'stats',
-    label: '통계',
-    subtitle: '회복 흐름 보기',
-    icon: 'trending-up-outline',
-    iconBg: colors.sageSoft,
-    iconColor: colors.sageDark,
-    href: '/progress',
+    id: 'notes',
+    label: '생각 노트',
+    subtitle: '기록하기',
+    icon: 'create-outline',
+    href: '/notes',
   },
 ];
 
@@ -51,18 +36,10 @@ export function QuickActions() {
       {actions.map((action) => (
         <Pressable
           key={action.id}
-          onPress={() => {
-            if (action.href) {
-              router.push(action.href as any);
-            } else {
-              console.log(action.id);
-            }
-          }}
+          onPress={() => router.push(action.href as any)}
           style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
         >
-          <View style={[styles.iconBg, { backgroundColor: action.iconBg }]}>
-            <Ionicons name={action.icon} size={16} color={action.iconColor} />
-          </View>
+          <Ionicons name={action.icon} size={19} color={colors.coral} />
           <Text style={styles.label}>{action.label}</Text>
           <Text style={styles.subtitle}>{action.subtitle}</Text>
         </Pressable>
@@ -75,31 +52,20 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     paddingHorizontal: spacing.xl,
-    gap: 10,
-    marginBottom: spacing.md,
+    gap: 8,
+    marginBottom: 10,
   },
   tile: {
     flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
     backgroundColor: colors.surface,
     borderRadius: radius.md,
-    paddingVertical: 14,
-    paddingHorizontal: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderSoft,
-    alignItems: 'flex-start',
-    gap: 6,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    gap: 5,
   },
   tilePressed: { opacity: 0.6 },
-  iconBg: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  label: { fontSize: 12, fontWeight: '600', color: colors.textPrimary },
-  subtitle: { fontSize: 10, color: colors.textSecondary },
+  label: { fontSize: 12, fontWeight: '500', color: colors.textPrimary },
+  subtitle: { fontSize: 10, color: colors.textTertiary },
 });
