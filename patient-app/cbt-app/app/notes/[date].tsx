@@ -1,12 +1,13 @@
 import {
   View, Text, TextInput, Pressable, StyleSheet,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useRef, useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useNoteStore, makeDateLabel } from '@/store/useNoteStore';
+import { confirmAsync } from '@/lib/confirm';
 import { colors, spacing } from '@/constants/theme';
 
 export default function NoteEditorScreen() {
@@ -54,18 +55,14 @@ export default function NoteEditorScreen() {
     scheduleSave(content, text);
   };
 
-  const handleDelete = () => {
-    Alert.alert('노트 삭제', '이 노트를 삭제할까요?', [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '삭제',
-        style: 'destructive',
-        onPress: () => {
-          deleteNote(date);
-          router.back();
-        },
-      },
-    ]);
+  const handleDelete = async () => {
+    const ok = await confirmAsync('노트 삭제', '이 노트를 삭제할까요?', {
+      confirmText: '삭제',
+      destructive: true,
+    });
+    if (!ok) return;
+    deleteNote(date);
+    router.back();
   };
 
   return (

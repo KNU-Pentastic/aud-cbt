@@ -47,6 +47,7 @@ export function TraceStrip({ sessionId }: Props) {
   const { prompt, progress, analysis } = trace;
   const step = progress?.current_step;
   const a = analysis?.analysis;
+  const prev = prompt?.previous_session_summary;
 
   const toggleBlock = (target: string) =>
     setOpenBlocks((m) => ({ ...m, [target]: !m[target] }));
@@ -143,6 +144,45 @@ export function TraceStrip({ sessionId }: Props) {
                   {progress.next_week ? ` → ${progress.next_week}주차로 진행` : ' (프로그램 종결)'}
                 </Text>
               )}
+            </View>
+          )}
+
+          {/* ── 직전 세션 참고 (#5) — 이 세션이 지난 대화를 어떻게 참고하는지 ── */}
+          {prompt && prompt.context_type === 'session' && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                {prev ? `직전 세션 참고 (${prev.week_number}주차)` : '직전 세션 참고: 없음 (첫 세션)'}
+              </Text>
+              {prev && prev.completed_objectives.length > 0 ? (
+                <Text style={styles.line}>
+                  <Text style={styles.key}>완료 목표 </Text>
+                  {prev.completed_objectives.join(', ')}
+                </Text>
+              ) : null}
+              {prev && prev.unaddressed_objectives.length > 0 ? (
+                <Text style={styles.line}>
+                  <Text style={styles.key}>미해결 </Text>
+                  {prev.unaddressed_objectives.join(', ')}
+                </Text>
+              ) : null}
+              {prev && prev.key_insights.length > 0 ? (
+                <Text style={styles.line}>
+                  <Text style={styles.key}>핵심 통찰 </Text>
+                  {prev.key_insights.join(', ')}
+                </Text>
+              ) : null}
+              {prev && prev.handoff_notes ? (
+                <Text style={styles.line}>
+                  <Text style={styles.key}>핸드오프 </Text>
+                  {prev.handoff_notes}
+                </Text>
+              ) : null}
+              {prev && prev.assigned_homework ? (
+                <Text style={styles.line}>
+                  <Text style={styles.key}>지난 과제 </Text>
+                  {prev.assigned_homework}
+                </Text>
+              ) : null}
             </View>
           )}
 

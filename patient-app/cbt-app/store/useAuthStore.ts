@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
+import * as tokenStorage from '@/lib/tokenStorage';
 import { api } from '@/lib/api';
 import { getToken, setToken, setUnauthorizedHandler } from '@/lib/authToken';
 
@@ -29,7 +29,7 @@ type AuthState = {
 
 async function persistToken(token: string): Promise<void> {
   setToken(token);
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
+  await tokenStorage.setItemAsync(TOKEN_KEY, token);
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -40,12 +40,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     // (lib/api.ts → notifyUnauthorized → 아래 핸들러)
     setUnauthorizedHandler(() => {
       setToken(null);
-      SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => {});
+      tokenStorage.deleteItemAsync(TOKEN_KEY).catch(() => {});
       set({ status: 'unauthenticated' });
     });
 
     try {
-      const stored = await SecureStore.getItemAsync(TOKEN_KEY);
+      const stored = await tokenStorage.getItemAsync(TOKEN_KEY);
       if (stored) {
         setToken(stored);
         set({ status: 'authenticated' });
@@ -104,7 +104,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       /* 로그아웃은 클라이언트 토큰 폐기로 충분 (v3.0: 서버 블랙리스트 없음) */
     }
     setToken(null);
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    await tokenStorage.deleteItemAsync(TOKEN_KEY);
     set({ status: 'unauthenticated' });
   },
 }));

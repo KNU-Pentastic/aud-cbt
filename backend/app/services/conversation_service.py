@@ -254,6 +254,7 @@ def _advance_session_stage(
         {"role": t.role, "text": t.text}
         for t in _recent_turns(db, conv.conversation_id, limit=40, exclude_safety=True)
     ]
+    prev_step = sess.current_step
     resp = stage_tracker.track(
         db,
         StageTrackRequest(
@@ -274,8 +275,12 @@ def _advance_session_stage(
     advanced = False
     next_week: int | None = None
     summary_dump: dict | None = None
-    # 종료: 5단계까지 도달했고 세션이 완결됐다고(ready_to_advance=session_complete) 판단될 때.
-    if resp.current_step >= 5 and resp.ready_to_advance:
+    # 종료: '직전 라운드에 이미 5단계였던' 상태에서 마칠 준비가 됐다고(ready_to_advance=
+    # session_complete) 판단될 때만. resp.current_step(이번 평가)으로만 판단하면, 모델이 한
+    # 라운드에 3→5로 점프하며 동시에 session_complete 를 줄 때 4·5단계를 충분히 거치지 않고도
+    # 즉시 종료돼 버린다(조기 종료). prev_step>=5 를 요구하면 5단계에 최소 한 라운드 더 머문
+    # 뒤 종료되어, 단발 점프+완료로 인한 조기 종료를 막는다. (진행도 표시는 점프를 그대로 반영한다.)
+    if prev_step >= 5 and resp.ready_to_advance:
         end_conversation(db, conv, "completed")  # conv + session 모두 종료 처리
         try:
             dto = _summarize_session(db, patient, conv, sess)

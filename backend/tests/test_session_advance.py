@@ -20,7 +20,7 @@ from app.models.llm_usage import LLMUsage
 from app.models.patient import Patient
 from app.models.session import Session as CbtSession
 from app.models.session_summary import SessionSummary
-from app.schemas.internal import StageTrackRequest
+from app.schemas.internal import StageTrackRequest, StageTrackResponse
 from app.services import conversation_service, llm_gateway, stage_tracker
 
 
@@ -140,6 +140,36 @@ def test_entering_step5_does_not_end_session(db: Session) -> None:
     assert sess.status == "in_progress"
     assert conv.status == "active"
     assert patient.current_week == 4  # 아직 다음 주차로 넘어가지 않음
+
+
+def test_jump_to_step5_with_complete_does_not_end_immediately(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """한 라운드에 단계가 5로 점프하며 완료 신호가 떠도 그 즉시 종료하지 않는다(조기 종료 방지)."""
+    patient = _patient(db, week=4)
+    sess, conv = _session_with_step(db, patient, step=3)  # 직전 단계 3
+
+    def _fake_track(_db: object, _req: object) -> StageTrackResponse:
+        # tracker 가 한 방에 '5단계 + 완료'를 반환하는 상황을 강제(실모델 과대평가 재현).
+        return StageTrackResponse(
+            current_step=5,
+            ready_to_advance=True,
+            step_completion_estimate=1.0,
+            step_drift_risk="low",
+            delivered_objectives=[],
+            recommended_next_action="advance_step",
+        )
+
+    monkeypatch.setattr(conversation_service.stage_tracker, "track", _fake_track)
+    progress = conversation_service._advance_session_stage(db, patient, conv)
+
+    assert progress is not None
+    assert progress["current_step"] == 5  # 진행도는 5로 반영(점프 허용)
+    assert progress["session_advanced"] is False  # 그러나 즉시 종료되지 않음(직전 단계가 3이라서)
+    db.refresh(sess)
+    db.refresh(conv)
+    assert sess.status == "in_progress"
+    assert patient.current_week == 4
 
 
 def test_step5_ready_ends_and_advances(db: Session) -> None:
