@@ -20,7 +20,7 @@ from app.models.llm_usage import LLMUsage
 from app.models.patient import Patient
 from app.models.session import Session as CbtSession
 from app.models.session_summary import SessionSummary
-from app.schemas.internal import StageTrackRequest
+from app.schemas.internal import StageTrackRequest, StageTrackResponse
 from app.services import conversation_service, llm_gateway, stage_tracker
 
 
@@ -106,6 +106,33 @@ def test_stage_mock_advances_one_step(db: Session) -> None:
     assert resp.ready_to_advance is False
 
 
+def test_step_rises_at_most_one_per_round(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """모델이 한 번에 5단계로 점프 평가해도 단계 상승은 라운드당 +1 로 제한된다(1→5 점프 방지)."""
+    from app.schemas.internal import LLMInvokeResponse, LLMUsageBlock
+
+    def _fake_invoke(_db: object, _req: object) -> LLMInvokeResponse:
+        # 모델이 현재 단계 완료 + 세션 완료를 동시에 줘도, 단계는 한 칸만 오른다.
+        return LLMInvokeResponse(
+            content='{"step_complete": true, "session_complete": true, "completion": 1.0, "drift": "low"}',
+            usage=LLMUsageBlock(input_tokens=1, output_tokens=1),
+            stop_reason="end_turn",
+            invocation_id="inv_test",
+        )
+
+    monkeypatch.setattr(stage_tracker.llm_gateway, "invoke", _fake_invoke)
+    resp = stage_tracker.track(
+        db,
+        StageTrackRequest(
+            conversation_id="c", session_id="s", week_number=1,
+            current_step=2, dialogue=[],
+        ),
+    )
+    assert resp.current_step == 3  # 2 → 3 (한 칸만, 5 로 점프하지 않음)
+    assert resp.ready_to_advance is False  # 5단계가 아니므로 완료 신호가 있어도 종료 아님
+
+
 def test_stage_mock_caps_at_five(db: Session) -> None:
     """5단계에 도달하면 더 오르지 않고(상한) 세션 완결 신호를 낸다."""
     resp = stage_tracker.track(
@@ -134,7 +161,7 @@ def test_entering_step5_does_not_end_session(db: Session) -> None:
 
     assert progress is not None
     assert progress["current_step"] == 5
-    assert progress["session_advanced"] is False
+    assert progress["ready_to_complete"] is False  # 직전 단계가 4라 아직 마칠 준비 아님
     db.refresh(sess)
     db.refresh(conv)
     assert sess.status == "in_progress"
@@ -142,20 +169,68 @@ def test_entering_step5_does_not_end_session(db: Session) -> None:
     assert patient.current_week == 4  # 아직 다음 주차로 넘어가지 않음
 
 
-def test_step5_ready_ends_and_advances(db: Session) -> None:
-    """이미 5단계인 상태에서 ready 면 종료 + 요약 생성 + 다음 주차 진행."""
+def test_jump_to_step5_with_complete_does_not_signal_ready(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """한 라운드에 단계가 5로 점프하며 완료 신호가 떠도 곧장 '마칠 준비'로 보지 않는다(조기 신호 방지)."""
+    patient = _patient(db, week=4)
+    sess, conv = _session_with_step(db, patient, step=3)  # 직전 단계 3
+
+    def _fake_track(_db: object, _req: object) -> StageTrackResponse:
+        # tracker 가 한 방에 '5단계 + 완료'를 반환하는 상황을 강제(실모델 과대평가 재현).
+        return StageTrackResponse(
+            current_step=5,
+            ready_to_advance=True,
+            step_completion_estimate=1.0,
+            step_drift_risk="low",
+            delivered_objectives=[],
+            recommended_next_action="advance_step",
+        )
+
+    monkeypatch.setattr(conversation_service.stage_tracker, "track", _fake_track)
+    progress = conversation_service._advance_session_stage(db, patient, conv)
+
+    assert progress is not None
+    assert progress["current_step"] == 5  # 진행도는 5로 반영(점프 허용)
+    assert progress["ready_to_complete"] is False  # 직전 단계가 3이라 '마칠 준비' 신호는 아직 아님
+    db.refresh(sess)
+    db.refresh(conv)
+    assert sess.status == "in_progress"  # 자동 종료하지 않는다
+    assert conv.status == "active"
+    assert patient.current_week == 4
+
+
+def test_step5_ready_signals_complete_but_does_not_end(db: Session) -> None:
+    """이미 5단계 + ready 면 'ready_to_complete' 신호만 내고 자동 종료하지 않는다.
+
+    종료·요약·주차 진행은 사용자가 종료 버튼으로 /end 를 호출할 때 일어난다(아래 테스트).
+    """
     patient = _patient(db, week=4)
     sess, conv = _session_with_step(db, patient, step=5)
 
     progress = conversation_service._advance_session_stage(db, patient, conv)
 
     assert progress is not None
-    assert progress["session_advanced"] is True
-    assert progress["next_week"] == 5
+    assert progress["ready_to_complete"] is True
     db.refresh(sess)
     db.refresh(conv)
-    assert sess.status == "completed"
+    assert sess.status == "in_progress"  # 여전히 진행 중(자동 종료 안 함)
+    assert conv.status == "active"
+    assert patient.current_week == 4  # 주차도 그대로
+
+
+def test_manual_end_at_step5_completes_and_advances(db: Session) -> None:
+    """사용자가 5단계 도달 후 reason=completed 로 수동 종료하면: 완료 처리 + 요약 + 다음 주차."""
+    patient = _patient(db, week=4)
+    sess, conv = _session_with_step(db, patient, step=5)
+
+    conversation_service.end_conversation(db, conv, "completed")
+
+    db.refresh(sess)
+    db.refresh(conv)
+    db.refresh(patient)
     assert conv.status == "ended"
+    assert sess.status == "completed"
     assert patient.current_week == 5
     assert patient.current_phase == 3
 
@@ -165,3 +240,50 @@ def test_step5_ready_ends_and_advances(db: Session) -> None:
     ).scalar_one()
     assert summary.completed_objectives  # mock 이 비어있지 않게 채운다
     assert summary.handoff_notes
+
+
+def test_manual_end_before_step5_does_not_advance(db: Session) -> None:
+    """5단계 전에 수동 종료하면(reason=completed 라도) 대화만 닫고 주차는 그대로 둔다."""
+    patient = _patient(db, week=4)
+    sess, conv = _session_with_step(db, patient, step=3)
+
+    conversation_service.end_conversation(db, conv, "completed")
+
+    db.refresh(sess)
+    db.refresh(conv)
+    db.refresh(patient)
+    assert conv.status == "ended"
+    assert sess.status == "ended"  # 진짜 '완료'는 아님(5단계 미도달)
+    assert patient.current_week == 4  # 다음 주차로 넘어가지 않음
+
+    # 요약도 생성되지 않는다(완료가 아니므로).
+    summary = db.execute(
+        select(SessionSummary).where(SessionSummary.session_id == "s_test")
+    ).scalar_one_or_none()
+    assert summary is None
+
+
+def test_coach_prompt_includes_current_step(db: Session) -> None:
+    """세션 코치 프롬프트에 현재 단계와 그 목표가 주입된다(코치가 단계를 인지하고 진행하도록)."""
+    from app.models.daily_checkin import DailyCheckin
+    from app.models.discharge_profile import DischargeProfile
+    from app.schemas.internal import ContextBuildRequest
+    from app.services import context_builder
+
+    engine = db.get_bind()
+    for model in (DischargeProfile, DailyCheckin):
+        model.__table__.create(engine, checkfirst=True)
+
+    patient = _patient(db, week=1)  # week1 = phase1 → module_classifier(LLM) 미사용
+    ctx = context_builder.build(
+        db,
+        ContextBuildRequest(
+            patient_id=patient.patient_id,
+            context_type="session",
+            week_number=1,
+            current_step=3,
+        ),
+    )
+    assert ctx.context_blocks.get("current_step") == 3
+    assert "3/5" in ctx.system_prompt  # 현재 단계 표기
+    assert "핵심 콘텐츠" in ctx.system_prompt  # 3단계 이름이 코치 프롬프트에 들어감

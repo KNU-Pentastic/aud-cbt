@@ -98,6 +98,15 @@ export type PromptTrace = {
   prompt_version: string;
   prompt_blocks: PromptBlock[];
   selected_modules: { selected_modules: string[]; rationale: string; confidence: number } | null;
+  /** 이 세션이 참고한 직전 세션 요약(#5). 세션 컨텍스트에서만, 직전 세션이 있을 때만 채워짐. */
+  previous_session_summary?: {
+    week_number: number;
+    completed_objectives: string[];
+    unaddressed_objectives: string[];
+    key_insights: string[];
+    handoff_notes: string;
+    assigned_homework: string;
+  } | null;
   system_prompt_chars: number;
   /** LLM 에 실제로 전달된 조립 완료 시스템 프롬프트 전문 (환자 컨텍스트 포함). */
   system_prompt: string;
@@ -137,8 +146,8 @@ export type StageProgress = {
   ready_to_advance: boolean;
   step_completion: number;
   drift: 'low' | 'medium' | 'high';
-  session_advanced: boolean;
-  next_week: number | null;
+  /** LLM 이 이번 주 내용을 끝까지 진행해 '마칠 준비'가 됐는지 (자동 종료 아님). */
+  ready_to_complete: boolean;
 };
 
 export type SseEvent =
@@ -149,7 +158,7 @@ export type SseEvent =
   | { event: 'context_used'; data: PromptTrace }
   | { event: 'utterance_analysis'; data: UtteranceAnalysis }
   | { event: 'stage_progress'; data: StageProgress }
-  | { event: 'session_completed'; data: { week_number?: number } }
+  | { event: 'session_ready'; data: { week_number?: number; current_step?: number } }
   | { event: 'done'; data: { message_id?: string; finish_reason: string } }
   | { event: 'error'; data: { code: string; message: string } };
 

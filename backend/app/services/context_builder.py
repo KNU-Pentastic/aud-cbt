@@ -30,6 +30,7 @@ from app.schemas.internal import (
     ContextBuildResponse,
     ModuleClassifyRequest,
 )
+from app import cbt_stages
 from app.services import module_classifier, prompt_assets
 
 # 한국어 코치 페르소나 + 안전 분담. COMMON(MI 원칙)·Phase 블록은 자산에서 덧붙인다.
@@ -174,12 +175,14 @@ def build(db: Session, req: ContextBuildRequest) -> ContextBuildResponse:
     if req.context_type == "session":
         week = req.week_number or patient.current_week
         phase = _phase_for_week(week)
+        step = cbt_stages.clamp_step(req.current_step)
         patient_block = _patient_block(patient, dp)
         previous = _previous_summary_block(db, patient.patient_id)
         recent = _recent_checkins_block(db, patient.patient_id)
         blocks: dict[str, Any] = {
             "phase": phase,
             "week_number": week,
+            "current_step": step,
             "discharge_profile_summary": patient_block,
             "previous_session_summary": previous,
             "recent_checkins_summary": recent,
@@ -211,8 +214,13 @@ def build(db: Session, req: ContextBuildRequest) -> ContextBuildResponse:
                 f"[환자] {patient_block}",
                 f"[직전 세션 요약] {previous}",
                 f"[최근 7일 체크인] {recent}",
-                "다섯 단계 흐름(체크인 리뷰 → 과제 리뷰 → 핵심 콘텐츠 → 개인화 → 이번 주 과제)을 "
-                "환자 속도에 맞춰 진행하세요.",
+                (
+                    f"[세션 단계] 이 세션은 5단계로 진행됩니다: {cbt_stages.overview()}.\n"
+                    f"지금은 {cbt_stages.step_line(step)} 단계입니다. 이 단계의 목표에 집중해 충분히 "
+                    f"대화하고, 환자가 준비되면 다음 단계로 자연스럽게 넘어가세요. 한 번에 여러 "
+                    f"단계를 건너뛰지 말고, 5단계(이번 주 과제)를 함께 정하기 전에는 세션을 "
+                    f"마무리하지 마세요."
+                ),
             ]
         )
 

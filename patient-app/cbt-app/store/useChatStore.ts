@@ -35,7 +35,14 @@ export type ChatSession = {
   sessionNumber: number; // 백엔드 week_number (헤더 표시용)
   context: ConversationContext;
   messages: Message[];
+  /** 사용자가 종료 버튼으로 직접 마쳤는지. true 면 입력을 닫는다(대화 종료). */
   isComplete: boolean;
+  /**
+   * LLM 이 이번 주 내용을 끝까지 진행해 '마칠 준비'가 됐는지(session_ready 신호).
+   * 자동 종료가 아니다 — 입력은 그대로 열려 있어 계속 질문할 수 있고, 마무리하고
+   * 싶을 때 사용자가 종료 버튼을 누르면 그때 isComplete 가 된다.
+   */
+  readyToComplete: boolean;
 };
 
 // 백엔드 응답 타입 (openapi.yaml 기준)
@@ -154,6 +161,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         context: conv.context,
         messages: [greetingMessage()],
         isComplete: false,
+        readyToComplete: false,
       };
       set((state) => ({
         sessions: { ...state.sessions, [session.id]: session },
@@ -183,6 +191,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       context,
       messages: msgs.length > 0 ? msgs : [greetingMessage()],
       isComplete: false,
+      readyToComplete: false,
     };
     set((state) => ({
       sessions: { ...state.sessions, [conversationId]: session },
@@ -292,15 +301,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
               },
             }));
             break;
-          case 'session_completed':
-            // 세션 종료는 LLM 이 판단 — 완료 표시 후 입력을 잠근다.
+          case 'session_ready':
+            // LLM 이 이번 주 내용을 끝까지 진행했다는 '마칠 준비' 신호 — 자동 종료가
+            // 아니다. 입력은 그대로 열어 두어 계속 질문할 수 있고, 마무리하고 싶을 때
+            // 사용자가 종료 버튼을 누르면 그때 completeSession 으로 종료된다.
             set((state) => {
               const s = state.sessions[sessionId];
               if (!s) return state;
               return {
                 sessions: {
                   ...state.sessions,
-                  [sessionId]: { ...s, isComplete: true },
+                  [sessionId]: { ...s, readyToComplete: true },
                 },
               };
             });
@@ -317,6 +328,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       },
       onError: (err: ApiError) => {
+        // 대화가 외부에서(의료진 웹·다른 기기) 종료됐는데 로컬은 아직 진행 중인 채로
+        // 전송하면 409 CONVERSATION_ENDED 가 온다. 자동 종료를 없애면서 '로컬 진행 중 /
+        // 서버 종료' 창이 넓어졌으므로, 이 경우 로컬도 종료로 동기화해 입력을 닫고
+        // 영어 원문 대신 안내 문구를 보여준다.
+        if (err.code === 'CONVERSATION_ENDED') {
+          set((state) => {
+            const s = state.sessions[sessionId];
+            return {
+              isTyping: false,
+              cancelStream: null,
+              error: '이 대화는 이미 종료되었어요.',
+              sessions: s
+                ? { ...state.sessions, [sessionId]: { ...s, isComplete: true } }
+                : state.sessions,
+            };
+          });
+          return;
+        }
         set({ isTyping: false, cancelStream: null, error: err.message });
       },
       onComplete: () => {

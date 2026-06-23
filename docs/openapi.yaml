@@ -428,9 +428,11 @@ paths:
                 type: string
                 description: |
                   SSE 이벤트 타입: start, token, safety_classified,
-                  context_switched, session_completed, done, error.
+                  context_switched, session_ready, done, error.
+                  (session_ready 는 LLM 이 이번 주 내용을 끝까지 진행해 '마칠 준비'가
+                  됐다는 신호이며 자동 종료가 아니다 — 사용자가 종료 버튼으로 마친다.)
                   LLM_TRACE=true 일 때 추가: context_used, output_filter,
-                  utterance_analysis, stage_progress, session_summary
+                  utterance_analysis, stage_progress
         '409':
           description: CONVERSATION_ENDED — 이미 종료된 대화에는 메시지를 보낼 수 없음
           content:

@@ -461,19 +461,13 @@ async def _chat_turn(db, patient: Patient, conv, text: str):
                   + f"week {d.get('week_number')} phase {d.get('phase')}"
                   + f" step {d.get('current_step')}/{d.get('total_steps')}"
                   + f" ready={d.get('ready_to_advance')} completion={d.get('step_completion')}"
-                  + f" drift={d.get('drift')} advanced={d.get('session_advanced')}")
-        elif et == "session_summary":
-            print(c("⑧ session_summary: ", "bold", "cyan")
-                  + f"tone={d.get('emotional_tone')} model={d.get('model_used')}"
-                  + f" ({d.get('generation_time_ms')}ms)")
-            if d.get("patient_key_insights"):
-                print(f"    insights: {d.get('patient_key_insights')}")
-            if d.get("identified_triggers"):
-                print(f"    triggers: {[t.get('tag') for t in d.get('identified_triggers', [])]}")
-            if d.get("next_session_handoff_notes"):
-                print(f"    handoff: {q(d.get('next_session_handoff_notes'), 80)}")
-        elif et == "session_completed":
-            print(c(f"   ★ session_completed → week {d.get('week_number')}", "green"))
+                  + f" drift={d.get('drift')} ready_to_complete={d.get('ready_to_complete')}")
+        # ⑧ session_summary 는 더 이상 스트림 이벤트가 아니다(세션 요약은 종료 시 REST
+        #    /end 경로에서 생성된다). 스트림에서는 나오지 않으므로 별도 분기를 두지 않는다.
+        elif et == "session_ready":
+            print(c(
+                f"   ★ session_ready (마칠 준비, 자동 종료 아님) → week {d.get('week_number')}"
+                f" step {d.get('current_step')}", "green"))
         elif et == "error":
             print(c(f"   ✖ error: {d.get('code')} {d.get('message')}", "red"))
         elif et == "done":

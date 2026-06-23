@@ -1,26 +1,9 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
+import * as tokenStorage from '@/lib/tokenStorage';
 import { api } from '@/lib/api';
 import { getToken, setToken, setUnauthorizedHandler } from '@/lib/authToken';
 
 const TOKEN_KEY = 'cbt_access_token';
-
-// expo-secure-store는 웹을 지원하지 않으므로 웹에서는 localStorage를 사용한다.
-const storage = {
-  getItem: (key: string): Promise<string | null> => {
-    if (Platform.OS === 'web') return Promise.resolve(localStorage.getItem(key));
-    return SecureStore.getItemAsync(key);
-  },
-  setItem: (key: string, value: string): Promise<void> => {
-    if (Platform.OS === 'web') { localStorage.setItem(key, value); return Promise.resolve(); }
-    return SecureStore.setItemAsync(key, value);
-  },
-  deleteItem: (key: string): Promise<void> => {
-    if (Platform.OS === 'web') { localStorage.removeItem(key); return Promise.resolve(); }
-    return SecureStore.deleteItemAsync(key);
-  },
-};
 
 type TokenResponse = {
   access_token: string;
@@ -46,7 +29,7 @@ type AuthState = {
 
 async function persistToken(token: string): Promise<void> {
   setToken(token);
-  await storage.setItem(TOKEN_KEY, token);
+  await tokenStorage.setItemAsync(TOKEN_KEY, token);
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -57,12 +40,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     // (lib/api.ts → notifyUnauthorized → 아래 핸들러)
     setUnauthorizedHandler(() => {
       setToken(null);
-      storage.deleteItem(TOKEN_KEY).catch(() => {});
+      tokenStorage.deleteItemAsync(TOKEN_KEY).catch(() => {});
       set({ status: 'unauthenticated' });
     });
 
     try {
-      const stored = await storage.getItem(TOKEN_KEY);
+      const stored = await tokenStorage.getItemAsync(TOKEN_KEY);
       if (stored) {
         setToken(stored);
         set({ status: 'authenticated' });
@@ -121,7 +104,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       /* 로그아웃은 클라이언트 토큰 폐기로 충분 (v3.0: 서버 블랙리스트 없음) */
     }
     setToken(null);
-    await storage.deleteItem(TOKEN_KEY);
+    await tokenStorage.deleteItemAsync(TOKEN_KEY);
     set({ status: 'unauthenticated' });
   },
 }));

@@ -217,6 +217,8 @@ class ContextBuildRequest(BaseModel):
     patient_id: str
     context_type: ConversationContextLit
     week_number: int | None = Field(default=None, ge=1, le=12)
+    # 세션 대화에서 '지금 몇 단계인지'를 코치 프롬프트에 주입하기 위함. None 이면 1단계로 본다.
+    current_step: int | None = Field(default=None, ge=1, le=5)
 
 
 class ContextBuildResponse(BaseModel):

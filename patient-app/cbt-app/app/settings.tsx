@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSettings, queryKeys } from '@/lib/queries';
 import { api, ApiError } from '@/lib/api';
+import { confirmAsync } from '@/lib/confirm';
 import type { SsoRelationship, SupportPerson } from '@/lib/api-types';
 import { useAuthStore } from '@/store/useAuthStore';
 import { EmergencyButton } from '@/components/EmergencyButton';
@@ -122,31 +123,28 @@ export default function SettingsScreen() {
     }
   };
 
-  const deleteSso = () => {
+  const deleteSso = async () => {
     if (!data?.sso) return;
     const id = data.sso.sso_id;
-    Alert.alert('연락처 삭제', '정말 삭제할까요?', [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '삭제',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.del(`/me/sso/${id}`);
-            invalidate();
-          } catch (e) {
-            Alert.alert('삭제 실패', e instanceof ApiError ? e.message : '다시 시도해주세요.');
-          }
-        },
-      },
-    ]);
+    const ok = await confirmAsync('연락처 삭제', '정말 삭제할까요?', {
+      confirmText: '삭제',
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await api.del(`/me/sso/${id}`);
+      invalidate();
+    } catch (e) {
+      Alert.alert('삭제 실패', e instanceof ApiError ? e.message : '다시 시도해주세요.');
+    }
   };
 
-  const handleLogout = () => {
-    Alert.alert('로그아웃', '로그아웃 할까요?', [
-      { text: '취소', style: 'cancel' },
-      { text: '로그아웃', style: 'destructive', onPress: () => logout() },
-    ]);
+  const handleLogout = async () => {
+    const ok = await confirmAsync('로그아웃', '로그아웃 할까요?', {
+      confirmText: '로그아웃',
+      destructive: true,
+    });
+    if (ok) await logout();
   };
 
   return (

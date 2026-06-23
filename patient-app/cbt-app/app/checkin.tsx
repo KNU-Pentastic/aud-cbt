@@ -11,6 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api';
+import { alertAsync } from '@/lib/confirm';
 import { queryKeys } from '@/lib/queries';
 import type { CheckinResponse, CheckinSubmit, Paginated, CheckinOut } from '@/lib/api-types';
 import { CheckinSlider } from '@/components/checkin/CheckinSlider';
@@ -75,7 +76,7 @@ export default function CheckinScreen() {
     free_note: data.freeNote?.trim() ? data.freeNote.trim() : null,
   });
 
-  const afterSubmit = (res: CheckinResponse) => {
+  const afterSubmit = async (res: CheckinResponse) => {
     queryClient.invalidateQueries({ queryKey: queryKeys.home });
     queryClient.invalidateQueries({ queryKey: ['today-checkin'] });
 
@@ -86,16 +87,15 @@ export default function CheckinScreen() {
       return;
     }
     if (cls?.grade === 'B') {
-      Alert.alert(
+      await alertAsync(
         '체크인 저장됨',
-        '오늘 기록에서 신경 쓰이는 부분이 보였어요. 다음 외래 때 의료진과 꼭 상의해 주세요.',
-        [{ text: '확인', onPress: () => router.back() }]
+        '오늘 기록에서 신경 쓰이는 부분이 보였어요. 다음 외래 때 의료진과 꼭 상의해 주세요.'
       );
+      router.back();
       return;
     }
-    Alert.alert('체크인 완료', '오늘의 기록이 저장되었어요.', [
-      { text: '확인', onPress: () => router.back() },
-    ]);
+    await alertAsync('체크인 완료', '오늘의 기록이 저장되었어요.');
+    router.back();
   };
 
   const onSubmit = async (data: CheckinFormData) => {
@@ -125,7 +125,7 @@ export default function CheckinScreen() {
           }
         }
       }
-      afterSubmit(res);
+      await afterSubmit(res);
     } catch (e) {
       Alert.alert('저장 실패', e instanceof ApiError ? e.message : '다시 시도해주세요.');
     } finally {

@@ -31,6 +31,16 @@ function resolveApiBase(): string {
   if (fromEnv && fromEnv.trim().length > 0) {
     return fromEnv.trim().replace(/\/+$/, '');
   }
+  // 웹: Expo 의 hostUri(네이티브용 LAN 호스트)가 아니라 페이지가 실제로 서빙된
+  // 호스트(window.location)를 기준으로 API 호스트를 맞춘다. localhost 로 열면
+  // localhost:8000, LAN IP 로 열면 같은 IP:8000 으로 향해 호스트 불일치를 막는다.
+  // (static export 의 Node 프리렌더 단계에서는 window 가 없으므로 가드한다.)
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.location?.hostname) {
+      return `http://${window.location.hostname}:${API_PORT}${API_PATH}`;
+    }
+    return `http://localhost:${API_PORT}${API_PATH}`;
+  }
   const devHost = devHostFromExpo();
   if (devHost) {
     return `http://${devHost}:${API_PORT}${API_PATH}`;
