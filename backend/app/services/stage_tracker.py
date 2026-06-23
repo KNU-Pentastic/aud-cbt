@@ -1,4 +1,10 @@
-"""Stage tracker — CBT 5-step progress per session. Sonnet 4.6."""
+"""Stage tracker — CBT 5-step progress per session. Sonnet 4.6.
+
+역할: 코치(대화 LLM)는 cbt_stages 의 단계 정의를 받아 '현재 단계'를 진행하고, 이 추적기는
+같은 정의를 기준으로 '현재 단계가 완료됐는지(다음 단계로 갈 준비)'와 '세션 전체가 끝났는지
+(5단계까지 마침)'만 판단한다. 단계는 한 번에 한 칸씩만 오른다 — 추적기가 대화를 사후에 보고
+절대 단계를 추정해 1→5 로 점프하던(그래서 2~4단계를 건너뛰고 조기 종료되던) 문제를 없앤다.
+"""
 
 from __future__ import annotations
 
@@ -7,33 +13,35 @@ import re
 
 from sqlalchemy.orm import Session
 
+from app import cbt_stages
 from app.config import settings
 from app.schemas.internal import LLMInvokeRequest, StageTrackRequest, StageTrackResponse
 from app.services import llm_gateway
 
 
 _SYS = (
-    "You are a CBT session stage tracker. A weekly session has 5 steps: "
+    "You are a CBT session stage tracker. A weekly session runs through 5 steps IN ORDER: "
     "1=check-in review, 2=last-week homework review, 3=core content, "
     "4=personalization, 5=this week's homework assignment. "
-    "Read the recent dialogue and assess which step the session has ACTUALLY "
-    "reached — the highest step the conversation has substantively covered — and "
-    "whether the session is essentially complete (this week's homework has been "
-    "assigned and the conversation reached a natural close). Judge from the "
-    "dialogue itself; last_known_step is only the previously recorded value and "
-    "may lag the conversation. Never report a step lower than the dialogue shows. "
-    'Reply ONLY as strict JSON: {"current_step": 1-5, "session_complete": bool, '
+    "You are given the CURRENT step (with its goal) and the recent dialogue. "
+    "Judge ONLY the current step — do not look ahead. Decide two booleans: "
+    "(1) step_complete — has the CURRENT step's goal been sufficiently covered in the "
+    "dialogue so it is natural to move on to the next step? "
+    "(2) session_complete — true ONLY when the current step is 5 AND this week's homework "
+    "has actually been agreed with the patient AND the conversation has reached a close. "
+    'Reply ONLY as strict JSON: {"step_complete": bool, "session_complete": bool, '
     '"completion": 0..1, "drift": "low|medium|high", "delivered": ["..."]}'
 )
 
 
 def track(db: Session, req: StageTrackRequest) -> StageTrackResponse:
+    cur = cbt_stages.clamp_step(req.current_step)
     messages = [
         {
             "role": "user",
             "content": (
-                f"Week: {req.week_number}, last_known_step: {req.current_step}\n"
-                f"step_objectives: {req.step_objectives}\n"
+                f"Week: {req.week_number}\n"
+                f"current_step: {cur} ({cbt_stages.step_line(cur)})\n"
                 f"recent_dialogue: {req.dialogue[-12:]}"
             ),
         }
@@ -58,34 +66,31 @@ def track(db: Session, req: StageTrackRequest) -> StageTrackResponse:
     except Exception:
         data = {}
 
-    # 모델이 '대화가 실제로 도달한 절대 단계'를 평가한다. 마지막 기록 단계보다 낮게는
-    # 내려가지 않도록 단조 증가로 보정한다. (예전엔 current_step 에서 ±1 만 움직이고
-    # 그 값에 모델을 고정시켜, 대화가 이미 3~5단계를 지나도 2단계에 묶여 진행도가 안
-    # 올라가고 세션이 끝나지 않았다 — BUG.)
-    try:
-        assessed = int(data.get("current_step", req.current_step))
-    except (TypeError, ValueError):
-        assessed = req.current_step
-    assessed = max(1, min(5, assessed))
-    current_step = max(req.current_step, assessed)
+    # 추적기는 '현재 단계 완료 여부'만 판단한다. 완료면 다음 단계로 한 칸 전진(절대 건너뛰지 않음).
+    step_complete = bool(data.get("step_complete", False))
+    next_step = min(cur + 1, cbt_stages.TOTAL_STEPS) if step_complete else cur
 
-    # ready_to_advance 의 의미: 이제 '세션을 마칠 준비가 됐는가'(5단계까지 마치고 마무리됨).
-    complete = bool(data.get("session_complete", False))
-    ready = complete and current_step >= 5
+    # ready_to_advance = '세션을 마칠 준비'(5단계까지 마침). session_complete 는 모델이 5단계에서만
+    # 주도록 지시했지만, 안전하게 next_step 도 5 이상인지 함께 확인한다.
+    session_complete = bool(data.get("session_complete", False))
+    ready = session_complete and next_step >= cbt_stages.TOTAL_STEPS
 
     completion = float(data.get("completion", 0.2))
     drift = data.get("drift", "low")
     if drift not in ("low", "medium", "high"):
         drift = "low"
     delivered = data.get("delivered") or []
-    action = (
-        "advance_step"
-        if ready
-        else ("continue_current" if assessed >= req.current_step else "redirect_to_step_topic")
-    )
+    if ready:
+        action = "advance_step"
+    elif step_complete:
+        action = "advance_step"
+    elif drift == "high":
+        action = "redirect_to_step_topic"
+    else:
+        action = "continue_current"
 
     return StageTrackResponse(
-        current_step=current_step,
+        current_step=next_step,
         ready_to_advance=ready,
         step_completion_estimate=max(0.0, min(1.0, completion)),
         step_drift_risk=drift,  # type: ignore[arg-type]

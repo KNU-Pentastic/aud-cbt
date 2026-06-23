@@ -138,10 +138,9 @@ export function TraceStrip({ sessionId }: Props) {
                 {progress.drift !== 'low' ? `  ⚠︎ 이탈:${progress.drift}` : ''}
               </Text>
               {step ? <StageIndicator stage={step as 1 | 2 | 3 | 4 | 5} /> : null}
-              {progress.session_advanced && (
+              {progress.ready_to_complete && (
                 <Text style={styles.advance}>
-                  ✅ {progress.week_number}주차 세션 완료
-                  {progress.next_week ? ` → ${progress.next_week}주차로 진행` : ' (프로그램 종결)'}
+                  ✅ 이번 주 내용 마무리 — 사용자가 ‘세션 마치기’로 종료하면 다음 주차로 진행
                 </Text>
               )}
             </View>

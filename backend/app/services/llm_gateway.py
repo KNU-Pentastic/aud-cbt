@@ -101,17 +101,15 @@ def _mock_response(req: LLMInvokeRequest) -> tuple[str, int, int]:
     if req.purpose == "safety_classification":
         text = '{"grade": "none", "event_type": "none", "confidence": 0.1}'
     elif req.purpose == "stage_tracking":
-        # mock 모드에서도 세션이 실제로 진행·종료되도록 매 호출 한 단계씩 전진하고,
-        # 5단계에 도달한 다음 턴에 세션을 완결(session_complete)한다.
-        # (예전엔 ready_to_advance 가 항상 false 라 세션이 영영 끝나지 않았다 — BUG #6)
-        m = re.search(r"(?:current_step|last_known_step):\s*(\d+)", last_user)
+        # mock 모드: 매 호출 현재 단계를 완료(step_complete)로 보아 한 칸 전진하고,
+        # 5단계에서 session_complete 를 내 세션을 마무리한다. (예전엔 ready 가 항상 false 라
+        # 세션이 영영 끝나지 않았다 — BUG #6) 새 stage_tracker 스키마에 맞춘다.
+        m = re.search(r"current_step:\s*(\d+)", last_user)
         step = int(m.group(1)) if m else 1
-        assessed = min(step + 1, 5)
-        complete = "true" if step >= 5 else "false"
+        session_complete = "true" if step >= 5 else "false"
         text = (
-            '{"current_step": ' + str(assessed)
-            + ', "session_complete": ' + complete
-            + ', "completion": ' + f"{min(1.0, assessed / 5):.2f}"
+            '{"step_complete": true, "session_complete": ' + session_complete
+            + ', "completion": ' + f"{min(1.0, step / 5):.2f}"
             + ', "drift": "low", "delivered": []}'
         )
     elif req.purpose == "session_summarization":

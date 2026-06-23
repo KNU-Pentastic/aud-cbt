@@ -5,7 +5,9 @@ Event protocol (matches openapi.yaml + API doc §5.3):
   token              { text }
   safety_classified  { grade, event_type }
   context_switched   { from, to }
-  session_completed  { week_number }
+  session_ready      { week_number, current_step }   # LLM 이 이번 주 내용을 끝까지
+                     # 진행해 '마칠 준비'가 됐다는 신호(자동 종료 아님 — 사용자가
+                     # 종료 버튼으로 마침). 항상 전송(LLM_TRACE 와 무관).
   done               { message_id, finish_reason }
   error              { code, message }
 
@@ -17,8 +19,11 @@ Trace events (LLM_TRACE=on 일 때만 — 정량 평가/라이브 관찰용; 운
                        replaced_with_fallback }              # ⑤ output_filter
   utterance_analysis { text, analysis{...}, safety{...} }    # ⑥ utterance (+ ① safety)
   stage_progress     { week_number, phase, current_step, ready_to_advance,
-                       step_completion, drift, session_advanced, next_week }  # ⑦ stage
-  session_summary    { ...SessionSummary }                   # ⑧ session_summarizer
+                       step_completion, drift, ready_to_complete }  # ⑦ stage
+
+⑧ session_summarizer 는 더 이상 SSE 이벤트로 노출하지 않는다. 세션 요약은 사용자가
+종료 버튼으로 /me/conversations/{id}/end (reason=completed) 를 호출할 때 end_conversation
+안에서 생성·저장되며(스트림이 아닌 REST 경로), 의료진 대시보드에서 조회한다.
 """
 
 from __future__ import annotations
@@ -32,6 +37,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import cbt_stages
 from app.config import settings
 from app.ids import conversation_id as new_conv_id
 from app.ids import message_id as new_message_id
@@ -128,6 +134,13 @@ def start_craving(db: Session, patient: Patient) -> Conversation:
 def end_conversation(
     db: Session, conv: Conversation, reason: str
 ) -> tuple[datetime, datetime | None]:
+    """대화를 종료한다 — 종료 시점은 LLM 이 아니라 사용자가 결정한다(수동 종료 버튼).
+
+    세션 대화를 reason="completed" 로 마칠 때, 그 세션이 5단계(이번 주 과제)까지
+    도달했다면 — 즉 LLM 이 이번 주 내용을 끝까지 진행했다면 — 비로소 '완료'로 보고
+    세션 요약을 만든 뒤 다음 주차로 진행한다. 5단계 전에 끝내거나 reason 이
+    completed 가 아니면 대화만 닫고 주차는 그대로 둔다(임상 흐름 보존).
+    """
     now = datetime.now(timezone.utc)
     conv.status = "ended"
     conv.ended_at = now
@@ -136,9 +149,15 @@ def end_conversation(
     if conv.session_id:
         sess = db.get(CbtSession, conv.session_id)
         if sess is not None:
-            sess.status = "completed" if reason == "completed" else "ended"
+            completed = (
+                reason == "completed" and sess.current_step >= cbt_stages.TOTAL_STEPS
+            )
+            sess.status = "completed" if completed else "ended"
             sess.ended_at = now
             sess.end_reason = reason
+            db.flush()
+            if completed:
+                _complete_session(db, conv, sess)
     db.commit()
     return now, next_available_at
 
@@ -209,10 +228,12 @@ def _phase_for_week(week: int) -> int:
 def _summarize_session(
     db: Session, patient: Patient, conv: Conversation, sess: CbtSession
 ) -> SessionSummary | None:
-    """세션 종료 시 요약 생성 (실패해도 대화 흐름을 막지 않는다).
+    """세션 종료 시 요약 생성·저장 (실패해도 종료/주차 진행을 막지 않는다).
 
-    생성된 SessionSummary DTO 를 돌려준다(LLM_TRACE=on 일 때 session_summary 이벤트로
-    라이브 노출하기 위함). 호출부에서 예외를 잡으므로 여기선 그대로 던진다.
+    _complete_session(수동 종료 + 5단계 도달) 에서 호출된다. 생성된 SessionSummary 는
+    DB 에 저장돼 다음 세션과 의료진 대시보드가 참고하며, 반환 DTO 는 현재 호출부에서
+    쓰지 않는다(예전엔 자동 종료 스트림에서 session_summary 이벤트로 라이브 노출했으나
+    종료가 REST 경로로 바뀌며 그 용도는 사라졌다). 예외는 호출부에서 잡는다.
     """
     turns = _recent_turns(db, conv.conversation_id, limit=200)
     full = [{"role": t.role, "text": t.text} for t in turns]
@@ -231,15 +252,35 @@ def _summarize_session(
     )
 
 
+def _complete_session(db: Session, conv: Conversation, sess: CbtSession) -> None:
+    """세션을 '완료'로 마칠 때(사용자가 5단계까지 진행한 뒤 수동 종료): 요약 생성 +
+    다음 주차 진행. 요약 생성이 실패해도 주차 진행을 막지 않는다(요약은 다음 세션
+    참고용 보조 자료). 호출부(end_conversation)가 트랜잭션을 commit 한다.
+    """
+    patient = db.get(Patient, conv.patient_id)
+    if patient is None:
+        return
+    try:
+        _summarize_session(db, patient, conv, sess)
+    except Exception:
+        log.exception("session summarize failed")
+    if patient.current_week < 12:
+        patient.current_week += 1
+        patient.current_phase = _phase_for_week(patient.current_week)
+
+
 def _advance_session_stage(
     db: Session, patient: Patient, conv: Conversation
 ) -> dict | None:
     """세션 대화의 5단계 진행을 stage_tracker 로 갱신하고 진행도 dict 를 돌려준다.
 
-    5단계를 모두 마쳤다고 LLM 이 판단하면(세션 종료는 LLM 이 결정) 대화를 종료하고
-    요약 생성 + 다음 주차로 진행한다. 반환 dict 는 stage_progress SSE 이벤트로 그대로
-    노출되어, 클라이언트가 '지금 몇 주차·몇 단계인지'를 표시할 수 있다.
-    세션 대화가 아니거나 진행 가능한 세션이 없으면 None.
+    예전엔 LLM 이 5단계 완료를 판단하면 여기서 곧장 대화를 종료하고 다음 주차로
+    넘겼다(자동 종료). 그러나 대화가 끝나지 않았는데도 조기 종료되는 일이 잦아,
+    이제는 종료를 사용자가 결정한다 — 여기서는 자동 종료하지 않고 '마칠 준비가
+    됐는지(ready_to_complete)'만 계산해 돌려준다. 실제 종료·요약·주차 진행은
+    사용자가 종료 버튼을 눌러 /end(reason=completed) 를 호출할 때 일어난다.
+    반환 dict 는 stage_progress SSE 이벤트로 노출되어 '지금 몇 주차·몇 단계인지'를
+    표시한다. 세션 대화가 아니거나 진행 가능한 세션이 없으면 None.
     """
     if not conv.session_id:
         return None
@@ -272,28 +313,12 @@ def _advance_session_stage(
     sess.current_step = resp.current_step
     db.commit()
 
-    advanced = False
-    next_week: int | None = None
-    summary_dump: dict | None = None
-    # 종료: '직전 라운드에 이미 5단계였던' 상태에서 마칠 준비가 됐다고(ready_to_advance=
-    # session_complete) 판단될 때만. resp.current_step(이번 평가)으로만 판단하면, 모델이 한
-    # 라운드에 3→5로 점프하며 동시에 session_complete 를 줄 때 4·5단계를 충분히 거치지 않고도
-    # 즉시 종료돼 버린다(조기 종료). prev_step>=5 를 요구하면 5단계에 최소 한 라운드 더 머문
-    # 뒤 종료되어, 단발 점프+완료로 인한 조기 종료를 막는다. (진행도 표시는 점프를 그대로 반영한다.)
-    if prev_step >= 5 and resp.ready_to_advance:
-        end_conversation(db, conv, "completed")  # conv + session 모두 종료 처리
-        try:
-            dto = _summarize_session(db, patient, conv, sess)
-            if dto is not None:
-                summary_dump = dto.model_dump(mode="json")  # datetime → ISO 문자열
-        except Exception:
-            log.exception("session summarize failed")
-        if patient.current_week < 12:
-            patient.current_week += 1
-            patient.current_phase = _phase_for_week(patient.current_week)
-            db.commit()
-            next_week = patient.current_week
-        advanced = True
+    # '마칠 준비' = 직전 라운드에 이미 5단계였고, 이번 평가에서 마칠 준비가 됐다고
+    # (ready_to_advance) 판단된 경우. prev_step>=5 를 요구해, 모델이 한 라운드에 3→5 로
+    # 점프하며 동시에 완료 신호를 줄 때 4·5단계를 충분히 거치지 않고 곧장 '완료'로 보이는
+    # 것을 막는다(조기 신호 방지). 자동 종료는 하지 않고, 이 신호로 클라이언트가 '마무리해도
+    # 좋아요' 힌트와 종료 버튼을 부각해 사용자가 직접 마치도록 안내한다.
+    ready_to_complete = prev_step >= cbt_stages.TOTAL_STEPS and resp.ready_to_advance
 
     return {
         "week_number": week,
@@ -304,11 +329,8 @@ def _advance_session_stage(
         "ready_to_advance": resp.ready_to_advance,
         "step_completion": round(resp.step_completion_estimate, 2),
         "drift": resp.step_drift_risk,
-        "session_advanced": advanced,
-        "next_week": next_week,
-        # 세션 종료 시 생성된 요약(⑧ session_summarizer). stage_progress 와 분리해
-        # 아래 stream_user_message 에서 별도 session_summary 이벤트로 노출한다.
-        "session_summary": summary_dump,
+        # LLM 이 이번 주 내용을 끝까지 진행해 '마칠 준비'가 됐는지(자동 종료 아님).
+        "ready_to_complete": ready_to_complete,
     }
 
 
@@ -381,6 +403,12 @@ async def stream_user_message(
         )
 
     # 4) Build context
+    #    세션 대화면 현재 단계(sess.current_step)를 코치 프롬프트에 주입해, 코치가 그 단계를
+    #    실제로 진행하도록 한다(단계를 모른 채 초반에 과제·마무리로 건너뛰는 것을 막는다).
+    cur_step: int | None = None
+    if conv.context == "session" and conv.session_id:
+        _sess = db.get(CbtSession, conv.session_id)
+        cur_step = _sess.current_step if _sess else None
     try:
         ctx = context_builder.build(
             db,
@@ -388,6 +416,7 @@ async def stream_user_message(
                 patient_id=patient.patient_id,
                 context_type=conv.context,  # type: ignore[arg-type]
                 week_number=conv.week_number,
+                current_step=cur_step,
             ),
         )
     except Exception:
@@ -525,8 +554,9 @@ async def stream_user_message(
         except Exception:
             log.exception("utterance analysis failed")
 
-    # 9) 세션 대화면 5단계 진행을 추적 — LLM 이 세션 종료를 판단하면 자동 종료한다.
-    #    진행도(stage_progress)를 라이브 응답에 실어, 지금 몇 주차·몇 단계인지 노출한다.
+    # 9) 세션 대화면 5단계 진행을 추적한다 — 더 이상 자동 종료하지 않는다(사용자가
+    #    종료 버튼으로 마친다). 진행도(stage_progress)를 라이브 응답에 실어, 지금 몇
+    #    주차·몇 단계인지 노출한다.
     progress: dict | None = None
     if conv.context == "session":
         try:
@@ -535,21 +565,22 @@ async def stream_user_message(
             log.exception("stage tracking failed")
 
     if progress is not None and settings.llm_trace:
-        # stage_progress 페이로드에서 큰 요약 본문은 분리해, 세션 종료 시에만 별도
-        # session_summary(⑧) 이벤트로 보낸다.
-        summary_dump = progress.get("session_summary")
-        yield _sse(
-            "stage_progress",
-            {k: v for k, v in progress.items() if k != "session_summary"},
-        )
-        if summary_dump:
-            yield _sse("session_summary", summary_dump)
+        yield _sse("stage_progress", progress)
 
-    if progress is not None and progress["session_advanced"]:
-        yield _sse("session_completed", {"week_number": patient.current_week})
-        yield _sse("done", {"message_id": assistant_msg_id, "finish_reason": "session_complete"})
-    else:
-        yield _sse("done", {"message_id": assistant_msg_id, "finish_reason": "stop"})
+    # 세션을 끝까지 진행해 '마칠 준비'가 됐으면 신호만 보낸다(자동 종료 아님). 이
+    # 이벤트는 LLM_TRACE 와 무관하게 항상 보낸다 — 운영 빌드에서도 사용자에게 '이제
+    # 마무리해도 좋아요'를 알려, 더 묻고 싶은 게 있으면 계속 대화하고 없으면 직접
+    # 종료 버튼으로 마치도록 안내해야 하기 때문이다.
+    if progress is not None and progress["ready_to_complete"]:
+        yield _sse(
+            "session_ready",
+            {
+                "week_number": progress["week_number"],
+                "current_step": progress["current_step"],
+            },
+        )
+
+    yield _sse("done", {"message_id": assistant_msg_id, "finish_reason": "stop"})
 
 
 async def safety_locked_stream(reason: str) -> AsyncGenerator[dict, None]:
