@@ -104,6 +104,31 @@ async def send_message(
     return EventSourceResponse(gen, ping=15)
 
 
+@router.post("/{conversation_id}/opening")
+async def session_opening(
+    patient: CurrentPatient,
+    db: DbSession,
+    conversation_id: str = Path(..., pattern=r"^c_[a-z0-9]+$"),
+):
+    """세션 대화에서 코치가 먼저 말을 거는 오프닝을 SSE 로 스트리밍한다.
+
+    세션1(첫 세션)을 제외한 주간 세션에서, 환자가 첫 메시지를 보내기 전에 코치가 직전
+    맥락(직전 세션 요약·최근 체크인)을 참고해 개인화된 인사로 세션을 연다. 클라이언트는
+    새 세션을 만든 직후(또는 메시지가 비어 있는 세션에 재진입할 때) 이 엔드포인트를
+    호출한다. 이벤트 흐름: start → token(반복) → done. 이미 메시지가 있으면 done 만 온다.
+    """
+    conv = _get_conversation_or_404(db, patient.patient_id, conversation_id)
+    if conv.status != "active":
+        raise conflict("Conversation already ended", code="CONVERSATION_ENDED")
+    if patient.llm_locked:
+        gen = conversation_service.safety_locked_stream(
+            patient.llm_lock_reason or "suicide_risk"
+        )
+        return EventSourceResponse(gen, ping=15)
+    gen = conversation_service.stream_session_opening(db, patient, conv)
+    return EventSourceResponse(gen, ping=15)
+
+
 @router.get("/{conversation_id}/messages", response_model=PaginatedEnvelope[MessageOut])
 def list_messages(
     patient: CurrentPatient,

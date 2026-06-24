@@ -190,14 +190,11 @@ function parseFrame(frame: string): SseEvent | null {
 }
 
 /**
- * 대화 메시지를 전송하고 SSE 응답을 스트리밍한다.
+ * 대화 SSE 엔드포인트를 POST 로 열고 프레임을 파싱해 핸들러로 흘려보낸다.
+ * streamMessage(메시지 전송)·streamOpening(코치 오프닝)이 공유하는 코어.
  * @returns 스트림을 취소하는 함수 (abort)
  */
-export function streamMessage(
-  conversationId: string,
-  text: string,
-  handlers: StreamHandlers
-): () => void {
+function runSseStream(path: string, body: unknown | undefined, handlers: StreamHandlers): () => void {
   const token = getToken();
   const controller = new AbortController();
   let settled = false;
@@ -212,14 +209,14 @@ export function streamMessage(
   (async () => {
     let resp;
     try {
-      resp = await expoFetch(`${API_BASE}/me/conversations/${conversationId}/messages`, {
+      resp = await expoFetch(`${API_BASE}${path}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'text/event-stream',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ text }),
+        body: body !== undefined ? JSON.stringify(body) : undefined,
         signal: controller.signal,
       });
     } catch {
@@ -294,4 +291,25 @@ export function streamMessage(
   return () => {
     settle(() => controller.abort());
   };
+}
+
+/**
+ * 환자 메시지를 전송하고 LLM 응답을 SSE 로 스트리밍한다.
+ * @returns 스트림을 취소하는 함수 (abort)
+ */
+export function streamMessage(
+  conversationId: string,
+  text: string,
+  handlers: StreamHandlers
+): () => void {
+  return runSseStream(`/me/conversations/${conversationId}/messages`, { text }, handlers);
+}
+
+/**
+ * 세션 오프닝(코치가 먼저 말 걸기)을 SSE 로 스트리밍한다 — 본문 없음.
+ * 세션1을 제외한 주간 세션에서, 환자 첫 발화 전에 코치가 먼저 인사한다.
+ * @returns 스트림을 취소하는 함수 (abort)
+ */
+export function streamOpening(conversationId: string, handlers: StreamHandlers): () => void {
+  return runSseStream(`/me/conversations/${conversationId}/opening`, undefined, handlers);
 }

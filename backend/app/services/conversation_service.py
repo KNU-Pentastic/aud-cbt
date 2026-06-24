@@ -140,24 +140,40 @@ def end_conversation(
     도달했다면 — 즉 LLM 이 이번 주 내용을 끝까지 진행했다면 — 비로소 '완료'로 보고
     세션 요약을 만든 뒤 다음 주차로 진행한다. 5단계 전에 끝내거나 reason 이
     completed 가 아니면 대화만 닫고 주차는 그대로 둔다(임상 흐름 보존).
+
+    단, 세션 중 Anthropic 장애로 stage_tracker 가 무음 실패하면 current_step 이 실제
+    진행보다 낮게 얼어붙을 수 있다(라운드마다 +1 만 오르므로 장애가 여러 라운드를 먹으면
+    영구히 뒤처진다). 그래서 '완료'로 마칠 때 아직 5단계 미만이면 종료 시점에 한 번 더
+    단계를 복구한다(_recover_session_step) — 장애가 풀렸으면 실제 도달 단계로 끌어올리고,
+    장애가 지속되면 전진 없이 안전하게 '완료 아님'으로 종료한다.
     """
     now = datetime.now(timezone.utc)
+    next_available_at: datetime | None = None
+    sess = db.get(CbtSession, conv.session_id) if conv.session_id else None
+
+    if (
+        sess is not None
+        and reason == "completed"
+        and sess.current_step < cbt_stages.TOTAL_STEPS
+    ):
+        try:
+            _recover_session_step(db, conv, sess)
+        except Exception:
+            log.exception("end-time stage recovery failed")
+
     conv.status = "ended"
     conv.ended_at = now
     conv.end_reason = reason
-    next_available_at: datetime | None = None
-    if conv.session_id:
-        sess = db.get(CbtSession, conv.session_id)
-        if sess is not None:
-            completed = (
-                reason == "completed" and sess.current_step >= cbt_stages.TOTAL_STEPS
-            )
-            sess.status = "completed" if completed else "ended"
-            sess.ended_at = now
-            sess.end_reason = reason
-            db.flush()
-            if completed:
-                _complete_session(db, conv, sess)
+    if sess is not None:
+        completed = (
+            reason == "completed" and sess.current_step >= cbt_stages.TOTAL_STEPS
+        )
+        sess.status = "completed" if completed else "ended"
+        sess.ended_at = now
+        sess.end_reason = reason
+        db.flush()
+        if completed:
+            _complete_session(db, conv, sess)
     db.commit()
     return now, next_available_at
 
@@ -211,6 +227,25 @@ def _recent_turns(
 _FALLBACK_REPLY = (
     "잠깐 호흡을 가다듬어 볼까요. 지금 떠오르는 생각을 한 줄만 적어주시면, "
     "그것부터 천천히 함께 살펴볼게요."
+)
+
+# 코치가 먼저 거는 세션 오프닝이 비거나(빈 응답) 출력 가드에 걸렸을 때의 폴백.
+# 예전 클라이언트 정적 환영 문구와 결이 같되, '다시 만나서'로 2회차 이후 맥락에 맞춘다.
+_OPENING_FALLBACK = (
+    "안녕하세요. 다시 만나서 반가워요. 지난 한 주는 어떻게 지내셨는지 궁금해요. "
+    "편하게 떠오르는 대로 이야기 나눠 볼까요?"
+)
+
+# 세션 오프닝 전용 시스템 프롬프트 지시. 환자 발화가 아직 없으므로(코치가 첫 턴)
+# 직전 세션 요약·최근 체크인을 안부로 연결해 1단계(체크인 리뷰)를 부드럽게 연다.
+_OPENING_DIRECTIVE = (
+    "[세션 시작 — 코치가 먼저 말 걸기]\n"
+    "지금 이번 주간 세션이 막 시작되었고, 환자는 아직 아무 말도 하지 않았습니다. "
+    "당신(코치)이 먼저 환자에게 말을 거세요. [직전 세션 요약]과 [최근 7일 체크인]이 "
+    "있다면 그 내용을 자연스럽게 안부로 연결하고(예: 지난주에 함께 정한 과제나 그때 "
+    "나눈 이야기), 1단계(체크인 리뷰)를 부드럽게 시작하세요. 환자 이름이 있으면 한 번 "
+    "정도 따뜻하게 불러 주세요. 전체 2~4문장으로 짧게, 대답하기 쉬운 질문 하나로 "
+    "끝맺으세요. 메타 발화나 시스템 언급 없이, 환자에게 직접 건네는 말투로만 쓰세요."
 )
 
 
@@ -267,6 +302,48 @@ def _complete_session(db: Session, conv: Conversation, sess: CbtSession) -> None
     if patient.current_week < 12:
         patient.current_week += 1
         patient.current_phase = _phase_for_week(patient.current_week)
+
+
+def _recover_session_step(db: Session, conv: Conversation, sess: CbtSession) -> None:
+    """종료 시점에 얼어붙은 current_step 을 복구한다(수동 종료 + 5단계 미도달일 때만).
+
+    세션 진행 중 Anthropic 장애로 stage_tracker 가 무음 실패(tracked=False)하면 단계가
+    전진하지 못해, 실제로는 이번 주 내용을 끝까지 진행한 세션도 current_step 이 낮게
+    멈춘다. 그 상태로 '완료' 종료하면 주차가 진행되지 않는다. 여기서는 최근 대화를 다시
+    단계 추적기에 통과시켜, 추적기가 '완료'로 보는 단계까지 current_step 을 끌어올린다.
+
+    안전장치:
+      - 추적기의 실제 판단만 따른다(휴리스틱 전진 아님) — 실제로 다루지 않은 단계로는
+        전진하지 않으므로, 조기 종료한 세션을 임의로 '완료'로 만들지 않는다.
+      - 한 번에 한 칸씩, 최대 5단계까지만 오른다(추적기의 단조 전진 규칙과 동일).
+      - 종료 시점에도 장애가 지속되면(tracked=False) 또는 더 전진하지 못하면 즉시 멈춘다
+        → current_step 그대로 → '완료 아님'으로 안전하게 종료(주차 미진행).
+    """
+    dialogue = [
+        {"role": t.role, "text": t.text}
+        for t in _recent_turns(db, conv.conversation_id, limit=40, exclude_safety=True)
+    ]
+    if not dialogue:
+        return
+    week = conv.week_number or 1
+    for _ in range(cbt_stages.TOTAL_STEPS):
+        if sess.current_step >= cbt_stages.TOTAL_STEPS:
+            break
+        resp = stage_tracker.track(
+            db,
+            StageTrackRequest(
+                conversation_id=conv.conversation_id,
+                session_id=sess.session_id,
+                week_number=week,
+                current_step=sess.current_step,
+                dialogue=dialogue,
+            ),
+        )
+        # 장애 지속(판단 없음) 또는 더 전진 못 함 → 멈춘다.
+        if not resp.tracked or resp.current_step <= sess.current_step:
+            break
+        sess.current_step = resp.current_step
+    db.flush()
 
 
 def _advance_session_stage(
@@ -579,6 +656,150 @@ async def stream_user_message(
                 "current_step": progress["current_step"],
             },
         )
+
+    yield _sse("done", {"message_id": assistant_msg_id, "finish_reason": "stop"})
+
+
+async def stream_session_opening(
+    db: Session,
+    patient: Patient,
+    conv: Conversation,
+) -> AsyncGenerator[dict, None]:
+    """세션 대화에서 '코치가 먼저 거는 오프닝'을 생성·스트리밍한다.
+
+    예전엔 환자가 첫 메시지를 보내야 LLM 이 응답했고, 그 전엔 클라이언트가 정적 환영
+    문구를 보여줬다. 이제 (세션1을 제외한) 주간 세션에서는 코치가 먼저 말을 건다 —
+    직전 세션 요약·최근 체크인을 참고해 개인화된 인사로 1단계(체크인 리뷰)를 연다.
+    '세션1만 정적 인사'라는 규칙은 클라이언트가 정하고(week>=2 일 때만 이 엔드포인트를
+    호출), 서버는 호출되면 오프닝을 만든다.
+
+    환자 발화가 없으므로 안전 분류·발화 분석·단계 추적은 하지 않는다(단계는 1단계 그대로).
+    멱등성: 이미 메시지가 있는 대화에서 호출되면(재진입·중복) 새 턴을 만들지 않는다.
+    """
+    # 멱등성: 이미 턴이 있으면 오프닝을 또 만들지 않는다(중복 인사 방지).
+    has_message = db.execute(
+        select(Message.message_id)
+        .where(Message.conversation_id == conv.conversation_id)
+        .limit(1)
+    ).first()
+    if has_message is not None:
+        yield _sse("done", {"finish_reason": "already_opened"})
+        return
+
+    # 세션 대화에서만 코치가 먼저 연다(갈망 등은 정적 인사 유지).
+    if conv.context != "session" or not conv.session_id:
+        yield _sse("done", {"finish_reason": "not_session"})
+        return
+
+    sess = db.get(CbtSession, conv.session_id)
+    cur_step = sess.current_step if sess else 1
+
+    try:
+        ctx = context_builder.build(
+            db,
+            ContextBuildRequest(
+                patient_id=patient.patient_id,
+                context_type="session",
+                week_number=conv.week_number,
+                current_step=cur_step,
+            ),
+        )
+    except Exception:
+        log.exception("opening context_build failed")
+        yield _sse("error", {"code": "CONTEXT_BUILD_FAILED", "message": "internal error"})
+        yield _sse("done", {"finish_reason": "error"})
+        return
+
+    # 오프닝이 참고한 프롬프트도 일반 답변과 동일하게 트레이스로 노출(LLM_TRACE=on).
+    if settings.llm_trace:
+        cb = ctx.context_blocks
+        yield _sse(
+            "context_used",
+            {
+                "context_type": conv.context,
+                "phase": cb.get("phase"),
+                "week_number": cb.get("week_number") or conv.week_number,
+                "prompt_version": ctx.prompt_version,
+                "prompt_blocks": cb.get("prompt_blocks", []),
+                "selected_modules": cb.get("selected_modules"),
+                "previous_session_summary": cb.get("previous_session_summary"),
+                "system_prompt_chars": len(ctx.system_prompt),
+                "system_prompt": ctx.system_prompt,
+            },
+        )
+
+    assistant_msg_id = new_message_id()
+    yield _sse(
+        "start",
+        {"message_id": assistant_msg_id, "conversation_id": conv.conversation_id},
+    )
+
+    # 코치가 먼저 말하도록 시스템 프롬프트에 오프닝 지시를 덧붙인다. 환자 발화가 없어
+    # messages 배열이 비면 Anthropic 호출이 성립하지 않으므로, 저장하지 않는 합성
+    # 트리거 한 줄만 넣어 첫 턴을 코치가 열게 한다(이 줄은 화면·DB 에 남지 않는다).
+    system = ctx.system_prompt + "\n\n" + _OPENING_DIRECTIVE
+    messages = [{"role": "user", "content": "(세션을 시작합니다)"}]
+
+    buffered: list[str] = []
+    try:
+        async for token in llm_gateway.stream(
+            db,
+            LLMInvokeRequest(
+                model=settings.llm_model_dialogue,
+                messages=messages,
+                system=system,
+                max_tokens=512,
+                temperature=0.7,
+                stream=True,
+                patient_id=patient.patient_id,
+                purpose="patient_dialogue",
+                caller_component="orchestrator",
+            ),
+        ):
+            buffered.append(token)
+            yield _sse("token", {"text": token})
+    except Exception as exc:
+        log.exception("opening LLM stream failed")
+        yield _sse("error", {"code": "LLM_STREAM_FAILED", "message": str(exc)[:200]})
+        yield _sse("done", {"finish_reason": "error"})
+        return
+
+    full = "".join(buffered).strip() or _OPENING_FALLBACK
+
+    try:
+        verdict = output_filter.check(
+            db,
+            OutputFilterRequest(text=full, conversation_context="session"),
+        )
+        if not verdict.passed and verdict.recommended_action == "fallback":
+            full = _OPENING_FALLBACK
+    except Exception:
+        log.exception("opening output_filter failed")
+
+    # 커밋 직전 재확인: 스트리밍이 진행되는 수 초 사이에 다른 동시 호출(다기기·재연결)이
+    # 이미 오프닝을 저장했을 수 있다. 그랬다면 중복 인사를 만들지 않고 멈춘다. 시작 시
+    # 1차 확인 + 여기 2차 확인으로 중복 창을 마이크로초 수준으로 좁힌다(완전 차단은
+    # (conversation_id, role) 유니크 제약이 필요하나, 단일 세션·단일 기기 사용 전제에선
+    # 이 재확인으로 충분하다).
+    raced = db.execute(
+        select(Message.message_id)
+        .where(Message.conversation_id == conv.conversation_id)
+        .limit(1)
+    ).first()
+    if raced is not None:
+        yield _sse("done", {"finish_reason": "already_opened"})
+        return
+
+    db.add(
+        Message(
+            message_id=assistant_msg_id,
+            conversation_id=conv.conversation_id,
+            role="assistant",
+            text=full,
+        )
+    )
+    patient.last_active_at = datetime.now(timezone.utc)
+    db.commit()
 
     yield _sse("done", {"message_id": assistant_msg_id, "finish_reason": "stop"})
 
