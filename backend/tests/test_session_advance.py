@@ -147,6 +147,32 @@ def test_stage_mock_caps_at_five(db: Session) -> None:
     )
     assert resp.current_step == 5
     assert resp.ready_to_advance is True
+    assert resp.tracked is True  # 정상 판단 → tracked
+
+
+def test_stage_track_marks_untracked_on_llm_failure(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """추적 LLM 호출이 실패하면(Anthropic 장애) 단계를 전진시키지 않고 tracked=False 로
+    표시한다 — 호출부가 '진짜 미완료'와 '장애로 판단 불가'를 구분할 수 있어야 한다."""
+
+    def _boom(_db: object, _req: object) -> object:
+        raise RuntimeError("anthropic down")
+
+    monkeypatch.setattr(stage_tracker.llm_gateway, "invoke", _boom)
+    resp = stage_tracker.track(
+        db,
+        StageTrackRequest(
+            conversation_id="c_test",
+            session_id="s_test",
+            week_number=4,
+            current_step=3,
+            dialogue=[],
+        ),
+    )
+    assert resp.tracked is False
+    assert resp.current_step == 3  # 전진 없음
+    assert resp.ready_to_advance is False
 
 
 # ── (B) off-by-one: 5단계에 막 들어선 턴엔 종료되지 않는다 ────────────────
@@ -242,10 +268,28 @@ def test_manual_end_at_step5_completes_and_advances(db: Session) -> None:
     assert summary.handoff_notes
 
 
-def test_manual_end_before_step5_does_not_advance(db: Session) -> None:
-    """5단계 전에 수동 종료하면(reason=completed 라도) 대화만 닫고 주차는 그대로 둔다."""
+def test_manual_end_before_step5_does_not_advance(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """5단계 전에 수동 종료할 때, 종료 시 단계 복구에서도 세션이 완결로 판정되지 않으면
+    (대화가 실제로 5단계까지 진행되지 않음) 대화만 닫고 주차는 그대로 둔다."""
     patient = _patient(db, week=4)
     sess, conv = _session_with_step(db, patient, step=3)
+
+    # 종료 시 복구가 추적기를 다시 부르지만, 대화가 실제로 더 진행되지 않았으므로 추적기는
+    # 현재 단계 완료를 인정하지 않는다(전진 없음) — 안전하게 '완료 아님'으로 마쳐야 한다.
+    def _no_advance(_db: object, req: StageTrackRequest) -> StageTrackResponse:
+        return StageTrackResponse(
+            current_step=req.current_step,
+            ready_to_advance=False,
+            step_completion_estimate=0.3,
+            step_drift_risk="low",
+            delivered_objectives=[],
+            recommended_next_action="continue_current",
+            tracked=True,
+        )
+
+    monkeypatch.setattr(conversation_service.stage_tracker, "track", _no_advance)
 
     conversation_service.end_conversation(db, conv, "completed")
 
@@ -254,6 +298,7 @@ def test_manual_end_before_step5_does_not_advance(db: Session) -> None:
     db.refresh(patient)
     assert conv.status == "ended"
     assert sess.status == "ended"  # 진짜 '완료'는 아님(5단계 미도달)
+    assert sess.current_step == 3  # 복구가 전진시키지 않음(대화가 실제로 진행 안 됨)
     assert patient.current_week == 4  # 다음 주차로 넘어가지 않음
 
     # 요약도 생성되지 않는다(완료가 아니므로).
@@ -261,6 +306,64 @@ def test_manual_end_before_step5_does_not_advance(db: Session) -> None:
         select(SessionSummary).where(SessionSummary.session_id == "s_test")
     ).scalar_one_or_none()
     assert summary is None
+
+
+def test_manual_end_recovers_frozen_step_and_completes(db: Session) -> None:
+    """세션 중 장애로 current_step 이 얼어붙었지만 대화는 끝까지 진행된 경우: 종료 시
+    단계 복구가 5단계까지 끌어올려 완료 처리하고 다음 주차로 진행한다.
+
+    mock 추적기는 매 호출 현재 단계를 완료로 보고 +1, 5단계에서 완결 신호를 내므로,
+    얼어붙은 3단계에서 종료하면 복구 루프가 3→4→5 로 끌어올린다(장애 복구를 재현)."""
+    patient = _patient(db, week=4)
+    sess, conv = _session_with_step(db, patient, step=3)
+
+    conversation_service.end_conversation(db, conv, "completed")
+
+    db.refresh(sess)
+    db.refresh(conv)
+    db.refresh(patient)
+    assert sess.current_step == 5  # 종료 시 복구가 실제 도달 단계로 끌어올림
+    assert conv.status == "ended"
+    assert sess.status == "completed"  # 비로소 '완료'
+    assert patient.current_week == 5  # 다음 주차로 진행
+
+    summary = db.execute(
+        select(SessionSummary).where(SessionSummary.session_id == "s_test")
+    ).scalar_one()
+    assert summary.completed_objectives
+
+
+def test_manual_end_does_not_advance_when_tracker_still_down(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """종료 시점에도 Anthropic 장애가 지속돼 추적기가 무음 실패(tracked=False)하면, 단계가
+    복구되지 않아 주차도 진행되지 않는다 — 장애가 진행을 영구히 막지 않되, 안전하게 멈춘다."""
+    patient = _patient(db, week=4)
+    sess, conv = _session_with_step(db, patient, step=3)
+
+    def _down(_db: object, req: StageTrackRequest) -> StageTrackResponse:
+        # llm_gateway 장애 → stage_tracker.track 이 data={} 로 tracked=False 를 돌려주는 상황.
+        return StageTrackResponse(
+            current_step=req.current_step,
+            ready_to_advance=False,
+            step_completion_estimate=0.2,
+            step_drift_risk="low",
+            delivered_objectives=[],
+            recommended_next_action="continue_current",
+            tracked=False,
+        )
+
+    monkeypatch.setattr(conversation_service.stage_tracker, "track", _down)
+
+    conversation_service.end_conversation(db, conv, "completed")
+
+    db.refresh(sess)
+    db.refresh(conv)
+    db.refresh(patient)
+    assert sess.current_step == 3  # 복구 없음(장애 지속)
+    assert conv.status == "ended"
+    assert sess.status == "ended"  # 완료 아님
+    assert patient.current_week == 4  # 주차 그대로
 
 
 def test_coach_prompt_includes_current_step(db: Session) -> None:

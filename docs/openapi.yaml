@@ -465,6 +465,52 @@ paths:
                         type: array
                         items: { $ref: '#/components/schemas/Message' }
 
+  /me/conversations/{conversation_id}/opening:
+    post:
+      tags: [Patient - Conversation]
+      summary: 세션 오프닝 — 코치가 먼저 말 걸기 (SSE)
+      description: |
+        세션1(첫 세션)을 제외한 주간 세션에서, 환자가 첫 메시지를 보내기 전에 코치가
+        직전 세션 요약·최근 체크인을 참고해 개인화된 인사로 세션을 연다. 클라이언트는
+        새 세션을 만든 직후(또는 메시지가 비어 있는 세션에 재진입할 때) 호출한다.
+
+        응답은 text/event-stream (SSE). 정상 흐름: `start` → `token`(반복) → `done`.
+        이미 메시지가 있는 대화(재진입·중복 호출)에서는 새 턴을 만들지 않고
+        `done`(finish_reason=already_opened) 만 보낸다. 세션 대화가 아니면
+        `done`(finish_reason=not_session). LLM_TRACE=true 일 때 `context_used` 추가.
+
+        안전 잠금(llm_locked) 상태면 `/messages` 와 동일하게 `safety_classified`(grade=A)
+        → `done`(finish_reason=safety_locked) 를 보낸다.
+
+        finish_reason 값: stop, already_opened, not_session, error, safety_locked.
+
+        세션1과 갈망 대화는 이 엔드포인트를 호출하지 않으며 클라이언트가 정적 인사를
+        유지한다(서버는 호출되면 오프닝을 생성한다).
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: SSE 스트리밍 응답
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  SSE 이벤트 타입: start, token, done, error, safety_classified.
+                  (safety_classified 는 안전 잠금 상태에서 grade=A 로 오며 곧바로
+                  done(finish_reason=safety_locked) 가 따른다.)
+                  LLM_TRACE=true 일 때 추가: context_used.
+        '409':
+          description: CONVERSATION_ENDED — 이미 종료된 대화
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '423':
+          description: SAFETY_LOCKED — 잠금 상태 (v3.0에서는 약화, 클라이언트 측 처리)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
   /me/conversations/{conversation_id}/end:
     post:
       tags: [Patient - Conversation]

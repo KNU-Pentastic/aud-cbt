@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 
 from sqlalchemy.orm import Session
@@ -17,6 +18,8 @@ from app import cbt_stages
 from app.config import settings
 from app.schemas.internal import LLMInvokeRequest, StageTrackRequest, StageTrackResponse
 from app.services import llm_gateway
+
+log = logging.getLogger(__name__)
 
 
 _SYS = (
@@ -46,6 +49,9 @@ def track(db: Session, req: StageTrackRequest) -> StageTrackResponse:
             ),
         }
     ]
+    # tracked = 이번 추적이 실제 판단을 얻었는지. LLM 장애·파싱 실패로 판단을 얻지 못하면
+    # False 로 표시해(단계 전진 없음), 호출부가 '진짜 미완료'와 '장애로 판단 불가'를 구분하게 한다.
+    tracked = True
     try:
         resp = llm_gateway.invoke(
             db,
@@ -62,9 +68,24 @@ def track(db: Session, req: StageTrackRequest) -> StageTrackResponse:
             ),
         )
         m = re.search(r"\{.*\}", resp.content, re.S)
-        data = json.loads(m.group(0)) if m else {}
+        if m:
+            data = json.loads(m.group(0))
+        else:
+            data = {}
+            tracked = False
+            log.warning(
+                "stage_tracker: 응답에서 JSON 판단을 찾지 못했습니다 — 단계 전진 없이 진행합니다."
+            )
     except Exception:
+        # Anthropic 장애 등으로 추적 LLM 호출이 실패. 예전엔 조용히 삼켜 '미완료'와
+        # 구분되지 않아, 장애 중 current_step 이 얼어붙는데도 원인이 보이지 않았다.
         data = {}
+        tracked = False
+        log.warning(
+            "stage_tracker: 추적 LLM 호출 실패 — '판단 없음'으로 처리합니다(단계 전진 없음). "
+            "Anthropic 장애가 지속되면 current_step 이 실제 진행보다 뒤처질 수 있습니다.",
+            exc_info=True,
+        )
 
     # 추적기는 '현재 단계 완료 여부'만 판단한다. 완료면 다음 단계로 한 칸 전진(절대 건너뛰지 않음).
     step_complete = bool(data.get("step_complete", False))
@@ -96,4 +117,5 @@ def track(db: Session, req: StageTrackRequest) -> StageTrackResponse:
         step_drift_risk=drift,  # type: ignore[arg-type]
         delivered_objectives=[str(x) for x in delivered][:10],
         recommended_next_action=action,  # type: ignore[arg-type]
+        tracked=tracked,
     )

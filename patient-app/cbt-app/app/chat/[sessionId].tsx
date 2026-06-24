@@ -89,9 +89,11 @@ export default function ChatScreen() {
   // '안 먹는' 것처럼 보인다. 그래서 웹에서는 window.confirm 으로, 네이티브에서는
   // Alert.alert 으로 확인한다.
   const handleEndSession = () => {
-    // LLM 이 '마칠 준비'(session_ready)를 알리기 전엔 종료할 수 없다 — 헤더 버튼이
-    // 비활성화돼 있지만, 방어적으로 한 번 더 막는다.
-    if (!session.readyToComplete || session.isComplete) return;
+    // 수동 종료 — 종료 시점은 사용자가 정한다(기능의 본래 취지). 언제든 마칠 수 있으므로
+    // 이미 끝난 대화만 방어적으로 막는다. (예전엔 session_ready 신호 전엔 막았는데, 그
+    // 게이트가 외부 LLM·네트워크 장애 때 버튼을 영구 비활성화시켜 실질적으로 끝난 세션을
+    // 못 끝내는 함정이 됐다 — 주차 진행 여부는 서버가 current_step 으로 안전하게 결정한다.)
+    if (session.isComplete) return;
     // 종료(/end)가 끝난 뒤 로비(홈)로 자동 복귀한다. await 후 이동해야 로비가
     // current-session 을 조회할 때 이 대화가 아직 active 로 보이는 레이스를 막는다.
     const endNow = async () => {
@@ -124,7 +126,7 @@ export default function ChatScreen() {
         sessionNumber={session.sessionNumber}
         onBack={handleBack}
         onEnd={handleEndSession}
-        endEnabled={session.readyToComplete && !session.isComplete}
+        endEnabled={!session.isComplete}
       />
 
       <TraceStrip sessionId={session.id} />
