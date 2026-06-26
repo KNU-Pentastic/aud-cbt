@@ -15,13 +15,56 @@ def _request_id(request: Request) -> str:
     return rid or str(uuid.uuid4())
 
 
+# 요청 본문 크기 상한. 환자 메시지(MessageIn.text)는 4000자 상한이라 512KB 는
+# 정상 트래픽을 한참 상회한다. 내부 dialogue 페이로드가 커지면 상향한다.
+MAX_BODY_BYTES = 512 * 1024
+
+_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
+}
+
+
 class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         rid = _request_id(request)
         request.state.request_id = rid
         response = await call_next(request)
         response.headers["X-Request-ID"] = rid
+        for k, v in _SECURITY_HEADERS.items():
+            response.headers.setdefault(k, v)
         return response
+
+
+class MaxBodySizeMiddleware(BaseHTTPMiddleware):
+    """Content-Length 가 상한을 넘으면 본문을 읽기 전에 413 으로 즉시 거절한다.
+
+    요청만 검사하고 응답은 건드리지 않으므로 SSE 스트리밍과 호환된다.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        cl = request.headers.get("content-length")
+        if cl is not None:
+            try:
+                too_big = int(cl) > MAX_BODY_BYTES
+            except ValueError:
+                too_big = False
+            if too_big:
+                rid = _request_id(request)
+                request.state.request_id = rid
+                return JSONResponse(
+                    status_code=413,
+                    content=_error_envelope(
+                        "PAYLOAD_TOO_LARGE",
+                        "요청 본문이 너무 큽니다.",
+                        None,
+                        rid,
+                    ),
+                    headers={"X-Request-ID": rid},
+                )
+        return await call_next(request)
 
 
 def _error_envelope(code: str, message: str, details, request_id: str) -> dict:
@@ -92,6 +135,7 @@ def _status_code_to_code(status_code: int) -> str:
         405: "METHOD_NOT_ALLOWED",
         409: "CONFLICT",
         410: "GONE",
+        413: "PAYLOAD_TOO_LARGE",
         423: "SAFETY_LOCKED",
         429: "RATE_LIMITED",
         500: "INTERNAL_ERROR",

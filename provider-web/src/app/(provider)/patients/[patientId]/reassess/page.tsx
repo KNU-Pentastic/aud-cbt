@@ -9,6 +9,8 @@ import { z } from "zod"
 import { ArrowLeft, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
+import { friendlyError } from "@/lib/errorMessages"
+
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
@@ -172,8 +174,8 @@ function MedicationsCard({
     try {
       await mutation.mutateAsync(values)
       toast.success("약물 정보가 갱신되었습니다. LLM 컨텍스트에 즉시 반영됨.")
-    } catch {
-      toast.error("약물 갱신 실패")
+    } catch (e) {
+      toast.error(friendlyError(e, "약물 갱신 실패"))
     }
   }
 
@@ -277,8 +279,8 @@ function OutpatientDateCard({
       toast.success(
         `다음 외래 일정이 ${formatDateKo(values.next_outpatient_date)}로 갱신되었습니다.`,
       )
-    } catch {
-      toast.error("외래 일정 갱신 실패")
+    } catch (e) {
+      toast.error(friendlyError(e, "외래 일정 갱신 실패"))
     }
   }
 
@@ -354,8 +356,8 @@ function ProgramStatusCard({
           : "프로그램이 중단 처리되었습니다.",
       )
       onChanged()
-    } catch {
-      toast.error("상태 변경 실패")
+    } catch (e) {
+      toast.error(friendlyError(e, "상태 변경 실패"))
     }
   }
 

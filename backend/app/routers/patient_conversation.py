@@ -1,12 +1,13 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Path, status
+from fastapi import APIRouter, Path, Request, status
 from sqlalchemy import func, select
 from sse_starlette.sse import EventSourceResponse
 
 from app.deps import CurrentPatient, DbSession
-from app.exceptions import conflict, locked, not_found
+from app.exceptions import conflict, locked, not_found, too_many
 from app.models.conversation import Conversation, Message
+from app.ratelimit import limiter
 from app.schemas.common import PaginatedEnvelope, Pagination
 from app.schemas.conversation import (
     ConversationEndIn,
@@ -16,7 +17,7 @@ from app.schemas.conversation import (
     MessageIn,
     MessageOut,
 )
-from app.services import conversation_service
+from app.services import conversation_service, llm_gateway
 
 router = APIRouter(prefix="/me/conversations", tags=["Patient - Conversation"])
 
@@ -48,7 +49,8 @@ def current_session(patient: CurrentPatient, db: DbSession) -> CurrentSessionInf
     response_model=ConversationOut,
     status_code=status.HTTP_201_CREATED,
 )
-def start_session(patient: CurrentPatient, db: DbSession) -> ConversationOut:
+@limiter.limit("6/minute")
+def start_session(request: Request, patient: CurrentPatient, db: DbSession) -> ConversationOut:
     if patient.llm_locked:
         raise locked("LLM dialogue is currently locked")
     existing = conversation_service.active_conversation(db, patient.patient_id, context="session")
@@ -63,7 +65,8 @@ def start_session(patient: CurrentPatient, db: DbSession) -> ConversationOut:
     response_model=ConversationOut,
     status_code=status.HTTP_201_CREATED,
 )
-def start_craving(patient: CurrentPatient, db: DbSession) -> ConversationOut:
+@limiter.limit("6/minute")
+def start_craving(request: Request, patient: CurrentPatient, db: DbSession) -> ConversationOut:
     if patient.llm_locked:
         raise locked("LLM dialogue is currently locked")
     existing = conversation_service.active_conversation(db, patient.patient_id, context="craving")
@@ -83,7 +86,9 @@ def _get_conversation_or_404(
 
 
 @router.post("/{conversation_id}/messages")
+@limiter.limit("12/minute")
 async def send_message(
+    request: Request,
     body: MessageIn,
     patient: CurrentPatient,
     db: DbSession,
@@ -100,12 +105,19 @@ async def send_message(
         )
         return EventSourceResponse(gen, ping=15)
 
+    # 쿼터 프리플라이트: 이미 소진된 흔한 경우를 스트림 시작 전에 깔끔한 429 로 돌려준다
+    # (스트림 도중에 넘기는 경계 케이스는 conversation_service 의 SSE error 이벤트가 처리).
+    if llm_gateway.quota_remaining(db, patient.patient_id) <= 0:
+        raise too_many("Daily LLM token quota exceeded", code="LLM_TOKEN_QUOTA_EXCEEDED")
+
     gen = conversation_service.stream_user_message(db, patient, conv, body.text)
     return EventSourceResponse(gen, ping=15)
 
 
 @router.post("/{conversation_id}/opening")
+@limiter.limit("6/minute")
 async def session_opening(
+    request: Request,
     patient: CurrentPatient,
     db: DbSession,
     conversation_id: str = Path(..., pattern=r"^c_[a-z0-9]+$"),
@@ -125,6 +137,8 @@ async def session_opening(
             patient.llm_lock_reason or "suicide_risk"
         )
         return EventSourceResponse(gen, ping=15)
+    if llm_gateway.quota_remaining(db, patient.patient_id) <= 0:
+        raise too_many("Daily LLM token quota exceeded", code="LLM_TOKEN_QUOTA_EXCEEDED")
     gen = conversation_service.stream_session_opening(db, patient, conv)
     return EventSourceResponse(gen, ping=15)
 

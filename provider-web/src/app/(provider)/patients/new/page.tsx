@@ -8,6 +8,7 @@ import { Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 
+import { friendlyError } from "@/lib/errorMessages"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Card,
@@ -167,7 +168,7 @@ export default function NewPatientPage() {
       form.reset(DEFAULTS)
       toast.success("환자 등록이 완료되었습니다.")
     } catch (e) {
-      toast.error("환자 등록 중 오류가 발생했습니다.")
+      toast.error(friendlyError(e, "환자 등록 중 오류가 발생했습니다."))
       console.error(e)
     }
   }

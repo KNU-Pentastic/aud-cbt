@@ -202,6 +202,11 @@ def _check_quota(db: Session, patient_id: str) -> int:
     return remaining
 
 
+def quota_remaining(db: Session, patient_id: str) -> int:
+    """남은 일일 토큰 쿼터(공개 래퍼). 스트림 시작 전 라우터에서 프리플라이트로 쓴다."""
+    return _check_quota(db, patient_id)
+
+
 def invoke(db: Session, req: LLMInvokeRequest) -> LLMInvokeResponse:
     remaining = _check_quota(db, req.patient_id)
     if remaining <= 0:

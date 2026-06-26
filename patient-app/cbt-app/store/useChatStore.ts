@@ -9,6 +9,7 @@ import {
   type StageProgress,
   type UtteranceAnalysis,
 } from '@/lib/api';
+import { friendlyError, friendlyMessage } from '@/lib/errorMessages';
 
 export type Message = {
   id: string;
@@ -234,7 +235,8 @@ function makeOnEvent(
         });
         break;
       case 'error':
-        set({ error: ev.data.message || '응답 생성 중 오류가 발생했어요.' });
+        // 쿼터 소진/레이트리밋 등은 백엔드가 구체 code 를 실어 보내므로 그에 맞춰 안내.
+        set({ error: friendlyMessage(ev.data.code, ev.data.message) });
         break;
       case 'done':
         if (assistantIdRef.current) {
@@ -306,7 +308,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (aiLed) get().startOpening(session.id);
       return session.id;
     } catch (e) {
-      set({ error: e instanceof ApiError ? e.message : '세션을 시작할 수 없어요.' });
+      set({ error: e instanceof ApiError ? friendlyError(e) : '세션을 시작할 수 없어요.' });
       return null;
     }
   },
@@ -382,7 +384,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           });
           return;
         }
-        set({ isTyping: false, cancelStream: null, error: err.message });
+        set({ isTyping: false, cancelStream: null, error: friendlyError(err) });
       },
       onComplete: () => {
         set({ isTyping: false, cancelStream: null });

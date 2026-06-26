@@ -5,13 +5,18 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+
 from app.config import settings
 from app.middleware import (
+    MaxBodySizeMiddleware,
     RequestIDMiddleware,
     http_exception_handler,
     unhandled_exception_handler,
     validation_exception_handler,
 )
+from app.ratelimit import limiter, rate_limit_handler
 
 # Routers (senior-owned)
 from app.routers import auth as r_auth
@@ -47,12 +52,24 @@ app = FastAPI(
     title="AUD CBT Digital Therapeutic API",
     description="v3.0 (대회 데모) — openapi.yaml 정본 기반.",
     version="3.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
+    # 운영(APP_ENV=production)에서는 대화형 문서/스키마를 닫아 정찰 표면을 줄인다.
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
 )
 
-# CORS
+# 레이트리밋(slowapi). 라우트별 @limiter.limit 데코레이터가 주 방어선이고,
+# SlowAPIMiddleware 는 전역 기본 한도(120/min)를 적용한다.
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
+
+# 미들웨어. Starlette 는 등록 역순으로 적용한다(마지막 등록 = 가장 바깥).
+# 바깥→안쪽 순서를 CORS → SlowAPI → RequestID → MaxBodySize 로 둔다.
+# CORS 가 가장 바깥이라야 429/413 같은 에러 응답에도 CORS 헤더가 실려
+# 브라우저가 에러를 읽을 수 있다.
+app.add_middleware(MaxBodySizeMiddleware)
+app.add_middleware(RequestIDMiddleware)
+app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -61,7 +78,6 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-ID"],
 )
-app.add_middleware(RequestIDMiddleware)
 
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
@@ -109,9 +125,11 @@ def _log_llm_mode() -> None:
 
 @app.get("/", tags=["meta"])
 def root():
-    return {
+    info = {
         "service": "aud-cbt-backend",
         "version": "3.0.0",
-        "docs": "/docs",
-        "openapi": "/openapi.json",
     }
+    if not settings.is_production:
+        info["docs"] = "/docs"
+        info["openapi"] = "/openapi.json"
+    return info

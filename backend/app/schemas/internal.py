@@ -15,15 +15,15 @@ from app.schemas.common import (
 # ---- Safety classifier ----
 class DialogueTurn(BaseModel):
     role: Literal["user", "assistant"]
-    text: str
+    text: str = Field(max_length=16_000)
 
 
 class SafetyClassifyRequest(BaseModel):
     patient_id: str
-    text: str
+    text: str = Field(max_length=16_000)
     source: Literal["conversation_message", "checkin_free_note", "conversation_pattern"]
     conversation_context: ConversationContextLit | None = None
-    recent_dialogue: list[DialogueTurn] = Field(default_factory=list)
+    recent_dialogue: list[DialogueTurn] = Field(default_factory=list, max_length=500)
 
 
 class SafetyClassifyResponse(BaseModel):
@@ -43,9 +43,9 @@ class SafetyClassifyResponse(BaseModel):
 # ---- Utterance analyzer (정량 평가용 발화 분석; LLM_TRACE 전용) ----
 class UtteranceAnalysisRequest(BaseModel):
     patient_id: str
-    text: str
+    text: str = Field(max_length=16_000)
     conversation_context: ConversationContextLit | None = None
-    recent_dialogue: list[DialogueTurn] = Field(default_factory=list)
+    recent_dialogue: list[DialogueTurn] = Field(default_factory=list, max_length=500)
 
 
 class UtteranceAnalysisResponse(BaseModel):
@@ -66,7 +66,7 @@ class StageTrackRequest(BaseModel):
     week_number: int = Field(ge=1, le=12)
     current_step: int = Field(ge=1, le=5)
     step_objectives: list[str] = Field(default_factory=list)
-    dialogue: list[dict] = Field(default_factory=list)
+    dialogue: list[dict] = Field(default_factory=list, max_length=500)
 
 
 class StageTrackResponse(BaseModel):
@@ -87,7 +87,7 @@ class SessionSummarizeRequest(BaseModel):
     session_id: str
     patient_id: str
     week_number: int = Field(ge=1, le=12)
-    full_dialogue: list[dict]
+    full_dialogue: list[dict] = Field(max_length=800)
     session_objectives: list[str]
     previous_summary: dict | None = None
     patient_context: dict = Field(default_factory=dict)
@@ -125,7 +125,7 @@ class SessionSummarizeAsyncAck(BaseModel):
 
 # ---- Output filter ----
 class OutputFilterRequest(BaseModel):
-    text: str
+    text: str = Field(max_length=16_000)
     conversation_context: ConversationContextLit
     message_id: str | None = None
 
@@ -146,9 +146,10 @@ class OutputFilterResponse(BaseModel):
 # ---- LLM gateway ----
 class LLMInvokeRequest(BaseModel):
     model: Literal["claude-opus-4-8", "claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5"]
-    messages: list[dict]
-    system: str | None = None
-    max_tokens: int = Field(ge=1)
+    messages: list[dict] = Field(max_length=500)
+    system: str | None = Field(default=None, max_length=100_000)
+    # 호출당 출력 토큰 상한 — 한 번의 호출이 막대한 출력 비용을 내지 못하게 막는다.
+    max_tokens: int = Field(ge=1, le=4096)
     temperature: float | None = Field(default=None, ge=0, le=1)
     stream: bool = False
     patient_id: str
@@ -233,7 +234,7 @@ class ContextBuildResponse(BaseModel):
 
 # ---- Trigger normalize ----
 class TriggerNormalizeRequest(BaseModel):
-    raw_text: str
+    raw_text: str = Field(max_length=4_000)
 
 
 class TriggerNormalizeResponse(BaseModel):
