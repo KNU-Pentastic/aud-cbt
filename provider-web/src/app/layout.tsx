@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "AUD CBT 의료진 포털",
+  title: "알코올컷! 의료진 포털",
   description: "퇴원 후 알코올 사용 장애 환자 CBT 디지털 치료 의료진 포털",
 }
 

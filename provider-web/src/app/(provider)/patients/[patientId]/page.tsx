@@ -156,7 +156,7 @@ export default function PatientDetailPage({
 
   return (
     <div className="grid gap-6">
-      <header className="ring-glow relative overflow-hidden rounded-3xl border bg-gradient-to-br from-indigo-500/10 via-violet-500/5 to-fuchsia-500/10 p-7">
+      <header className="ring-glow relative overflow-hidden rounded-3xl border bg-gradient-to-br from-teal-700/10 via-emerald-500/5 to-teal-400/8 p-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="grid gap-2">
             <div className="flex flex-wrap items-center gap-2">
