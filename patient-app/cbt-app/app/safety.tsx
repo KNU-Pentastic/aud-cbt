@@ -75,7 +75,7 @@ export default function SafetyScreen() {
         <EmergencyCallCard
           variant="primary"
           label="자살예방상담전화"
-          phoneNumber="1393"
+          phoneNumber="109"
           description="24시간 · 무료 · 익명 상담"
           icon="call"
         />
