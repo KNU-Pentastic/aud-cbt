@@ -11,6 +11,7 @@ type Props = {
   max?: number;
   step?: number;
   unit?: string;
+  isCraving?: boolean;
 };
 
 export function CheckinSlider({
@@ -22,12 +23,16 @@ export function CheckinSlider({
   max = 10,
   step = 1,
   unit,
+  isCraving = false,
 }: Props) {
+  const trackColor = isCraving ? colors.sage : colors.coral;
+  const valueColor = isCraving ? colors.orangeDark : colors.coral;
+
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <Text style={styles.label}>{label}</Text>
-        <Text style={styles.value}>
+        <Text style={[styles.value, { color: valueColor }]}>
           {value}
           {unit ? <Text style={styles.unit}> {unit}</Text> : null}
         </Text>
@@ -40,9 +45,9 @@ export function CheckinSlider({
         step={step}
         value={value}
         onValueChange={onChange}
-        minimumTrackTintColor={colors.coral}
-        maximumTrackTintColor={colors.coralSofter}
-        thumbTintColor={colors.coral}
+        minimumTrackTintColor={trackColor}
+        maximumTrackTintColor={colors.border}
+        thumbTintColor={trackColor}
       />
 
       {(minLabel || maxLabel) && (
@@ -60,11 +65,11 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.xl,
     marginBottom: 10,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    paddingHorizontal: 16,
+    borderRadius: radius.card,
+    paddingHorizontal: 14,
     paddingVertical: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderSoft,
+    borderWidth: 0.5,
+    borderColor: colors.border,
   },
   headerRow: {
     flexDirection: 'row',
@@ -72,14 +77,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  label: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
-  value: { fontSize: 18, fontWeight: '700', color: colors.coral },
-  unit: { fontSize: 12, fontWeight: '500', color: colors.textSecondary },
+  label: { fontSize: 13, fontWeight: '500', color: colors.textPrimary },
+  value: { fontSize: 15, fontWeight: '500' },
+  unit: { fontSize: 12, fontWeight: '400', color: colors.textSecondary },
   slider: { width: '100%', height: 36 },
   labelsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: -2,
   },
-  endLabel: { fontSize: 10, color: colors.textTertiary },
+  endLabel: { fontSize: 10, color: colors.textQuaternary },
 });

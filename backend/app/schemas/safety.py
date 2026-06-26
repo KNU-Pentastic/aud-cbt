@@ -26,3 +26,9 @@ class SafetyEventOut(BaseModel):
     detected_at: datetime
     source: Literal["conversation_message", "checkin_free_note", "conversation_pattern"]
     recommended_action: RecommendedAction
+    # 의료진이 '왜 이 알림이 떴는지' 판단할 수 있도록 탐지 방식·신뢰도·사유·근거를 노출.
+    matched_by: Literal["rule_keyword", "llm_classifier", "both", "none"] = "none"
+    confidence: float = 0.0
+    reasoning: str | None = None
+    matched_keyword: str | None = None
+    evidence_span: str | None = None

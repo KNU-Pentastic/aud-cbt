@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server"
-import { getSession } from "@/lib/session"
+import { getSession, SESSION_COOKIE_NAME } from "@/lib/session"
 
 const BACKEND_URL = process.env.BACKEND_INTERNAL_URL ?? "http://localhost:8000/v1"
 
@@ -62,6 +62,15 @@ async function forward(
     if (!HOP_BY_HOP.has(k.toLowerCase()) && k.toLowerCase() !== "set-cookie") {
       respHeaders.set(k, v)
     }
+  }
+
+  // 세션 쿠키(JWT)는 유효하지만 그 안의 백엔드 토큰이 만료/무효라 백엔드가 401을
+  // 주는 "좀비 세션" 상태. 쿠키를 만료시켜 미들웨어가 다음 요청에서 /login 으로 보내도록 한다.
+  if (upstream.status === 401) {
+    respHeaders.append(
+      "set-cookie",
+      `${SESSION_COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`,
+    )
   }
 
   return new NextResponse(

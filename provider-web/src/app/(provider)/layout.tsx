@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Users, UserPlus, LogOut, Sparkles } from "lucide-react"
+import { Users, UserPlus, LogOut, Leaf } from "lucide-react"
 import { getSession, deleteSession } from "@/lib/session"
 import { Button } from "@/components/ui/button"
 
@@ -26,10 +26,10 @@ export default async function ProviderLayout({
           className="flex items-center gap-2 px-2 pt-2"
         >
           <span className="bg-sidebar-primary text-sidebar-primary-foreground inline-flex size-9 items-center justify-center rounded-2xl">
-            <Sparkles className="size-5" />
+            <Leaf className="size-5" />
           </span>
           <div>
-            <p className="text-base font-semibold">AUD CBT</p>
+            <p className="text-base font-semibold">알코올컷!</p>
             <p className="text-sidebar-foreground/60 text-xs">
               의료진 포털 · v3.0
             </p>
@@ -62,6 +62,7 @@ export default async function ProviderLayout({
           </div>
           <form action={logoutAction}>
             <Button
+              type="submit"
               variant="outline"
               size="sm"
               className="border-sidebar-border bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent w-full"

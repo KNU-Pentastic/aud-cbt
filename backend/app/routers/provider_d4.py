@@ -12,12 +12,17 @@
 
 from datetime import date, datetime, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+from sqlalchemy import select
 
-from app.deps import CurrentProvider, DbSession
+from app.deps import CurrentProvider, DbSession, RequestId
 from app.exceptions import forbidden, not_found, validation_error
 from app.models.patient import Patient
+from app.models.safety_event import SafetyEvent
+from app.services import audit
 from app.schemas.provider import (
+    LLMUnlockIn,
+    LLMUnlockOut,
     MedicationsUpdateIn,
     MedicationsUpdateOut,
     NextOutpatientDateIn,
@@ -97,4 +102,71 @@ def update_program_status(
         patient_id=patient.patient_id,
         program_status=patient.program_status,
         changed_at=datetime.now(timezone.utc),
+    )
+
+
+@router.post("/{patient_id}/unlock-llm", response_model=LLMUnlockOut)
+def unlock_llm(
+    patient_id: str,
+    body: LLMUnlockIn,
+    provider: CurrentProvider,
+    db: DbSession,
+    request: Request,
+    request_id: RequestId,
+) -> LLMUnlockOut:
+    """Release a grade-A safety lock so the patient can resume LLM dialogue.
+
+    The patient app keeps no way to self-release a suicide/intoxication lock, so
+    the responsible provider clears it here after assessing the patient. The
+    unlock is recorded (who/when/note) and any still-unacknowledged grade-A
+    safety events are marked acknowledged. Idempotent: unlocking an already
+    unlocked patient is a no-op that returns the existing audit.
+    """
+    patient = _own_patient(db, provider, patient_id)
+    now = datetime.now(timezone.utc)
+    acknowledged = 0
+
+    # 접속기록: 안전 잠금 해제는 민감한 변경 작업이므로 반드시 남긴다.
+    audit.record_patient_access(
+        db,
+        actor_role="provider",
+        actor_id=provider.provider_id,
+        action="patient.llm_unlock",
+        patient_id=patient_id,
+        request_id=request_id,
+        client_ip=request.client.host if request.client else None,
+    )
+
+    if patient.llm_locked:
+        patient.llm_locked = False
+        patient.llm_unlocked_at = now
+        patient.llm_unlocked_by = provider.provider_id
+        patient.llm_unlock_note = body.note
+
+        # Unlocking implies the provider has reviewed the crisis that triggered
+        # the lock; clear the outstanding grade-A acknowledgements.
+        pending = (
+            db.execute(
+                select(SafetyEvent).where(
+                    SafetyEvent.patient_id == patient_id,
+                    SafetyEvent.grade == "A",
+                    SafetyEvent.provider_acknowledged_at.is_(None),
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for evt in pending:
+            evt.provider_acknowledged_at = now
+        acknowledged = len(pending)
+
+        db.commit()
+        db.refresh(patient)
+
+    return LLMUnlockOut(
+        patient_id=patient.patient_id,
+        locked=patient.llm_locked,
+        unlocked_at=patient.llm_unlocked_at or now,
+        unlocked_by=patient.llm_unlocked_by or provider.provider_id,
+        acknowledged_safety_events=acknowledged,
     )

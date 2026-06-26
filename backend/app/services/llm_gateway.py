@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from collections.abc import AsyncGenerator
 from datetime import date
 from typing import Any
@@ -20,6 +21,7 @@ from app.exceptions import too_many, upstream_unavailable
 from app.ids import llm_invocation_id
 from app.models.llm_usage import LLMUsage
 from app.schemas.internal import LLMInvokeRequest, LLMInvokeResponse, LLMUsageBlock, LLMUsageOut
+from app.services import deidentify
 
 log = logging.getLogger(__name__)
 
@@ -33,12 +35,17 @@ _NO_TEMPERATURE_MODELS = {"claude-opus-4-8"}
 
 
 def _create_kwargs(req: LLMInvokeRequest) -> dict[str, Any]:
-    """Common kwargs for messages.create/stream. Omits params the model rejects."""
+    """Common kwargs for messages.create/stream. Omits params the model rejects.
+
+    외부(Anthropic)로 나가기 직전이므로 발화/시스템 프롬프트의 정형 식별자
+    (주민번호·전화·이메일·카드/계좌번호)를 가명처리한다. 국외이전 노출 최소화.
+    DB 에 저장된 원문은 그대로 유지되고, 여기서 만든 사본만 마스킹된다.
+    """
     kwargs: dict[str, Any] = {
         "model": req.model,
         "max_tokens": req.max_tokens,
-        "system": req.system or "",
-        "messages": req.messages,
+        "system": deidentify.mask_text(req.system or ""),
+        "messages": deidentify.mask_messages(req.messages),
     }
     if req.model not in _NO_TEMPERATURE_MODELS:
         kwargs["temperature"] = req.temperature if req.temperature is not None else 0.7
@@ -94,13 +101,47 @@ def _mock_response(req: LLMInvokeRequest) -> tuple[str, int, int]:
     if req.purpose == "safety_classification":
         text = '{"grade": "none", "event_type": "none", "confidence": 0.1}'
     elif req.purpose == "stage_tracking":
-        text = '{"ready_to_advance": false, "drift": "low"}'
+        # mock 모드: 매 호출 현재 단계를 완료(step_complete)로 보아 한 칸 전진하고,
+        # 5단계에서 session_complete 를 내 세션을 마무리한다. (예전엔 ready 가 항상 false 라
+        # 세션이 영영 끝나지 않았다 — BUG #6) 새 stage_tracker 스키마에 맞춘다.
+        m = re.search(r"current_step:\s*(\d+)", last_user)
+        step = int(m.group(1)) if m else 1
+        session_complete = "true" if step >= 5 else "false"
+        text = (
+            '{"step_complete": true, "session_complete": ' + session_complete
+            + ', "completion": ' + f"{min(1.0, step / 5):.2f}"
+            + ', "drift": "low", "delivered": []}'
+        )
     elif req.purpose == "session_summarization":
-        text = '{"key_insights": [], "homework": ""}'
+        # 데모/개발용 요약 — summarizer 가 읽는 키(completed/unaddressed/insights/
+        # triggers/homework/tone/handoff/safety_flags)에 맞춘 대표 내용. 이래야 다음
+        # 세션의 [직전 세션 요약]·TRACE 의 '직전 세션 참고'가 비어 있지 않게 표출된다.
+        text = (
+            '{"completed": ["감정 체크인 완료", "지난주 과제 리뷰"], '
+            '"unaddressed": ["수면 패턴 점검"], '
+            '"insights": ["회식 상황에서 갈망이 높아짐을 인식"], '
+            '"triggers": [{"tag": "work_stress", "context": "업무 마감 후 음주 충동"}], '
+            '"homework": "이번 주 갈망 일지 3회 작성", "tone": "engaged", '
+            '"handoff": "다음 주에는 회식 거절 스크립트를 함께 연습할 것", '
+            '"safety_flags": []}'
+        )
     elif req.purpose == "output_filtering":
         text = '{"passed": true, "violations": []}'
     elif req.purpose == "trigger_normalization":
         text = '{"normalized_tags": ["work_stress"], "confidence": 0.6}'
+    elif req.purpose == "utterance_analysis":
+        # 데모/평가용 발화 분석 mock — 입력 키워드로 갈망/감정을 가볍게 추정.
+        blob = last_user
+        craving = any(k in blob for k in ("마시", "한 잔", "술", "갈망", "drink", "crav"))
+        anxious = any(k in blob for k in ("불안", "걱정", "무섭", "초조", "anxious", "worried"))
+        emo = "불안" if anxious else ("갈망" if craving else "중립")
+        text = (
+            '{"primary_emotion": "' + emo + '", "emotions": ["' + emo + '"], '
+            '"intent": "mock: 현재 상태 공유", "cognitive_distortions": [], '
+            '"craving_intensity": ' + ("6" if craving else "1") + ', '
+            '"topics": ["mock"], "relevant_step": 3, '
+            '"summary": "mock 분석 — 실제 분석은 ANTHROPIC_API_KEY 설정 시 동작합니다."}'
+        )
     elif req.purpose == "module_classification":
         # Light keyword match over the classifier input so the demo is illustrative.
         blob = last_user

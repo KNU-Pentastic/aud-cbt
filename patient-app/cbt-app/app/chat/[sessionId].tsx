@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useChatStore } from '@/store/useChatStore';
 import { ChatHeader } from '@/components/chat/ChatHeader';
+import { TraceStrip } from '@/components/chat/TraceStrip';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { ChatInput } from '@/components/chat/ChatInput';
@@ -20,6 +21,7 @@ export default function ChatScreen() {
 
   const startNewSession = useChatStore((s) => s.startNewSession);
   const sendMessage = useChatStore((s) => s.sendMessage);
+  const completeSession = useChatStore((s) => s.completeSession);
   const isTyping = useChatStore((s) => s.isTyping);
   const error = useChatStore((s) => s.error);
   const clearError = useChatStore((s) => s.clearError);
@@ -75,10 +77,43 @@ export default function ChatScreen() {
     sendMessage(session.id, text);
   };
 
-  // 나가기는 대화를 끝내지 않는다 — 세션 종료 여부는 LLM 이 판단한다.
-  // (대화는 active 로 유지되어 다시 들어오면 이전 내용이 그대로 복원된다.)
-  const handleLeave = () => {
+  // 뒤로가기는 대화를 끝내지 않는다 — 대화는 active 로 유지되어 다시 들어오면 이전
+  // 내용이 그대로 복원된다. 세션 종료는 아래 '세션 마치기'로 사용자가 직접 한다.
+  const handleBack = () => {
     router.back();
+  };
+
+  // 세션 마치기(수동 종료) — 자동 종료 대신 사용자가 직접 마무리한다. 마치면 이
+  // 대화는 다시 이어갈 수 없으므로 한 번 확인한다.
+  // 주의: React Native Web 에서는 Alert.alert 의 버튼 콜백이 호출되지 않아 버튼이
+  // '안 먹는' 것처럼 보인다. 그래서 웹에서는 window.confirm 으로, 네이티브에서는
+  // Alert.alert 으로 확인한다.
+  const handleEndSession = () => {
+    // 수동 종료 — 종료 시점은 사용자가 정한다(기능의 본래 취지). 언제든 마칠 수 있으므로
+    // 이미 끝난 대화만 방어적으로 막는다. (예전엔 session_ready 신호 전엔 막았는데, 그
+    // 게이트가 외부 LLM·네트워크 장애 때 버튼을 영구 비활성화시켜 실질적으로 끝난 세션을
+    // 못 끝내는 함정이 됐다 — 주차 진행 여부는 서버가 current_step 으로 안전하게 결정한다.)
+    if (session.isComplete) return;
+    // 종료(/end)가 끝난 뒤 로비(홈)로 자동 복귀한다. await 후 이동해야 로비가
+    // current-session 을 조회할 때 이 대화가 아직 active 로 보이는 레이스를 막는다.
+    const endNow = async () => {
+      await completeSession(session.id);
+      router.replace('/');
+    };
+    const title = '세션을 마칠까요?';
+    const message =
+      '마치면 오늘 대화는 다시 이어갈 수 없어요. 더 나누고 싶은 이야기가 있다면 계속하셔도 괜찮아요.';
+
+    if (Platform.OS === 'web') {
+      const ok = typeof window !== 'undefined' ? window.confirm(`${title}\n\n${message}`) : false;
+      if (ok) endNow();
+      return;
+    }
+
+    Alert.alert(title, message, [
+      { text: '계속하기', style: 'cancel' },
+      { text: '세션 마치기', style: 'destructive', onPress: endNow },
+    ]);
   };
 
   const reversedMessages = [...session.messages].reverse();
@@ -89,9 +124,12 @@ export default function ChatScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ChatHeader
         sessionNumber={session.sessionNumber}
-        onBack={() => router.back()}
-        onLeave={handleLeave}
+        onBack={handleBack}
+        onEnd={handleEndSession}
+        endEnabled={!session.isComplete}
       />
+
+      <TraceStrip sessionId={session.id} />
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -109,10 +147,20 @@ export default function ChatScreen() {
         />
         {session.isComplete ? (
           <View style={styles.completeNotice}>
-            <Text style={styles.completeText}>오늘 세션이 마무리되었어요. 수고하셨어요 🌿</Text>
+            <Text style={styles.completeText}>오늘 세션을 마쳤어요. 수고하셨어요 🌿</Text>
           </View>
         ) : (
-          <ChatInput onSend={handleSend} disabled={isTyping} />
+          <>
+            {session.readyToComplete && (
+              <View style={styles.readyNotice}>
+                <Text style={styles.readyText}>
+                  오늘 다룰 내용은 마무리됐어요. 더 궁금한 점이 있으면 계속 이야기하고,
+                  마치려면 상단의 ‘세션 마치기’를 눌러주세요.
+                </Text>
+              </View>
+            )}
+            <ChatInput onSend={handleSend} disabled={isTyping} />
+          </>
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -143,4 +191,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   completeText: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
+  readyNotice: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSoft,
+    backgroundColor: colors.surface,
+  },
+  readyText: { fontSize: 12, color: colors.textSecondary, lineHeight: 18 },
 });

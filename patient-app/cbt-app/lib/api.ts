@@ -87,12 +87,78 @@ export const api = {
 // expo/fetch 의 ReadableStream(getReader) 으로 SSE 프레임을 직접 파싱한다.
 // ---------------------------------------------------------------------------
 
+/** 이 답변에서 LLM 이 참고한 가이드라인 블록 (식별자 + 제목 + 본문). */
+export type PromptBlock = { target: string; title: string; body: string };
+
+/** context_used: 라이브 답변이 어떤 프롬프트를 참고했는지 (LLM_TRACE=on 일 때만 옴). */
+export type PromptTrace = {
+  context_type: 'session' | 'craving' | 'resu' | 'soma';
+  phase: number | null;
+  week_number: number | null;
+  prompt_version: string;
+  prompt_blocks: PromptBlock[];
+  selected_modules: { selected_modules: string[]; rationale: string; confidence: number } | null;
+  /** 이 세션이 참고한 직전 세션 요약(#5). 세션 컨텍스트에서만, 직전 세션이 있을 때만 채워짐. */
+  previous_session_summary?: {
+    week_number: number;
+    completed_objectives: string[];
+    unaddressed_objectives: string[];
+    key_insights: string[];
+    handoff_notes: string;
+    assigned_homework: string;
+  } | null;
+  system_prompt_chars: number;
+  /** LLM 에 실제로 전달된 조립 완료 시스템 프롬프트 전문 (환자 컨텍스트 포함). */
+  system_prompt: string;
+};
+
+/** utterance_analysis: 방금 환자 발화에 대한 구조화 분석 (LLM_TRACE=on 일 때만 옴). */
+export type UtteranceAnalysis = {
+  /** 분석 대상이 된 환자 발화 (최대 500자). */
+  text: string;
+  analysis: {
+    primary_emotion: string;
+    emotions: string[];
+    intent: string;
+    cognitive_distortions: string[];
+    craving_intensity: number; // 0~10
+    topics: string[];
+    relevant_step: number | null; // 1~5
+    summary: string;
+  };
+  /** 안전 분류기(매 발화 실행) 결과. */
+  safety: {
+    grade: 'A' | 'B' | 'none';
+    event_type: string;
+    confidence: number;
+    matched_by: 'rule_keyword' | 'llm_classifier' | 'both' | 'none';
+    recommended_action: string;
+  };
+};
+
+/** stage_progress: 치료의 주차/단계 진행도 (세션 대화에서만, LLM_TRACE=on 일 때만 옴). */
+export type StageProgress = {
+  week_number: number;
+  total_weeks: number;
+  phase: number;
+  current_step: number;
+  total_steps: number;
+  ready_to_advance: boolean;
+  step_completion: number;
+  drift: 'low' | 'medium' | 'high';
+  /** LLM 이 이번 주 내용을 끝까지 진행해 '마칠 준비'가 됐는지 (자동 종료 아님). */
+  ready_to_complete: boolean;
+};
+
 export type SseEvent =
   | { event: 'start'; data: { message_id: string; conversation_id: string } }
   | { event: 'token'; data: { text: string } }
   | { event: 'safety_classified'; data: { grade: 'A' | 'B'; event_type: string } }
   | { event: 'context_switched'; data: { from: string; to: string } }
-  | { event: 'session_completed'; data: { week_number?: number } }
+  | { event: 'context_used'; data: PromptTrace }
+  | { event: 'utterance_analysis'; data: UtteranceAnalysis }
+  | { event: 'stage_progress'; data: StageProgress }
+  | { event: 'session_ready'; data: { week_number?: number; current_step?: number } }
   | { event: 'done'; data: { message_id?: string; finish_reason: string } }
   | { event: 'error'; data: { code: string; message: string } };
 
@@ -124,14 +190,11 @@ function parseFrame(frame: string): SseEvent | null {
 }
 
 /**
- * 대화 메시지를 전송하고 SSE 응답을 스트리밍한다.
+ * 대화 SSE 엔드포인트를 POST 로 열고 프레임을 파싱해 핸들러로 흘려보낸다.
+ * streamMessage(메시지 전송)·streamOpening(코치 오프닝)이 공유하는 코어.
  * @returns 스트림을 취소하는 함수 (abort)
  */
-export function streamMessage(
-  conversationId: string,
-  text: string,
-  handlers: StreamHandlers
-): () => void {
+function runSseStream(path: string, body: unknown | undefined, handlers: StreamHandlers): () => void {
   const token = getToken();
   const controller = new AbortController();
   let settled = false;
@@ -146,14 +209,14 @@ export function streamMessage(
   (async () => {
     let resp;
     try {
-      resp = await expoFetch(`${API_BASE}/me/conversations/${conversationId}/messages`, {
+      resp = await expoFetch(`${API_BASE}${path}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'text/event-stream',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ text }),
+        body: body !== undefined ? JSON.stringify(body) : undefined,
         signal: controller.signal,
       });
     } catch {
@@ -228,4 +291,25 @@ export function streamMessage(
   return () => {
     settle(() => controller.abort());
   };
+}
+
+/**
+ * 환자 메시지를 전송하고 LLM 응답을 SSE 로 스트리밍한다.
+ * @returns 스트림을 취소하는 함수 (abort)
+ */
+export function streamMessage(
+  conversationId: string,
+  text: string,
+  handlers: StreamHandlers
+): () => void {
+  return runSseStream(`/me/conversations/${conversationId}/messages`, { text }, handlers);
+}
+
+/**
+ * 세션 오프닝(코치가 먼저 말 걸기)을 SSE 로 스트리밍한다 — 본문 없음.
+ * 세션1을 제외한 주간 세션에서, 환자 첫 발화 전에 코치가 먼저 인사한다.
+ * @returns 스트림을 취소하는 함수 (abort)
+ */
+export function streamOpening(conversationId: string, handlers: StreamHandlers): () => void {
+  return runSseStream(`/me/conversations/${conversationId}/opening`, undefined, handlers);
 }

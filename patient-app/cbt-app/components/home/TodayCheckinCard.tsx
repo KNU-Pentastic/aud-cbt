@@ -13,26 +13,31 @@ export function TodayCheckinCard({ completed }: Props) {
       onPress={() => router.push('/checkin')}
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
     >
-      <View
-        style={[styles.iconBox, completed ? styles.iconBoxDone : styles.iconBoxTodo]}
-      >
-        <Ionicons
-          name={completed ? 'checkmark-circle' : 'clipboard-outline'}
-          size={22}
-          color={completed ? colors.sageDark : colors.coral}
-        />
-      </View>
-
-      <View style={styles.info}>
-        <Text style={styles.label}>
-          {completed ? '오늘의 체크인 완료' : '오늘의 체크인'}
-        </Text>
-        <Text style={styles.subtitle}>
-          {completed ? '오늘 기록 완료 · 수정 가능' : '4개 항목 · 약 1분이면 끝나요'}
+      <View style={styles.header}>
+        <Text style={styles.title}>오늘의 체크인</Text>
+        <Text style={styles.meta}>
+          {completed ? '완료됨 · 수정 가능' : '약 1분이면 돼요'}
         </Text>
       </View>
 
-      <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+      <View style={styles.iconRow}>
+        <View style={styles.iconItem}>
+          <Ionicons name="happy-outline" size={24} color={colors.coral} />
+          <Text style={styles.iconLabel}>기분</Text>
+        </View>
+        <View style={styles.iconItem}>
+          <Ionicons name="flame-outline" size={24} color={colors.sage} />
+          <Text style={styles.iconLabel}>갈망</Text>
+        </View>
+        <View style={styles.iconItem}>
+          <Ionicons name="moon-outline" size={24} color={colors.coral} />
+          <Text style={styles.iconLabel}>수면</Text>
+        </View>
+        <View style={styles.iconItem}>
+          <Ionicons name="medical-outline" size={24} color={colors.coral} />
+          <Text style={styles.iconLabel}>복약</Text>
+        </View>
+      </View>
     </Pressable>
   );
 }
@@ -40,28 +45,24 @@ export function TodayCheckinCard({ completed }: Props) {
 const styles = StyleSheet.create({
   card: {
     marginHorizontal: spacing.xl,
-    marginBottom: spacing.md,
+    marginBottom: 10,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderSoft,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
+    borderRadius: radius.card,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    borderWidth: 0.5,
+    borderColor: colors.border,
   },
   cardPressed: { opacity: 0.7 },
-  iconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 11,
   },
-  iconBoxTodo: { backgroundColor: colors.coralSofter },
-  iconBoxDone: { backgroundColor: colors.sageSoft },
-  info: { flex: 1 },
-  label: { fontSize: 13, fontWeight: '600', color: colors.textPrimary, marginBottom: 2 },
-  subtitle: { fontSize: 11, color: colors.textSecondary },
+  title: { fontSize: 13, fontWeight: '500', color: colors.textPrimary },
+  meta: { fontSize: 11, color: colors.textTertiary },
+  iconRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  iconItem: { flex: 1, alignItems: 'center', gap: 4 },
+  iconLabel: { fontSize: 10, color: colors.textSecondary },
 });

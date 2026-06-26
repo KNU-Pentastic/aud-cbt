@@ -11,6 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api';
+import { alertAsync } from '@/lib/confirm';
 import { queryKeys } from '@/lib/queries';
 import type { CheckinResponse, CheckinSubmit, Paginated, CheckinOut } from '@/lib/api-types';
 import { CheckinSlider } from '@/components/checkin/CheckinSlider';
@@ -75,7 +76,7 @@ export default function CheckinScreen() {
     free_note: data.freeNote?.trim() ? data.freeNote.trim() : null,
   });
 
-  const afterSubmit = (res: CheckinResponse) => {
+  const afterSubmit = async (res: CheckinResponse) => {
     queryClient.invalidateQueries({ queryKey: queryKeys.home });
     queryClient.invalidateQueries({ queryKey: ['today-checkin'] });
 
@@ -86,16 +87,15 @@ export default function CheckinScreen() {
       return;
     }
     if (cls?.grade === 'B') {
-      Alert.alert(
+      await alertAsync(
         '체크인 저장됨',
-        '오늘 기록에서 신경 쓰이는 부분이 보였어요. 다음 외래 때 의료진과 꼭 상의해 주세요.',
-        [{ text: '확인', onPress: () => router.back() }]
+        '오늘 기록에서 신경 쓰이는 부분이 보였어요. 다음 외래 때 의료진과 꼭 상의해 주세요.'
       );
+      router.back();
       return;
     }
-    Alert.alert('체크인 완료', '오늘의 기록이 저장되었어요.', [
-      { text: '확인', onPress: () => router.back() },
-    ]);
+    await alertAsync('체크인 완료', '오늘의 기록이 저장되었어요.');
+    router.back();
   };
 
   const onSubmit = async (data: CheckinFormData) => {
@@ -125,7 +125,7 @@ export default function CheckinScreen() {
           }
         }
       }
-      afterSubmit(res);
+      await afterSubmit(res);
     } catch (e) {
       Alert.alert('저장 실패', e instanceof ApiError ? e.message : '다시 시도해주세요.');
     } finally {
@@ -183,8 +183,9 @@ export default function CheckinScreen() {
                   label="갈망"
                   value={value}
                   onChange={onChange}
-                  minLabel="전혀 없음 0"
-                  maxLabel="극심함 10"
+                  minLabel="전혀 없음"
+                  maxLabel="극심함"
+                  isCraving
                 />
               )}
             />
@@ -274,19 +275,19 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
   scroll: { paddingBottom: 20 },
   intro: { paddingHorizontal: spacing.xxl, paddingBottom: 18 },
-  title: { fontSize: 20, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
-  subtitle: { fontSize: 12, color: colors.textSecondary },
+  title: { fontSize: 18, fontWeight: '500', color: colors.textPrimary, marginBottom: 3 },
+  subtitle: { fontSize: 12, color: colors.textTertiary },
   noteCard: {
     marginHorizontal: spacing.xl,
     marginBottom: spacing.lg,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    paddingHorizontal: 16,
+    borderRadius: radius.card,
+    paddingHorizontal: 14,
     paddingVertical: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderSoft,
+    borderWidth: 0.5,
+    borderColor: colors.border,
   },
-  noteLabel: { fontSize: 13, fontWeight: '600', color: colors.textPrimary, marginBottom: 10 },
+  noteLabel: { fontSize: 13, fontWeight: '500', color: colors.textPrimary, marginBottom: 10 },
   noteInput: {
     minHeight: 64,
     backgroundColor: colors.background,
@@ -295,7 +296,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     color: colors.textPrimary,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 0.5,
     borderColor: colors.border,
     textAlignVertical: 'top',
   },
@@ -307,7 +308,7 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.xl,
     marginTop: 8,
     backgroundColor: colors.coral,
-    paddingVertical: 16,
+    paddingVertical: 13,
     borderRadius: radius.md,
   },
   submitBtnPressed: { opacity: 0.85 },

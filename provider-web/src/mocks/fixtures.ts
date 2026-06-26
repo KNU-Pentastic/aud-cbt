@@ -117,6 +117,11 @@ export type SafetyEvent = {
     | "paws"
   occurred_at: string
   context: string
+  // 왜 이 알림이 떴는지 — 탐지 방식·신뢰도·사유·원문 근거 구간.
+  matched_by?: "rule_keyword" | "llm_classifier" | "both" | "none"
+  confidence?: number
+  reasoning?: string | null
+  evidence_span?: string | null
 }
 
 export type PatientDetail = {
@@ -147,6 +152,9 @@ export type PatientDetail = {
     locked: boolean
     since: string | null
     reason: string | null
+    unlocked_at?: string | null
+    unlocked_by?: string | null
+    unlock_note?: string | null
   }
 }
 
@@ -205,6 +213,11 @@ const MOCK_PATIENT_DETAILS: Record<string, PatientDetail> = {
         event_type: "relapse",
         occurred_at: "2026-05-14T22:30:00Z",
         context: "갈망 대화 중 환자가 어제 한 잔 보고. RESU 분기로 전환됨.",
+        matched_by: "both",
+        confidence: 0.88,
+        reasoning:
+          "어제 실제 음주(한 잔)를 사후 보고하여 재발(grade B)로 분류 (규칙 키워드 '어제 한 잔' 동시 일치)",
+        evidence_span: "어제 한 잔 했어요",
       },
     ],
     llm_lock_status: { locked: false, since: null, reason: null },
@@ -252,6 +265,11 @@ const MOCK_PATIENT_DETAILS: Record<string, PatientDetail> = {
         event_type: "suicide_risk",
         occurred_at: "2026-05-16T22:00:00Z",
         context: "대화 중 '다 끝내고 싶다' 발화. LLM 잠금 및 P4 안내.",
+        matched_by: "llm_classifier",
+        confidence: 0.94,
+        reasoning:
+          "삶을 끝내고 싶다는 직접적 자살 사고를 표현하여 응급(grade A)으로 분류. 즉시 LLM 잠금.",
+        evidence_span: "다 끝내고 싶어요",
       },
       {
         safety_event_id: "se_dd33ee44ff",
@@ -259,6 +277,10 @@ const MOCK_PATIENT_DETAILS: Record<string, PatientDetail> = {
         event_type: "medication_stop",
         occurred_at: "2026-05-15T09:00:00Z",
         context: "체크인 자유 메모에 '약 안 먹은 지 3일' 보고. SOMA 분기.",
+        matched_by: "rule_keyword",
+        confidence: 0.8,
+        reasoning: "규칙 키워드 '약 안 먹' 일치로 복약 중단(grade B) 분류",
+        evidence_span: "약 안 먹은 지 3일째",
       },
     ],
     llm_lock_status: {
@@ -343,4 +365,30 @@ export function getMockPatientDetail(patientId: string): PatientDetail | null {
   const summary = mockPatients.find((p) => p.patient_id === patientId)
   if (!summary) return null
   return synthDetailFromSummary(summary)
+}
+
+/**
+ * Clear a mock patient's LLM safety lock so the detail/list views reflect the
+ * unlock on the next refetch. Returns the unlock audit echoed by the endpoint.
+ */
+export function unlockMockPatient(
+  patientId: string,
+  unlockedBy: string,
+  note?: string,
+): { unlocked_at: string; unlocked_by: string } {
+  const unlocked_at = new Date().toISOString()
+  const detail = MOCK_PATIENT_DETAILS[patientId]
+  if (detail) {
+    detail.llm_lock_status = {
+      locked: false,
+      since: detail.llm_lock_status.since,
+      reason: detail.llm_lock_status.reason,
+      unlocked_at,
+      unlocked_by: unlockedBy,
+      unlock_note: note ?? null,
+    }
+  }
+  const summary = mockPatients.find((p) => p.patient_id === patientId)
+  if (summary) summary.llm_locked = false
+  return { unlocked_at, unlocked_by: unlockedBy }
 }

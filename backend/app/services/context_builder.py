@@ -30,6 +30,7 @@ from app.schemas.internal import (
     ContextBuildResponse,
     ModuleClassifyRequest,
 )
+from app import cbt_stages
 from app.services import module_classifier, prompt_assets
 
 # 한국어 코치 페르소나 + 안전 분담. COMMON(MI 원칙)·Phase 블록은 자산에서 덧붙인다.
@@ -117,6 +118,33 @@ def _join(parts: list[str]) -> str:
     return "\n\n".join(p for p in parts if p and p.strip())
 
 
+def _prompt_blocks_meta(targets: list[str]) -> list[dict[str, str]]:
+    """주입된 curated 자산 중 실제 내용이 있는 것만 [{target, title, body}] 로 돌려준다.
+
+    '이 답변에서 LLM 이 무슨 가이드라인을 참고했는지'를 정량 평가용으로 노출하기 위한
+    메타데이터. body 는 시스템 프롬프트에 실제로 박힌 블록 본문(render_block 결과)과
+    동일하다 — 평가자가 '정확히 이 가이드라인을 봤다'를 확인할 수 있게 한다.
+    환자 PII(이름·체크인 등)는 블록 본문이 아니라 별도 영역에 들어가므로 여기엔 없다.
+    """
+    out: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for t in targets:
+        if not t or t in seen:
+            continue
+        asset = prompt_assets.load_asset(t)
+        if not asset or not (asset.get("principles_ko") or asset.get("rules_ko")):
+            continue
+        seen.add(t)
+        out.append(
+            {
+                "target": t,
+                "title": asset.get("title_ko", t),
+                "body": prompt_assets.render_block(t),
+            }
+        )
+    return out
+
+
 def _select_modules(db: Session, patient: Patient, dp: DischargeProfile | None, week: int) -> tuple[list[str], dict]:
     """Run the Phase 3 module classifier; returns (module_codes, debug_block)."""
     req = ModuleClassifyRequest(
@@ -147,12 +175,14 @@ def build(db: Session, req: ContextBuildRequest) -> ContextBuildResponse:
     if req.context_type == "session":
         week = req.week_number or patient.current_week
         phase = _phase_for_week(week)
+        step = cbt_stages.clamp_step(req.current_step)
         patient_block = _patient_block(patient, dp)
         previous = _previous_summary_block(db, patient.patient_id)
         recent = _recent_checkins_block(db, patient.patient_id)
         blocks: dict[str, Any] = {
             "phase": phase,
             "week_number": week,
+            "current_step": step,
             "discharge_profile_summary": patient_block,
             "previous_session_summary": previous,
             "recent_checkins_summary": recent,
@@ -160,16 +190,20 @@ def build(db: Session, req: ContextBuildRequest) -> ContextBuildResponse:
 
         if phase == 3:
             codes, module_debug = _select_modules(db, patient, dp, week)
-            module_blocks = [prompt_assets.render_block(prompt_assets.module_routing_target(c)) for c in codes]
+            module_targets = [prompt_assets.module_routing_target(c) for c in codes]
+            module_blocks = [prompt_assets.render_block(t) for t in module_targets]
             module_names = ", ".join(
                 next((m["name_ko"] for m in prompt_assets.load_modules() if m["code"] == c), c) for c in codes
             )
             focus = f"[이번 세션 초점] Phase 3 — {module_names or '갈망 대처'}"
             content = _join(module_blocks)
             blocks["selected_modules"] = module_debug
+            prompt_targets = [_COMMON_TARGET, *module_targets]
         else:
             focus = f"[이번 세션 초점] Phase {phase}"
             content = prompt_assets.render_block(_phase_target(phase))
+            prompt_targets = [_COMMON_TARGET, _phase_target(phase)]
+        blocks["prompt_blocks"] = _prompt_blocks_meta(prompt_targets)
 
         system_prompt = _join(
             [
@@ -180,8 +214,13 @@ def build(db: Session, req: ContextBuildRequest) -> ContextBuildResponse:
                 f"[환자] {patient_block}",
                 f"[직전 세션 요약] {previous}",
                 f"[최근 7일 체크인] {recent}",
-                "다섯 단계 흐름(체크인 리뷰 → 과제 리뷰 → 핵심 콘텐츠 → 개인화 → 이번 주 과제)을 "
-                "환자 속도에 맞춰 진행하세요.",
+                (
+                    f"[세션 단계] 이 세션은 5단계로 진행됩니다: {cbt_stages.overview()}.\n"
+                    f"지금은 {cbt_stages.step_line(step)} 단계입니다. 이 단계의 목표에 집중해 충분히 "
+                    f"대화하고, 환자가 준비되면 다음 단계로 자연스럽게 넘어가세요. 한 번에 여러 "
+                    f"단계를 건너뛰지 말고, 5단계(이번 주 과제)를 함께 정하기 전에는 세션을 "
+                    f"마무리하지 마세요."
+                ),
             ]
         )
 
@@ -198,13 +237,19 @@ def build(db: Session, req: ContextBuildRequest) -> ContextBuildResponse:
                 f"[최근 7일 체크인] {recent}",
             ]
         )
-        blocks = {"recent_checkins_summary": recent}
+        blocks = {
+            "recent_checkins_summary": recent,
+            "prompt_blocks": _prompt_blocks_meta([_COMMON_TARGET, "phase_3_crav_system_prompt"]),
+        }
 
     elif req.context_type == "resu":
         system_prompt = _join(
             [_BASE_PERSONA, common, prompt_assets.render_block("pullout_resu_prompt")]
         )
-        blocks = {"patient_id": patient.patient_id}
+        blocks = {
+            "patient_id": patient.patient_id,
+            "prompt_blocks": _prompt_blocks_meta([_COMMON_TARGET, "pullout_resu_prompt"]),
+        }
 
     elif req.context_type == "soma":
         meds = dp.medications if dp else []
@@ -216,7 +261,10 @@ def build(db: Session, req: ContextBuildRequest) -> ContextBuildResponse:
                 f"[처방 약물] {meds}",
             ]
         )
-        blocks = {"medications": meds}
+        blocks = {
+            "medications": meds,
+            "prompt_blocks": _prompt_blocks_meta([_COMMON_TARGET, "pullout_soma_prompt"]),
+        }
 
     else:  # pragma: no cover — pydantic enforces
         raise ValueError(f"unknown context_type {req.context_type}")

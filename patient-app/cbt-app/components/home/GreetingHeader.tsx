@@ -10,9 +10,8 @@ export function GreetingHeader({ name }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.textCol}>
-        <Text style={styles.greeting}>안녕하세요, {name}님</Text>
+        <Text style={styles.greeting}>안녕하세요, {name}님 🌿</Text>
         <Text style={styles.headline}>오늘도 회복의 하루예요</Text>
-        <Text style={styles.subline}>당신의 노력이 차곡차곡 쌓이고 있어요</Text>
       </View>
       <Pressable
         onPress={() => router.push('/settings' as any)}
@@ -33,11 +32,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xxl,
     paddingTop: 4,
-    paddingBottom: 12,
+    paddingBottom: 14,
   },
   textCol: { flex: 1 },
-  greeting: { fontSize: 12, color: colors.textSecondary, marginBottom: 3 },
-  headline: { fontSize: 21, fontWeight: '600', color: colors.textPrimary, marginBottom: 2 },
-  subline: { fontSize: 12, color: colors.textSecondary },
+  greeting: { fontSize: 13, color: colors.textSecondary, marginBottom: 2 },
+  headline: { fontSize: 19, fontWeight: '500', color: colors.textPrimary },
   gear: { padding: 4, marginTop: 2 },
 });

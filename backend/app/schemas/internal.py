@@ -34,6 +34,29 @@ class SafetyClassifyResponse(BaseModel):
     matched_by: Literal["rule_keyword", "llm_classifier", "both", "none"]
     safety_event_id: str | None = None
     recommended_action: RecommendedAction
+    # 의료진 알림에 '왜 잡혔는지' 표시하기 위한 사유/근거.
+    reasoning: str | None = None
+    matched_keyword: str | None = None
+    evidence_span: str | None = None
+
+
+# ---- Utterance analyzer (정량 평가용 발화 분석; LLM_TRACE 전용) ----
+class UtteranceAnalysisRequest(BaseModel):
+    patient_id: str
+    text: str
+    conversation_context: ConversationContextLit | None = None
+    recent_dialogue: list[DialogueTurn] = Field(default_factory=list)
+
+
+class UtteranceAnalysisResponse(BaseModel):
+    primary_emotion: str = ""
+    emotions: list[str] = Field(default_factory=list)
+    intent: str = ""
+    cognitive_distortions: list[str] = Field(default_factory=list)
+    craving_intensity: int = Field(default=0, ge=0, le=10)
+    topics: list[str] = Field(default_factory=list)
+    relevant_step: int | None = Field(default=None, ge=1, le=5)
+    summary: str = ""
 
 
 # ---- Stage tracker ----
@@ -53,6 +76,10 @@ class StageTrackResponse(BaseModel):
     step_drift_risk: Literal["low", "medium", "high"]
     delivered_objectives: list[str]
     recommended_next_action: Literal["advance_step", "redirect_to_step_topic", "continue_current"]
+    # 추적 판단이 실제로 이뤄졌는지. LLM 호출 실패(Anthropic 장애)나 파싱 실패로 판단을
+    # 얻지 못하면 False — 이때 단계는 전진하지 않는다. 호출부가 '진짜 미완료'와 '장애로
+    # 판단 불가'를 구분해, 장애로 얼어붙은 단계를 종료 시 복구할지 결정하는 데 쓴다.
+    tracked: bool = True
 
 
 # ---- Session summarizer ----
@@ -133,6 +160,7 @@ class LLMInvokeRequest(BaseModel):
         "output_filtering",
         "trigger_normalization",
         "module_classification",
+        "utterance_analysis",
     ]
     caller_component: Literal[
         "orchestrator",
@@ -142,6 +170,7 @@ class LLMInvokeRequest(BaseModel):
         "output_filter",
         "trigger_normalizer",
         "module_classifier",
+        "utterance_analyzer",
     ]
 
 
@@ -192,6 +221,8 @@ class ContextBuildRequest(BaseModel):
     patient_id: str
     context_type: ConversationContextLit
     week_number: int | None = Field(default=None, ge=1, le=12)
+    # 세션 대화에서 '지금 몇 단계인지'를 코치 프롬프트에 주입하기 위함. None 이면 1단계로 본다.
+    current_step: int | None = Field(default=None, ge=1, le=5)
 
 
 class ContextBuildResponse(BaseModel):

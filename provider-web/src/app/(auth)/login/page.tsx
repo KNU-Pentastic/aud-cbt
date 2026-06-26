@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react"
+import { Leaf } from "lucide-react"
 import { LoginForm } from "./login-form"
 import {
   Card,
@@ -18,7 +18,7 @@ export default function LoginPage() {
             variant="secondary"
             className="mb-5 rounded-full px-3 py-1 text-xs"
           >
-            <Sparkles className="size-3" /> AUD CBT v3.0
+            <Leaf className="size-3" /> 알코올컷! v3.0
           </Badge>
           <h1 className="text-5xl leading-tight font-bold tracking-tight">
             <span className="text-gradient">퇴원 후 3개월</span>,

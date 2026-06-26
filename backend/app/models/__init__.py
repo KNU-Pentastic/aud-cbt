@@ -1,3 +1,4 @@
+from app.models.access_log import AccessLog
 from app.models.conversation import Conversation, Message
 from app.models.daily_checkin import DailyCheckin, P4Event
 from app.models.discharge_profile import DischargeProfile
@@ -12,6 +13,7 @@ from app.models.session_summary import SessionSummary
 from app.models.support_person import SupportPerson
 
 __all__ = [
+    "AccessLog",
     "Patient",
     "Provider",
     "DischargeProfile",

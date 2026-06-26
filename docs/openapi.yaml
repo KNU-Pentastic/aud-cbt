@@ -396,6 +396,11 @@ paths:
         SafetyEvent 기록 및 llm_locked 상태 노출만 수행하며, 클라이언트(환자 앱)가
         시간 기반(24시간) 또는 사용자의 명시적 확인(P4 '다시 시작하기' 탭)으로
         잠금 처리.
+
+        트레이스 이벤트(`LLM_TRACE=true` 일 때만 — 정량 평가/라이브 관찰용,
+        운영 빌드에서는 끈다): `context_used`(② context_builder / ③ module_classifier),
+        `output_filter`(⑤ output_filter), `utterance_analysis`(⑥ utterance + ① safety),
+        `stage_progress`(⑦ stage_tracker), `session_summary`(⑧ session_summarizer).
       parameters:
         - $ref: '#/components/parameters/ConversationId'
       requestBody:
@@ -423,7 +428,11 @@ paths:
                 type: string
                 description: |
                   SSE 이벤트 타입: start, token, safety_classified,
-                  context_switched, done, error
+                  context_switched, session_ready, done, error.
+                  (session_ready 는 LLM 이 이번 주 내용을 끝까지 진행해 '마칠 준비'가
+                  됐다는 신호이며 자동 종료가 아니다 — 사용자가 종료 버튼으로 마친다.)
+                  LLM_TRACE=true 일 때 추가: context_used, output_filter,
+                  utterance_analysis, stage_progress
         '409':
           description: CONVERSATION_ENDED — 이미 종료된 대화에는 메시지를 보낼 수 없음
           content:
@@ -455,6 +464,52 @@ paths:
                       items:
                         type: array
                         items: { $ref: '#/components/schemas/Message' }
+
+  /me/conversations/{conversation_id}/opening:
+    post:
+      tags: [Patient - Conversation]
+      summary: 세션 오프닝 — 코치가 먼저 말 걸기 (SSE)
+      description: |
+        세션1(첫 세션)을 제외한 주간 세션에서, 환자가 첫 메시지를 보내기 전에 코치가
+        직전 세션 요약·최근 체크인을 참고해 개인화된 인사로 세션을 연다. 클라이언트는
+        새 세션을 만든 직후(또는 메시지가 비어 있는 세션에 재진입할 때) 호출한다.
+
+        응답은 text/event-stream (SSE). 정상 흐름: `start` → `token`(반복) → `done`.
+        이미 메시지가 있는 대화(재진입·중복 호출)에서는 새 턴을 만들지 않고
+        `done`(finish_reason=already_opened) 만 보낸다. 세션 대화가 아니면
+        `done`(finish_reason=not_session). LLM_TRACE=true 일 때 `context_used` 추가.
+
+        안전 잠금(llm_locked) 상태면 `/messages` 와 동일하게 `safety_classified`(grade=A)
+        → `done`(finish_reason=safety_locked) 를 보낸다.
+
+        finish_reason 값: stop, already_opened, not_session, error, safety_locked.
+
+        세션1과 갈망 대화는 이 엔드포인트를 호출하지 않으며 클라이언트가 정적 인사를
+        유지한다(서버는 호출되면 오프닝을 생성한다).
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: SSE 스트리밍 응답
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  SSE 이벤트 타입: start, token, done, error, safety_classified.
+                  (safety_classified 는 안전 잠금 상태에서 grade=A 로 오며 곧바로
+                  done(finish_reason=safety_locked) 가 따른다.)
+                  LLM_TRACE=true 일 때 추가: context_used.
+        '409':
+          description: CONVERSATION_ENDED — 이미 종료된 대화
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '423':
+          description: SAFETY_LOCKED — 잠금 상태 (v3.0에서는 약화, 클라이언트 측 처리)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   /me/conversations/{conversation_id}/end:
     post:
@@ -940,6 +995,50 @@ paths:
                   patient_id: { type: string }
                   program_status: { type: string }
                   changed_at: { type: string, format: date-time }
+        '403':
+          description: 담당 환자가 아님
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /provider/patients/{patient_id}/unlock-llm:
+    post:
+      tags: [Provider - D4]
+      summary: LLM 안전 잠금 해제
+      description: |
+        자살 위험·급성 중독(등급 A) 감지 시 백엔드가 환자의 LLM 대화를 잠그며,
+        환자 앱에는 스스로 해제할 수단이 없다. 담당 의료진이 환자 위험도를
+        평가한 뒤 이 엔드포인트로 잠금을 해제한다. 해제 시 누가·언제·사유를
+        기록하고, 아직 확인되지 않은 등급 A 안전 이벤트를 확인 처리한다.
+        멱등(idempotent): 이미 해제된 환자에 호출해도 오류 없이 현재 상태를 반환.
+      parameters:
+        - $ref: '#/components/parameters/PatientId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                  maxLength: 500
+                  description: 해제 사유(선택). 감사 기록에 저장된다.
+      responses:
+        '200':
+          description: 잠금 해제됨
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  patient_id: { type: string }
+                  locked: { type: boolean }
+                  unlocked_at: { type: string, format: date-time }
+                  unlocked_by: { type: string }
+                  acknowledged_safety_events: { type: integer }
         '403':
           description: 담당 환자가 아님
           content:
@@ -1633,6 +1732,9 @@ components:
             locked: { type: boolean }
             locked_at: { type: string, format: date-time, nullable: true }
             reason: { type: string, nullable: true }
+            unlocked_at: { type: string, format: date-time, nullable: true }
+            unlocked_by: { type: string, nullable: true }
+            unlock_note: { type: string, nullable: true }
 
     # ---------- Internal: Safety Classifier ----------
     SafetyClassifyRequest:

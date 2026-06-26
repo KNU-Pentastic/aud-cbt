@@ -189,7 +189,7 @@ export default function PatientsPage() {
   return (
     <div className="grid gap-8">
       {/* Hero */}
-      <header className="ring-glow relative overflow-hidden rounded-3xl border bg-gradient-to-br from-indigo-500/10 via-violet-500/5 to-fuchsia-500/10 p-7">
+      <header className="ring-glow relative overflow-hidden rounded-3xl border bg-gradient-to-br from-teal-700/10 via-emerald-500/5 to-teal-400/8 p-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-muted-foreground text-xs font-medium uppercase tracking-widest">

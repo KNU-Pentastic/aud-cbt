@@ -176,7 +176,7 @@ export default function NewPatientPage() {
 
   return (
     <div className="grid gap-6">
-      <header className="ring-glow relative overflow-hidden rounded-3xl border bg-gradient-to-br from-indigo-500/10 via-violet-500/5 to-fuchsia-500/10 p-7">
+      <header className="ring-glow relative overflow-hidden rounded-3xl border bg-gradient-to-br from-teal-700/10 via-emerald-500/5 to-teal-400/8 p-7">
         <p className="text-muted-foreground text-xs font-medium uppercase tracking-widest">
           D0 · 퇴원 정보 입력
         </p>
