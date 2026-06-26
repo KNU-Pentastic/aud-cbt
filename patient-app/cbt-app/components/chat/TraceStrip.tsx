@@ -133,8 +133,7 @@ export function TraceStrip({ sessionId }: Props) {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>진행도</Text>
               <Text style={styles.line}>
-                주차 {progress.week_number}/{progress.total_weeks} · Phase {progress.phase} · 완료{' '}
-                {Math.round(progress.step_completion * 100)}%
+                주차 {progress.week_number}/{progress.total_weeks} · Phase {progress.phase}
                 {progress.drift !== 'low' ? `  ⚠︎ 이탈:${progress.drift}` : ''}
               </Text>
               {step ? <StageIndicator stage={step as 1 | 2 | 3 | 4 | 5} /> : null}
