@@ -30,8 +30,9 @@ _anthropic_client = None
 # so we warn clearly the first time without spamming every request.
 _mock_fallback_warned = False
 
-# Models that no longer accept the `temperature` parameter (sending it → 400).
-_NO_TEMPERATURE_MODELS = {"claude-opus-4-8"}
+# Models that no longer accept sampling params like `temperature` (sending it → 400):
+# the Opus 4.7+ family and Fable 5. Sonnet 4.6 / Haiku 4.5 still accept temperature.
+_NO_TEMPERATURE_MODELS = {"claude-opus-4-8", "claude-opus-4-7", "claude-fable-5"}
 
 
 def _create_kwargs(req: LLMInvokeRequest) -> dict[str, Any]:
