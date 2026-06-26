@@ -9,7 +9,7 @@ from app.schemas.common import ApiModel, RecommendedAction, SafetyEventType, Saf
 class P4ShownIn(BaseModel):
     trigger: Literal["auto_safety_event", "manual_button"]
     related_safety_event_id: str | None = Field(default=None, pattern=r"^se_[a-z0-9]+$")
-    clicked_resource: Literal["1393", "119", "sso", "none"] | None = None
+    clicked_resource: Literal["109", "119", "sso", "none"] | None = None
 
 
 class P4ShownOut(BaseModel):

@@ -517,7 +517,7 @@ paths:
                   nullable: true
                 clicked_resource:
                   type: string
-                  enum: ['1393', '119', sso, none]
+                  enum: ['109', '119', sso, none]
                   nullable: true
       responses:
         '201':

@@ -780,7 +780,7 @@ export interface paths {
                         trigger: "auto_safety_event" | "manual_button";
                         related_safety_event_id?: string | null;
                         /** @enum {string|null} */
-                        clicked_resource?: "1393" | "119" | "sso" | "none" | null;
+                        clicked_resource?: "109" | "119" | "sso" | "none" | null;
                     };
                 };
             };
