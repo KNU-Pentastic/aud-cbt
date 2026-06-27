@@ -13,7 +13,12 @@ const HOP_BY_HOP = new Set([
   "te",
   "trailer",
   "host",
+  // fetch()(undici)가 업스트림 응답을 자동으로 압축 해제하므로, 업스트림이 보낸
+  // content-encoding/content-length 를 그대로 브라우저로 넘기면 안 된다. 넘기면
+  // 브라우저가 (이미 평문인) 본문을 gzip/br 로 디코딩하려다 ERR_CONTENT_DECODING_FAILED
+  // 로 깨진다. Railway 처럼 응답을 압축하는 업스트림 뒤에서만 재현된다(로컬 uvicorn 은 무압축).
   "content-length",
+  "content-encoding",
 ])
 
 async function forward(
