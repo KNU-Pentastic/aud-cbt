@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Path, Request, status
+from fastapi import APIRouter, BackgroundTasks, Path, Request, status
 from sqlalchemy import func, select
 from sse_starlette.sse import EventSourceResponse
 
@@ -191,12 +191,20 @@ def end_conversation(
     body: ConversationEndIn,
     patient: CurrentPatient,
     db: DbSession,
+    background: BackgroundTasks,
     conversation_id: str = Path(..., pattern=r"^c_[a-z0-9]+$"),
 ) -> ConversationEndOut:
     conv = _get_conversation_or_404(db, patient.patient_id, conversation_id)
     if conv.status != "active":
         raise conflict("Conversation already ended", code="CONVERSATION_ENDED")
+    # 종료를 즉시 확정·커밋해 수십 ms 안에 응답한다. 단계 복구·세션 요약·다음 주차
+    # 진행 같은 무거운 LLM 작업은 응답 후 백그라운드로 미뤄, 배포 프록시 타임아웃이나
+    # 요청 도중 프로세스 종료가 '종료 커밋'을 삼켜 세션이 active 로 되살아나는 것을 막는다.
     ended_at, next_avail = conversation_service.end_conversation(db, conv, body.reason)
+    if body.reason == "completed":
+        background.add_task(
+            conversation_service.finalize_completion, conversation_id, body.reason
+        )
     return ConversationEndOut(
         ended_at=ended_at,
         reason=body.reason,

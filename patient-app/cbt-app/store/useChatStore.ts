@@ -115,7 +115,8 @@ type ChatState = {
   sendMessage: (sessionId: string, content: string) => void;
   /** 코치가 먼저 거는 세션 오프닝을 스트리밍한다 (세션1 제외 주간 세션). */
   startOpening: (sessionId: string) => void;
-  completeSession: (sessionId: string) => Promise<void>;
+  /** 세션을 수동 종료한다. 서버에서 종료가 확정되면 true, 실패하면 false 를 돌려준다. */
+  completeSession: (sessionId: string) => Promise<boolean>;
   clearSafetyTrip: () => void;
   clearError: () => void;
 };
@@ -458,11 +459,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
   completeSession: async (sessionId) => {
     const cancel = get().cancelStream;
     if (cancel) cancel();
+
+    let ended = false;
+    let failMsg = '세션을 마치지 못했어요. 잠시 후 다시 시도해주세요.';
     try {
       await api.post(`/me/conversations/${sessionId}/end`, { reason: 'completed' });
-    } catch {
-      /* 종료 실패해도 UI 는 종료 처리 (다음 진입 시 current-session 으로 재동기화) */
+      ended = true;
+    } catch (e) {
+      // 이미 종료된 대화(409)면 종료 성공으로 본다(응답 유실 후 재시도·다기기 등).
+      if (e instanceof ApiError && e.code === 'CONVERSATION_ENDED') {
+        ended = true;
+      } else if (e instanceof ApiError) {
+        failMsg = friendlyError(e);
+      }
     }
+
+    // 서버에서 종료가 확정되지 않았으면 UI 를 거짓 '완료'로 만들지 않는다(예전엔 실패를
+    // 삼키고 무조건 완료 처리해, 서버는 active 인데 화면만 끝난 것처럼 보였다 — 그게 바로
+    // 세션이 안 끝난 채 다음 진입에서 되살아나던 증상의 클라이언트 측 가림막이었다).
+    // 오류만 알리고 입력/종료 버튼은 그대로 열어 둬 다시 '세션 마치기'로 재시도할 수 있게 한다.
+    if (!ended) {
+      set({ isTyping: false, cancelStream: null, error: failMsg });
+      return false;
+    }
+
     set((state) => {
       const s = state.sessions[sessionId];
       if (!s) return { isTyping: false, cancelStream: null };
@@ -475,6 +495,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         },
       };
     });
+    return true;
   },
 
   clearSafetyTrip: () => set({ safetyTripped: false }),

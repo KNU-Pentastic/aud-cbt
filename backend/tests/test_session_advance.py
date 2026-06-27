@@ -251,6 +251,7 @@ def test_manual_end_at_step5_completes_and_advances(db: Session) -> None:
     sess, conv = _session_with_step(db, patient, step=5)
 
     conversation_service.end_conversation(db, conv, "completed")
+    conversation_service.finalize_completion("c_test", "completed", db=db)
 
     db.refresh(sess)
     db.refresh(conv)
@@ -292,6 +293,7 @@ def test_manual_end_before_step5_does_not_advance(
     monkeypatch.setattr(conversation_service.stage_tracker, "track", _no_advance)
 
     conversation_service.end_conversation(db, conv, "completed")
+    conversation_service.finalize_completion("c_test", "completed", db=db)
 
     db.refresh(sess)
     db.refresh(conv)
@@ -318,6 +320,7 @@ def test_manual_end_recovers_frozen_step_and_completes(db: Session) -> None:
     sess, conv = _session_with_step(db, patient, step=3)
 
     conversation_service.end_conversation(db, conv, "completed")
+    conversation_service.finalize_completion("c_test", "completed", db=db)
 
     db.refresh(sess)
     db.refresh(conv)
@@ -356,6 +359,7 @@ def test_manual_end_does_not_advance_when_tracker_still_down(
     monkeypatch.setattr(conversation_service.stage_tracker, "track", _down)
 
     conversation_service.end_conversation(db, conv, "completed")
+    conversation_service.finalize_completion("c_test", "completed", db=db)
 
     db.refresh(sess)
     db.refresh(conv)
@@ -364,6 +368,97 @@ def test_manual_end_does_not_advance_when_tracker_still_down(
     assert conv.status == "ended"
     assert sess.status == "ended"  # 완료 아님
     assert patient.current_week == 4  # 주차 그대로
+
+
+# ── 종료를 무거운 마무리와 분리: 배포 프록시 타임아웃/프로세스 종료에도 세션이 끝남 ──
+
+
+def test_end_conversation_commits_termination_before_finalize(db: Session) -> None:
+    """end_conversation 은 단계 복구·요약·주차 진행을 기다리지 않고 종료를 즉시 확정한다.
+
+    배포 프록시 타임아웃이나 요청 도중 프로세스 종료로 마무리(finalize_completion)가
+    아예 못 돌더라도, 대화/세션은 이미 ended 로 커밋돼 있어 active 로 되살아나지 않는다.
+    이 시점엔 주차 진행·요약은 아직 일어나지 않는다(그건 마무리의 몫)."""
+    patient = _patient(db, week=4)
+    sess, conv = _session_with_step(db, patient, step=5)
+
+    conversation_service.end_conversation(db, conv, "completed")  # 마무리는 호출하지 않음
+
+    db.refresh(sess)
+    db.refresh(conv)
+    db.refresh(patient)
+    assert conv.status == "ended"  # 즉시 종료 확정
+    assert sess.status == "ended"  # 완료 승격은 마무리가 한다
+    assert conv.ended_at is not None
+    assert patient.current_week == 4  # 마무리 전엔 주차 그대로
+    summary = db.execute(
+        select(SessionSummary).where(SessionSummary.session_id == "s_test")
+    ).scalar_one_or_none()
+    assert summary is None  # 요약도 마무리에서 생성
+
+
+def test_finalize_failure_keeps_session_ended(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """마무리(요약/주차 진행)가 실패해도 세션이 active/in_progress 로 되살아나지 않는다.
+
+    finalize_completion 은 자체적으로 예외를 잡고 롤백하므로, 직전에 커밋된 'ended'
+    상태가 보존된다(되살아남 방지)."""
+    patient = _patient(db, week=4)
+    sess, conv = _session_with_step(db, patient, step=5)
+
+    def _boom(_db: object, _conv: object, _sess: object) -> None:
+        raise RuntimeError("summary/advance down")
+
+    monkeypatch.setattr(conversation_service, "_complete_session", _boom)
+
+    conversation_service.end_conversation(db, conv, "completed")
+    conversation_service.finalize_completion("c_test", "completed", db=db)  # 내부에서 실패→롤백
+
+    db.refresh(sess)
+    db.refresh(conv)
+    db.refresh(patient)
+    assert conv.status == "ended"  # 종료는 그대로 유지(되살아나지 않음)
+    assert sess.status == "ended"  # completed 승격은 롤백됨
+    assert patient.current_week == 4  # 주차 미진행
+
+
+def test_finalize_completion_opens_own_session(monkeypatch: pytest.MonkeyPatch) -> None:
+    """프로덕션 경로: finalize_completion 이 db 주입 없이 자체 SessionLocal 로 열어 완료
+    처리(요약·다음 주차 진행)를 마친다 — FastAPI BackgroundTasks 가 부르는 그대로.
+
+    StaticPool 로 같은 인메모리 DB 를 공유하는 엔진을 만들고, conversation_service.SessionLocal
+    을 그 엔진으로 바꿔(=app.database.SessionLocal 대체) 자체-세션 분기(owns_db=True)를 탄다."""
+    from sqlalchemy.pool import StaticPool
+
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+        future=True,
+    )
+    for model in (Patient, CbtSession, Conversation, Message, SessionSummary, LLMUsage):
+        model.__table__.create(engine, checkfirst=True)
+    test_session = sessionmaker(bind=engine, expire_on_commit=False, future=True)
+    monkeypatch.setattr(conversation_service, "SessionLocal", test_session)
+
+    with test_session() as seed:
+        patient = _patient(seed, week=4)
+        _session_with_step(seed, patient, step=5)
+        seed.commit()
+
+    # db 인자 없음 → owns_db=True → 자체 세션을 연다(BackgroundTasks 경로와 동일).
+    conversation_service.finalize_completion("c_test", "completed")
+
+    with test_session() as check:
+        sess = check.get(CbtSession, "s_test")
+        patient = check.get(Patient, "p_test")
+        assert sess.status == "completed"  # 자체 세션으로 완료 승격
+        assert patient.current_week == 5  # 다음 주차로 진행
+        summary = check.execute(
+            select(SessionSummary).where(SessionSummary.session_id == "s_test")
+        ).scalar_one()
+        assert summary.completed_objectives
 
 
 def test_coach_prompt_includes_current_step(db: Session) -> None:

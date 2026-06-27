@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session
 
 from app import cbt_stages
 from app.config import settings
+from app.database import SessionLocal
 from app.exceptions import APIError
 from app.ids import conversation_id as new_conv_id
 from app.ids import message_id as new_message_id
@@ -135,48 +136,87 @@ def start_craving(db: Session, patient: Patient) -> Conversation:
 def end_conversation(
     db: Session, conv: Conversation, reason: str
 ) -> tuple[datetime, datetime | None]:
-    """대화를 종료한다 — 종료 시점은 LLM 이 아니라 사용자가 결정한다(수동 종료 버튼).
+    """대화·세션을 즉시 '종료'로 확정하고 한 번 커밋한다(가벼운 경로 — 무거운 작업 없음).
 
-    세션 대화를 reason="completed" 로 마칠 때, 그 세션이 5단계(이번 주 과제)까지
-    도달했다면 — 즉 LLM 이 이번 주 내용을 끝까지 진행했다면 — 비로소 '완료'로 보고
-    세션 요약을 만든 뒤 다음 주차로 진행한다. 5단계 전에 끝내거나 reason 이
-    completed 가 아니면 대화만 닫고 주차는 그대로 둔다(임상 흐름 보존).
+    종료 시점은 LLM 이 아니라 사용자가 정한다(수동 종료 버튼). 여기서는 conv/sess 를
+    곧바로 ended 로 바꿔 커밋만 한다. 단계 복구·세션 요약·다음 주차 진행 같은 무거운
+    LLM 작업은 응답을 돌려준 뒤 finalize_completion 이 백그라운드에서 처리한다.
 
-    단, 세션 중 Anthropic 장애로 stage_tracker 가 무음 실패하면 current_step 이 실제
-    진행보다 낮게 얼어붙을 수 있다(라운드마다 +1 만 오르므로 장애가 여러 라운드를 먹으면
-    영구히 뒤처진다). 그래서 '완료'로 마칠 때 아직 5단계 미만이면 종료 시점에 한 번 더
-    단계를 복구한다(_recover_session_step) — 장애가 풀렸으면 실제 도달 단계로 끌어올리고,
-    장애가 지속되면 전진 없이 안전하게 '완료 아님'으로 종료한다.
+    왜 분리하나: 예전엔 이 함수가 '종료 커밋 전에' 동기로 LLM 작업(단계 복구 최대 5회 +
+    Sonnet 요약, 각각 타임아웃 설정 없는 Anthropic 호출)을 다 끝냈다. 그래서 /end 가 수십
+    초~분 단위로 걸렸고, 배포 프록시 뒤에서 그 긴 무출력 요청이 잘리거나 작업 도중
+    프로세스가 재시작되면 마지막 커밋이 실행되지 않아 conv 가 active 로 남았다 — 세션이
+    끝나지 않은 채 다음 진입에서 되살아났다(current-session 이 active 대화를 돌려줌).
+    종료를 먼저 가볍게 확정하면, 이후 마무리가 늦거나 실패해도 세션은 안전하게 닫힌 채로
+    남는다.
+
+    완료(주차 진행) 여부는 단계 복구까지 마쳐야 정해지므로 여기서 단정하지 않고 일단
+    'ended' 로 닫는다 — 5단계까지 마친 세션이면 finalize_completion 이 'completed' 로
+    승격하고 요약·주차 진행을 마저 한다.
     """
     now = datetime.now(timezone.utc)
     next_available_at: datetime | None = None
     sess = db.get(CbtSession, conv.session_id) if conv.session_id else None
 
-    if (
-        sess is not None
-        and reason == "completed"
-        and sess.current_step < cbt_stages.TOTAL_STEPS
-    ):
-        try:
-            _recover_session_step(db, conv, sess)
-        except Exception:
-            log.exception("end-time stage recovery failed")
-
     conv.status = "ended"
     conv.ended_at = now
     conv.end_reason = reason
     if sess is not None:
-        completed = (
-            reason == "completed" and sess.current_step >= cbt_stages.TOTAL_STEPS
-        )
-        sess.status = "completed" if completed else "ended"
+        sess.status = "ended"
         sess.ended_at = now
         sess.end_reason = reason
-        db.flush()
-        if completed:
-            _complete_session(db, conv, sess)
     db.commit()
     return now, next_available_at
+
+
+def finalize_completion(
+    conversation_id: str, reason: str, db: Session | None = None
+) -> None:
+    """수동 종료(reason='completed') 후의 무거운 마무리 — 응답 뒤 백그라운드에서 실행한다.
+
+    end_conversation 이 종료를 이미 커밋했으므로, 여기서는 '완료' 여부 확정과 그에 따른
+    부수 작업만 한다:
+      1) current_step 이 5단계 미만이면 _recover_session_step 으로 장애에 얼어붙은 단계를
+         실제 도달 단계까지 끌어올린다(추적기의 실제 판단만 따름 — 임의 전진 아님). 세션
+         진행 중 Anthropic 장애로 stage_tracker 가 무음 실패하면 단계가 실제보다 낮게
+         멈출 수 있어, 종료 시점에 한 번 더 복구한다.
+      2) 5단계까지 도달했으면 sess.status 를 'completed' 로 승격하고 세션 요약 생성 +
+         다음 주차 진행(_complete_session). 도달 못 하면 'ended'(완료 아님) 그대로 둔다.
+
+    자체 DB 세션을 연다(기본값). FastAPI BackgroundTasks 는 응답이 나간 뒤 실행되어 요청
+    DB 세션이 이미 닫혀 있으므로 재사용하지 않는다. 테스트에선 db 를 주입해 같은 세션으로
+    동기 실행한다. 실패해도 대화/세션은 이미 'ended' 라 세션이 active 로 되살아나지 않는다
+    (최악의 경우 '완료 아님/주차 미진행' — 5단계 전 종료와 같은 폴백 의미로 안전하게 남음).
+    """
+    if reason != "completed":
+        return
+    owns_db = db is None
+    if db is None:
+        db = SessionLocal()
+    try:
+        conv = db.get(Conversation, conversation_id)
+        if conv is None or not conv.session_id:
+            return
+        sess = db.get(CbtSession, conv.session_id)
+        if sess is None or sess.status == "completed":
+            # 이미 완료 처리됨(중복 호출 방지 — 주차 이중 진행 방지).
+            return
+        if sess.current_step < cbt_stages.TOTAL_STEPS:
+            try:
+                _recover_session_step(db, conv, sess)
+            except Exception:
+                log.exception("finalize: end-time stage recovery failed")
+        if sess.current_step >= cbt_stages.TOTAL_STEPS:
+            sess.status = "completed"
+            db.flush()
+            _complete_session(db, conv, sess)
+        db.commit()
+    except Exception:
+        log.exception("finalize_completion failed for %s", conversation_id)
+        db.rollback()
+    finally:
+        if owns_db:
+            db.close()
 
 
 # -------- SSE helpers --------

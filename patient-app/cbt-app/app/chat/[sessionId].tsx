@@ -94,11 +94,13 @@ export default function ChatScreen() {
     // 게이트가 외부 LLM·네트워크 장애 때 버튼을 영구 비활성화시켜 실질적으로 끝난 세션을
     // 못 끝내는 함정이 됐다 — 주차 진행 여부는 서버가 current_step 으로 안전하게 결정한다.)
     if (session.isComplete) return;
-    // 종료(/end)가 끝난 뒤 로비(홈)로 자동 복귀한다. await 후 이동해야 로비가
+    // 종료(/end)가 서버에서 확정된 뒤에만 로비(홈)로 복귀한다. await 후 이동해야 로비가
     // current-session 을 조회할 때 이 대화가 아직 active 로 보이는 레이스를 막는다.
+    // 종료가 실패하면(false) 화면에 머무르고 오류 Alert(아래 useEffect)로 안내해, 거짓
+    // 완료로 빠져나가지 않고 다시 '세션 마치기'로 재시도할 수 있게 한다.
     const endNow = async () => {
-      await completeSession(session.id);
-      router.replace('/');
+      const ok = await completeSession(session.id);
+      if (ok) router.replace('/');
     };
     const title = '세션을 마칠까요?';
     const message =

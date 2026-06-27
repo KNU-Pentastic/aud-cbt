@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     # 이벤트를 실어 보낼지. 데모·디버깅용으로 기본 on. 운영에서는 LLM_TRACE=false 권장.
     llm_trace: bool = True
 
+    # Anthropic 클라이언트의 요청 타임아웃(초)·자동 재시도 상한. SDK 기본값(~600s,
+    # 2회 재시도)은 너무 길어, 세션 종료 마무리(요약·단계 복구) 같은 동기 호출이 한 번에
+    # 분 단위로 늘어질 수 있다. 짧게 잡아 최악 지연을 통제한다(스트리밍 대화도 동일 적용).
+    anthropic_timeout_seconds: float = 60.0
+    anthropic_max_retries: int = 1
+
     registration_code_ttl_days: int = 7
 
     cors_origins: str = "http://localhost:3000,http://localhost:8081,http://localhost:19006"

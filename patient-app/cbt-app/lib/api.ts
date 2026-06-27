@@ -19,6 +19,12 @@ type RequestOptions = {
   body?: unknown;
   /** 인증 헤더(Authorization: Bearer ...) 부착 여부. 기본 true */
   auth?: boolean;
+  /**
+   * 요청 타임아웃(ms). 초과하면 abort 하고 NETWORK_ERROR 를 던진다. 기본 15초.
+   * (예전엔 타임아웃이 없어, 서버가 응답을 늦게 주거나 프록시가 늦게 끊을 때까지
+   *  무한 대기했다 — /end 같은 호출이 멈춘 듯 보이고 실패를 늦게야 알았다.)
+   */
+  timeoutMs?: number;
 };
 
 function parseError(status: number, raw: string): ApiError {
@@ -35,9 +41,11 @@ function parseError(status: number, raw: string): ApiError {
 }
 
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, auth = true } = opts;
+  const { method = 'GET', body, auth = true, timeoutMs = 15000 } = opts;
   const token = getToken();
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {
@@ -48,9 +56,13 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
         ...(auth && token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
     });
   } catch {
+    // abort(타임아웃) 포함 — 연결 실패로 안내한다.
     throw new ApiError(0, '서버에 연결할 수 없어요. 네트워크를 확인해주세요.', 'NETWORK_ERROR');
+  } finally {
+    clearTimeout(timer);
   }
 
   if (res.status === 204) {
