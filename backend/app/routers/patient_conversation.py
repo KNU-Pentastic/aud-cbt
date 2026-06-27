@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Path, Request, status
+from fastapi import APIRouter, BackgroundTasks, Path, Request, status
 from sqlalchemy import func, select
 from sse_starlette.sse import EventSourceResponse
 
@@ -191,14 +191,26 @@ def end_conversation(
     body: ConversationEndIn,
     patient: CurrentPatient,
     db: DbSession,
+    background: BackgroundTasks,
     conversation_id: str = Path(..., pattern=r"^c_[a-z0-9]+$"),
 ) -> ConversationEndOut:
     conv = _get_conversation_or_404(db, patient.patient_id, conversation_id)
     if conv.status != "active":
         raise conflict("Conversation already ended", code="CONVERSATION_ENDED")
-    ended_at, next_avail = conversation_service.end_conversation(db, conv, body.reason)
+    # 종료를 즉시 확정하고, 완료 여부·다음 주차 진행까지 동기로 끝낸 뒤 응답한다 — 이래야
+    # 종료 직후 재진입이 결정론적으로 올바른(진행된) 주차의 세션에 들어간다(예전엔 주차
+    # 진행을 백그라운드로 미뤄, 재진입이 stale 한 current_week 로 이전 주차 세션을 만들었다).
+    # 항상 느린 '세션 요약'만 응답 후 백그라운드로 미룬다 — 다음 세션 선택을 게이팅하지 않으므로.
+    ended_at, next_avail, completed = conversation_service.end_conversation(
+        db, conv, body.reason
+    )
+    if completed:
+        background.add_task(
+            conversation_service.generate_session_summary, conversation_id
+        )
     return ConversationEndOut(
         ended_at=ended_at,
         reason=body.reason,
         next_session_available_at=next_avail,
+        completed=completed,
     )

@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session
 
 from app import cbt_stages
 from app.config import settings
+from app.database import SessionLocal
 from app.exceptions import APIError
 from app.ids import conversation_id as new_conv_id
 from app.ids import message_id as new_message_id
@@ -46,6 +47,7 @@ from app.ids import session_id as new_session_id
 from app.models.conversation import Conversation, Message
 from app.models.patient import Patient
 from app.models.session import Session as CbtSession
+from app.models.session_summary import SessionSummary as SessionSummaryModel
 from app.schemas.internal import (
     ContextBuildRequest,
     DialogueTurn,
@@ -134,49 +136,93 @@ def start_craving(db: Session, patient: Patient) -> Conversation:
 
 def end_conversation(
     db: Session, conv: Conversation, reason: str
-) -> tuple[datetime, datetime | None]:
-    """대화를 종료한다 — 종료 시점은 LLM 이 아니라 사용자가 결정한다(수동 종료 버튼).
+) -> tuple[datetime, datetime | None, bool]:
+    """대화·세션을 종료로 확정한다. 종료 시점·완료 여부는 LLM 이 아니라 사용자가 정한다.
 
-    세션 대화를 reason="completed" 로 마칠 때, 그 세션이 5단계(이번 주 과제)까지
-    도달했다면 — 즉 LLM 이 이번 주 내용을 끝까지 진행했다면 — 비로소 '완료'로 보고
-    세션 요약을 만든 뒤 다음 주차로 진행한다. 5단계 전에 끝내거나 reason 이
-    completed 가 아니면 대화만 닫고 주차는 그대로 둔다(임상 흐름 보존).
+    핵심 규칙: 사용자가 '세션 마치기'(reason='completed')로 끝내면, 단계 추적기가 몇 단계로
+    봤는지와 '무관하게' 이 세션을 완료로 보고 곧바로 다음 주차로 진행한다. 종료 시점은
+    사용자가 정하므로(대화를 마무리했다고 보고 직접 버튼을 누름), 진행을 추적기 단계에
+    묶지 않는다 — 추적기는 라운드당 +1 만 오르고 실모델에선 보수적이라 5단계에 잘 못 닿아,
+    묶으면 '끝냈는데 다음 주차로 안 넘어가는' 함정이 된다(직전 버그의 직접 원인).
 
-    단, 세션 중 Anthropic 장애로 stage_tracker 가 무음 실패하면 current_step 이 실제
-    진행보다 낮게 얼어붙을 수 있다(라운드마다 +1 만 오르므로 장애가 여러 라운드를 먹으면
-    영구히 뒤처진다). 그래서 '완료'로 마칠 때 아직 5단계 미만이면 종료 시점에 한 번 더
-    단계를 복구한다(_recover_session_step) — 장애가 풀렸으면 실제 도달 단계로 끌어올리고,
-    장애가 지속되면 전진 없이 안전하게 '완료 아님'으로 종료한다.
+    두 단계로 커밋한다:
+      PHASE 1 — conv/sess 를 'ended' 로 즉시 커밋(항상 durable). 이후가 잘려도 세션이
+        active 로 되살아나지 않는다(배포 프록시 컷·프로세스 종료 안전성).
+      PHASE 2 — reason='completed' 면 sess 를 'completed' 로 올리고 다음 주차로 진행한 뒤
+        커밋한다(_advance_week). 종료 직후 재진입이 결정론적으로 진행된 주차에 들어가도록
+        응답 전에 동기로 끝낸다. (사소한 실패는 잡고 넘어가 PHASE 1 종료는 유지한다.)
+
+    항상 느린 '세션 요약'만 응답 뒤 백그라운드에서 만든다(generate_session_summary) —
+    요약은 다음 세션 참고용 보조 자료라 다음 세션 선택을 게이팅하지 않는다. 반환의
+    3번째(completed)로 라우터가 요약 스케줄을 결정한다.
     """
     now = datetime.now(timezone.utc)
     next_available_at: datetime | None = None
     sess = db.get(CbtSession, conv.session_id) if conv.session_id else None
 
-    if (
-        sess is not None
-        and reason == "completed"
-        and sess.current_step < cbt_stages.TOTAL_STEPS
-    ):
-        try:
-            _recover_session_step(db, conv, sess)
-        except Exception:
-            log.exception("end-time stage recovery failed")
-
+    # PHASE 1 — 종료 즉시 확정·커밋(durable).
     conv.status = "ended"
     conv.ended_at = now
     conv.end_reason = reason
     if sess is not None:
-        completed = (
-            reason == "completed" and sess.current_step >= cbt_stages.TOTAL_STEPS
-        )
-        sess.status = "completed" if completed else "ended"
+        sess.status = "ended"
         sess.ended_at = now
         sess.end_reason = reason
-        db.flush()
-        if completed:
-            _complete_session(db, conv, sess)
     db.commit()
-    return now, next_available_at
+
+    # PHASE 2 — 사용자 종료(reason='completed')면 완료로 보고 다음 주차 진행(추적기 단계와 무관).
+    completed = False
+    if reason == "completed" and sess is not None:
+        try:
+            sess.status = "completed"
+            _advance_week(db, conv, sess)
+            db.commit()
+            completed = True
+        except Exception:
+            log.exception("week advance failed for %s", conv.conversation_id)
+            db.rollback()  # PHASE 1 의 종료 커밋은 유지(여기 변경분만 되돌림)
+    return now, next_available_at, completed
+
+
+def generate_session_summary(conversation_id: str, db: Session | None = None) -> None:
+    """완료된 세션의 요약을 생성·저장한다 — 응답 뒤 FastAPI BackgroundTasks 로 실행한다.
+
+    요약은 항상 느린(약 2500토큰 Sonnet) 작업이지만 다음 세션 선택을 게이팅하지 않으므로,
+    종료·주차 진행이 동기로 끝난 뒤 비동기로 만든다. 자체 DB 세션을 연다(기본값) — 응답이
+    나간 뒤 실행되어 요청 세션이 이미 닫혀 있기 때문. 테스트에선 db 를 주입해 동기 실행한다.
+
+    멱등: session_summaries.session_id 는 UNIQUE 제약이라, 재시도/중복 스케줄로 두 번
+    불려도 이미 요약이 있으면 그냥 반환한다(IntegrityError 방지). 실패해도 세션의
+    완료·주차 진행은 이미 커밋돼 있어 영향 없다(요약은 보조 자료).
+    """
+    owns_db = db is None
+    if db is None:
+        db = SessionLocal()
+    try:
+        conv = db.get(Conversation, conversation_id)
+        if conv is None or not conv.session_id:
+            return
+        sess = db.get(CbtSession, conv.session_id)
+        if sess is None or sess.status != "completed":
+            return  # 완료된 세션만 요약한다
+        exists = db.execute(
+            select(SessionSummaryModel.session_summary_id)
+            .where(SessionSummaryModel.session_id == sess.session_id)
+            .limit(1)
+        ).first()
+        if exists is not None:
+            return  # 이미 요약이 있다(멱등)
+        patient = db.get(Patient, conv.patient_id)
+        if patient is None:
+            return
+        try:
+            _summarize_session(db, patient, conv, sess)
+        except Exception:
+            log.exception("session summarize failed for %s", conversation_id)
+            db.rollback()
+    finally:
+        if owns_db:
+            db.close()
 
 
 # -------- SSE helpers --------
@@ -282,7 +328,7 @@ def _summarize_session(
 ) -> SessionSummary | None:
     """세션 종료 시 요약 생성·저장 (실패해도 종료/주차 진행을 막지 않는다).
 
-    _complete_session(수동 종료 + 5단계 도달) 에서 호출된다. 생성된 SessionSummary 는
+    generate_session_summary(완료된 세션, 백그라운드) 에서 호출된다. 생성된 SessionSummary 는
     DB 에 저장돼 다음 세션과 의료진 대시보드가 참고하며, 반환 DTO 는 현재 호출부에서
     쓰지 않는다(예전엔 자동 종료 스트림에서 session_summary 이벤트로 라이브 노출했으나
     종료가 REST 경로로 바뀌며 그 용도는 사라졌다). 예외는 호출부에서 잡는다.
@@ -304,63 +350,19 @@ def _summarize_session(
     )
 
 
-def _complete_session(db: Session, conv: Conversation, sess: CbtSession) -> None:
-    """세션을 '완료'로 마칠 때(사용자가 5단계까지 진행한 뒤 수동 종료): 요약 생성 +
-    다음 주차 진행. 요약 생성이 실패해도 주차 진행을 막지 않는다(요약은 다음 세션
-    참고용 보조 자료). 호출부(end_conversation)가 트랜잭션을 commit 한다.
+def _advance_week(db: Session, conv: Conversation, sess: CbtSession) -> None:
+    """세션을 '완료'로 마칠 때 다음 주차로 진행한다(요약은 별도 백그라운드에서 생성).
+
+    완료/주차 진행은 '사용자가 다음에 들어갈 세션'을 결정하므로 종료 응답 전에 동기로
+    끝내야 한다(end_conversation 이 호출). 12주가 끝이면 더 진행하지 않는다.
+    호출부가 트랜잭션을 commit 한다.
     """
     patient = db.get(Patient, conv.patient_id)
     if patient is None:
         return
-    try:
-        _summarize_session(db, patient, conv, sess)
-    except Exception:
-        log.exception("session summarize failed")
     if patient.current_week < 12:
         patient.current_week += 1
         patient.current_phase = _phase_for_week(patient.current_week)
-
-
-def _recover_session_step(db: Session, conv: Conversation, sess: CbtSession) -> None:
-    """종료 시점에 얼어붙은 current_step 을 복구한다(수동 종료 + 5단계 미도달일 때만).
-
-    세션 진행 중 Anthropic 장애로 stage_tracker 가 무음 실패(tracked=False)하면 단계가
-    전진하지 못해, 실제로는 이번 주 내용을 끝까지 진행한 세션도 current_step 이 낮게
-    멈춘다. 그 상태로 '완료' 종료하면 주차가 진행되지 않는다. 여기서는 최근 대화를 다시
-    단계 추적기에 통과시켜, 추적기가 '완료'로 보는 단계까지 current_step 을 끌어올린다.
-
-    안전장치:
-      - 추적기의 실제 판단만 따른다(휴리스틱 전진 아님) — 실제로 다루지 않은 단계로는
-        전진하지 않으므로, 조기 종료한 세션을 임의로 '완료'로 만들지 않는다.
-      - 한 번에 한 칸씩, 최대 5단계까지만 오른다(추적기의 단조 전진 규칙과 동일).
-      - 종료 시점에도 장애가 지속되면(tracked=False) 또는 더 전진하지 못하면 즉시 멈춘다
-        → current_step 그대로 → '완료 아님'으로 안전하게 종료(주차 미진행).
-    """
-    dialogue = [
-        {"role": t.role, "text": t.text}
-        for t in _recent_turns(db, conv.conversation_id, limit=40, exclude_safety=True)
-    ]
-    if not dialogue:
-        return
-    week = conv.week_number or 1
-    for _ in range(cbt_stages.TOTAL_STEPS):
-        if sess.current_step >= cbt_stages.TOTAL_STEPS:
-            break
-        resp = stage_tracker.track(
-            db,
-            StageTrackRequest(
-                conversation_id=conv.conversation_id,
-                session_id=sess.session_id,
-                week_number=week,
-                current_step=sess.current_step,
-                dialogue=dialogue,
-            ),
-        )
-        # 장애 지속(판단 없음) 또는 더 전진 못 함 → 멈춘다.
-        if not resp.tracked or resp.current_step <= sess.current_step:
-            break
-        sess.current_step = resp.current_step
-    db.flush()
 
 
 def _advance_session_stage(

@@ -47,3 +47,6 @@ class ConversationEndOut(BaseModel):
     ended_at: datetime
     reason: str
     next_session_available_at: datetime | None = None
+    # 이 종료로 세션이 '완료'(5단계 도달)로 처리돼 다음 주차로 진행됐는지. 종료 응답 전에
+    # 동기로 확정되므로, 클라이언트는 이 값으로 완료 안내/홈 갱신을 정확히 분기할 수 있다.
+    completed: bool = False

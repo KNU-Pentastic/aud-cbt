@@ -250,11 +250,13 @@ def test_manual_end_at_step5_completes_and_advances(db: Session) -> None:
     patient = _patient(db, week=4)
     sess, conv = _session_with_step(db, patient, step=5)
 
-    conversation_service.end_conversation(db, conv, "completed")
+    _, _, completed = conversation_service.end_conversation(db, conv, "completed")
+    conversation_service.generate_session_summary("c_test", db=db)
 
     db.refresh(sess)
     db.refresh(conv)
     db.refresh(patient)
+    assert completed is True
     assert conv.status == "ended"
     assert sess.status == "completed"
     assert patient.current_week == 5
@@ -268,37 +270,21 @@ def test_manual_end_at_step5_completes_and_advances(db: Session) -> None:
     assert summary.handoff_notes
 
 
-def test_manual_end_before_step5_does_not_advance(
-    db: Session, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """5단계 전에 수동 종료할 때, 종료 시 단계 복구에서도 세션이 완결로 판정되지 않으면
-    (대화가 실제로 5단계까지 진행되지 않음) 대화만 닫고 주차는 그대로 둔다."""
+def test_manual_end_non_completed_reason_does_not_advance(db: Session) -> None:
+    """완료가 아닌 종료(abandoned_by_user/timeout)는 대화만 닫고 주차는 그대로 둔다.
+    (클라이언트는 '세션 마치기'에서 항상 reason='completed' 를 보내지만, 다른 사유로
+    닫히는 경로는 주차를 진행하지 않아야 한다.)"""
     patient = _patient(db, week=4)
     sess, conv = _session_with_step(db, patient, step=3)
 
-    # 종료 시 복구가 추적기를 다시 부르지만, 대화가 실제로 더 진행되지 않았으므로 추적기는
-    # 현재 단계 완료를 인정하지 않는다(전진 없음) — 안전하게 '완료 아님'으로 마쳐야 한다.
-    def _no_advance(_db: object, req: StageTrackRequest) -> StageTrackResponse:
-        return StageTrackResponse(
-            current_step=req.current_step,
-            ready_to_advance=False,
-            step_completion_estimate=0.3,
-            step_drift_risk="low",
-            delivered_objectives=[],
-            recommended_next_action="continue_current",
-            tracked=True,
-        )
-
-    monkeypatch.setattr(conversation_service.stage_tracker, "track", _no_advance)
-
-    conversation_service.end_conversation(db, conv, "completed")
+    _, _, completed = conversation_service.end_conversation(db, conv, "abandoned_by_user")
 
     db.refresh(sess)
     db.refresh(conv)
     db.refresh(patient)
+    assert completed is False
     assert conv.status == "ended"
-    assert sess.status == "ended"  # 진짜 '완료'는 아님(5단계 미도달)
-    assert sess.current_step == 3  # 복구가 전진시키지 않음(대화가 실제로 진행 안 됨)
+    assert sess.status == "ended"  # 완료 아님
     assert patient.current_week == 4  # 다음 주차로 넘어가지 않음
 
     # 요약도 생성되지 않는다(완료가 아니므로).
@@ -308,24 +294,24 @@ def test_manual_end_before_step5_does_not_advance(
     assert summary is None
 
 
-def test_manual_end_recovers_frozen_step_and_completes(db: Session) -> None:
-    """세션 중 장애로 current_step 이 얼어붙었지만 대화는 끝까지 진행된 경우: 종료 시
-    단계 복구가 5단계까지 끌어올려 완료 처리하고 다음 주차로 진행한다.
-
-    mock 추적기는 매 호출 현재 단계를 완료로 보고 +1, 5단계에서 완결 신호를 내므로,
-    얼어붙은 3단계에서 종료하면 복구 루프가 3→4→5 로 끌어올린다(장애 복구를 재현)."""
+def test_manual_end_completes_and_advances_regardless_of_step(db: Session) -> None:
+    """핵심: 사용자가 '세션 마치기'(reason=completed)로 끝내면 단계 추적기가 5에 못 닿아도
+    (실모델에선 흔함 — 코치는 마무리했는데 추적기는 3에 머묾) 완료로 보고 다음 주차로
+    진행한다. 단계는 인위적으로 끌어올리지 않는다(추적기 값 그대로)."""
     patient = _patient(db, week=4)
-    sess, conv = _session_with_step(db, patient, step=3)
+    sess, conv = _session_with_step(db, patient, step=3)  # 5단계 미도달
 
-    conversation_service.end_conversation(db, conv, "completed")
+    _, _, completed = conversation_service.end_conversation(db, conv, "completed")
+    conversation_service.generate_session_summary("c_test", db=db)
 
     db.refresh(sess)
     db.refresh(conv)
     db.refresh(patient)
-    assert sess.current_step == 5  # 종료 시 복구가 실제 도달 단계로 끌어올림
+    assert completed is True
     assert conv.status == "ended"
-    assert sess.status == "completed"  # 비로소 '완료'
-    assert patient.current_week == 5  # 다음 주차로 진행
+    assert sess.status == "completed"  # 사용자가 끝냈으므로 완료
+    assert sess.current_step == 3  # 단계는 그대로(인위적 복구 없음)
+    assert patient.current_week == 5  # 그래도 다음 주차로 진행
 
     summary = db.execute(
         select(SessionSummary).where(SessionSummary.session_id == "s_test")
@@ -333,37 +319,123 @@ def test_manual_end_recovers_frozen_step_and_completes(db: Session) -> None:
     assert summary.completed_objectives
 
 
-def test_manual_end_does_not_advance_when_tracker_still_down(
-    db: Session, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """종료 시점에도 Anthropic 장애가 지속돼 추적기가 무음 실패(tracked=False)하면, 단계가
-    복구되지 않아 주차도 진행되지 않는다 — 장애가 진행을 영구히 막지 않되, 안전하게 멈춘다."""
+# ── 종료(완료·주차 진행)는 동기 확정, 느린 요약만 백그라운드 — 재진입 결정론 + 종료 durability ──
+
+
+def test_end_advances_week_synchronously_summary_deferred(db: Session) -> None:
+    """end_conversation 은 완료 결정·다음 주차 진행을 '동기로' 끝내 반환한다 — 종료 직후
+    재진입이 결정론적으로 올바른(진행된) 주차 세션에 들어가게 한다. 단, 항상 느린 요약만
+    응답 뒤 백그라운드로 미루므로 이 시점엔 주차는 진행됐어도 요약 row 는 아직 없다."""
     patient = _patient(db, week=4)
-    sess, conv = _session_with_step(db, patient, step=3)
+    sess, conv = _session_with_step(db, patient, step=5)
 
-    def _down(_db: object, req: StageTrackRequest) -> StageTrackResponse:
-        # llm_gateway 장애 → stage_tracker.track 이 data={} 로 tracked=False 를 돌려주는 상황.
-        return StageTrackResponse(
-            current_step=req.current_step,
-            ready_to_advance=False,
-            step_completion_estimate=0.2,
-            step_drift_risk="low",
-            delivered_objectives=[],
-            recommended_next_action="continue_current",
-            tracked=False,
-        )
-
-    monkeypatch.setattr(conversation_service.stage_tracker, "track", _down)
-
-    conversation_service.end_conversation(db, conv, "completed")
+    _, _, completed = conversation_service.end_conversation(db, conv, "completed")
 
     db.refresh(sess)
     db.refresh(conv)
     db.refresh(patient)
-    assert sess.current_step == 3  # 복구 없음(장애 지속)
+    assert completed is True
     assert conv.status == "ended"
-    assert sess.status == "ended"  # 완료 아님
-    assert patient.current_week == 4  # 주차 그대로
+    assert sess.status == "completed"  # 동기 완료 승격
+    assert conv.ended_at is not None
+    assert patient.current_week == 5  # 동기 주차 진행(재진입이 새 주차를 본다)
+    summary = db.execute(
+        select(SessionSummary).where(SessionSummary.session_id == "s_test")
+    ).scalar_one_or_none()
+    assert summary is None  # 요약만 백그라운드로 미뤄짐
+
+
+def test_end_termination_survives_phase2_failure(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PHASE 2(완료/주차 진행)가 실패해도 PHASE 1 의 종료 커밋은 유지된다 — 세션이
+    active 로 되살아나지 않는다(배포 프록시 컷·프로세스 종료 안전성 보존)."""
+    patient = _patient(db, week=4)
+    sess, conv = _session_with_step(db, patient, step=5)
+
+    def _boom(_db: object, _conv: object, _sess: object) -> None:
+        raise RuntimeError("advance down")
+
+    monkeypatch.setattr(conversation_service, "_advance_week", _boom)
+
+    _, _, completed = conversation_service.end_conversation(db, conv, "completed")
+
+    db.refresh(sess)
+    db.refresh(conv)
+    db.refresh(patient)
+    assert completed is False
+    assert conv.status == "ended"  # PHASE 1 종료는 durable
+    assert sess.status == "ended"  # completed 승격은 PHASE 2 rollback 으로 취소
+    assert patient.current_week == 4  # 주차 미진행
+
+
+def test_summary_failure_keeps_session_completed(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """요약(백그라운드)이 실패해도 세션의 완료·주차 진행은 유지된다 — 요약은 보조 자료라
+    별도 경로(generate_session_summary)에서 만들어지고, 실패는 자체 롤백으로 격리된다."""
+    patient = _patient(db, week=4)
+    sess, conv = _session_with_step(db, patient, step=5)
+
+    # 종료에서 완료·주차 진행은 동기로 확정된다.
+    _, _, completed = conversation_service.end_conversation(db, conv, "completed")
+    assert completed is True
+
+    # 이후 요약만 실패시킨다.
+    def _boom(_db: object, _patient: object, _conv: object, _sess: object) -> None:
+        raise RuntimeError("summary down")
+
+    monkeypatch.setattr(conversation_service, "_summarize_session", _boom)
+    conversation_service.generate_session_summary("c_test", db=db)  # 내부에서 실패→롤백
+
+    db.refresh(sess)
+    db.refresh(conv)
+    db.refresh(patient)
+    assert conv.status == "ended"
+    assert sess.status == "completed"  # 완료 유지
+    assert patient.current_week == 5  # 주차 진행 유지
+    summary = db.execute(
+        select(SessionSummary).where(SessionSummary.session_id == "s_test")
+    ).scalar_one_or_none()
+    assert summary is None  # 요약 row 없음(실패)
+
+
+def test_generate_session_summary_opens_own_session(monkeypatch: pytest.MonkeyPatch) -> None:
+    """프로덕션 경로: generate_session_summary 가 db 주입 없이 자체 SessionLocal 로 열어
+    완료된 세션의 요약을 만든다 — FastAPI BackgroundTasks 가 부르는 그대로. 두 번 불러도
+    멱등(session_id UNIQUE — 중복 row/예외 없음).
+
+    StaticPool 로 같은 인메모리 DB 를 공유하는 엔진을 만들고, conversation_service.SessionLocal
+    을 그 엔진으로 바꿔(=app.database.SessionLocal 대체) 자체-세션 분기(owns_db=True)를 탄다."""
+    from sqlalchemy.pool import StaticPool
+
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+        future=True,
+    )
+    for model in (Patient, CbtSession, Conversation, Message, SessionSummary, LLMUsage):
+        model.__table__.create(engine, checkfirst=True)
+    test_session = sessionmaker(bind=engine, expire_on_commit=False, future=True)
+    monkeypatch.setattr(conversation_service, "SessionLocal", test_session)
+
+    with test_session() as seed:
+        patient = _patient(seed, week=5)  # 이미 진행된 주차(요약은 conv.week_number 기록)
+        sess, _ = _session_with_step(seed, patient, step=5)
+        sess.status = "completed"  # generate_session_summary 는 완료된 세션만 요약한다
+        seed.commit()
+
+    # db 인자 없음 → owns_db=True → 자체 세션을 연다(BackgroundTasks 경로와 동일).
+    conversation_service.generate_session_summary("c_test")
+    conversation_service.generate_session_summary("c_test")  # 두 번째 — 멱등
+
+    with test_session() as check:
+        rows = check.execute(
+            select(SessionSummary).where(SessionSummary.session_id == "s_test")
+        ).scalars().all()
+        assert len(rows) == 1  # 중복 생성 없음
+        assert rows[0].completed_objectives
 
 
 def test_coach_prompt_includes_current_step(db: Session) -> None:

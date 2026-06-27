@@ -59,7 +59,13 @@ def _get_client():
         try:
             from anthropic import Anthropic
 
-            _anthropic_client = Anthropic(api_key=settings.anthropic_api_key)
+            # 타임아웃/재시도 상한을 명시한다 — 기본값(~600s, 2회)은 너무 길어 종료
+            # 마무리·요약 같은 동기 호출이 배포 프록시 컷 윈도우를 넘길 수 있다.
+            _anthropic_client = Anthropic(
+                api_key=settings.anthropic_api_key,
+                timeout=settings.anthropic_timeout_seconds,
+                max_retries=settings.anthropic_max_retries,
+            )
         except Exception:
             # USE_LLM_MOCK=false 인데 클라이언트 생성에 실패 → 의도치 않은 mock 폴백.
             # 조용히 넘어가면 "왜 mock 응답이 나오지?"를 진단하기 어려우므로 명확히 알린다.
