@@ -393,9 +393,9 @@
           <div class="top"><h4>단계 추적 <span style="font-weight:500;color:var(--muted);font-size:13px">— 세션 대화일 때만</span></h4>
             <span class="pill llm s">Sonnet</span><span class="file">stage_tracker.py</span></div>
           <p>세션의 <b>5단계 흐름</b>(체크인 리뷰 → 과제 리뷰 → 핵심 콘텐츠 → 개인화 → 이번 주 과제) 진행도를 판단합니다.
-            <b>세션 종료 시점은 LLM이 결정</b> — 5단계를 다 마쳤다고 보면 대화를 자동 종료합니다.</p>
+            <b>세션 종료 시점은 사용자가 결정</b> — 5단계까지 마치면 ‘마칠 준비’ 신호만 띄우고, 사용자가 종료 버튼으로 마칩니다(자동 종료 아님).</p>
           <div class="io"><span>입력: 세션 대화 흐름</span><span class="arr">→</span>
-            <span>출력: current_step · ready_to_advance · drift</span></div>
+            <span>출력: current_step · ready_to_advance · step_completion</span></div>
         </div>
       </div>
 

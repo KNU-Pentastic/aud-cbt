@@ -367,13 +367,12 @@
 }</pre></div>
             <div class="box out"><div class="lbl">OUT <span class="schema">StageTrackResponse</span></div>
 <pre>{
-  "current_step": 3,
+  "current_step": 3,  // 도달한 절대 단계(단조 비감소)
   "ready_to_advance": false,
   "step_completion_estimate": 0.0,  // 0~1
-  "step_drift_risk": "low | medium | high",
   "delivered_objectives": ["..."],
-  "recommended_next_action": "advance_step
-       | redirect_to_step_topic | continue_current"
+  "recommended_next_action": "advance_step | continue_current",
+  "tracked": true
 }</pre></div>
           </div>
         </div>

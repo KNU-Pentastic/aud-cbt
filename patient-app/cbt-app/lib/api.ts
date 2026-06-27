@@ -154,10 +154,12 @@ export type StageProgress = {
   total_weeks: number;
   phase: number;
   current_step: number;
+  /** 현재 단계의 이름(백엔드 cbt_stages 단일 출처). 화면 라벨이 백엔드 정의와 일치하도록 함께 온다. */
+  step_name: string;
   total_steps: number;
   ready_to_advance: boolean;
+  /** 현재(도달) 단계가 얼마나 진행됐는지 0~1. 바의 단계 내 진행감 표시에 쓴다. */
   step_completion: number;
-  drift: 'low' | 'medium' | 'high';
   /** LLM 이 이번 주 내용을 끝까지 진행해 '마칠 준비'가 됐는지 (자동 종료 아님). */
   ready_to_complete: boolean;
 };

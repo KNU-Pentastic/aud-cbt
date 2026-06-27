@@ -305,7 +305,7 @@ def probe_stage(db, pid: str) -> None:
         return
     print(f"  in: current_step=2, 4-turn dialogue  {c(f'({ms}ms)', 'gray')}")
     print(f"     → current_step={out.current_step} ready={out.ready_to_advance}"
-          f" completion={out.step_completion_estimate} drift={out.step_drift_risk}")
+          f" completion={out.step_completion_estimate}")
     print(f"       action={out.recommended_next_action} delivered={out.delivered_objectives}")
     dump_json(out)
 
@@ -459,9 +459,9 @@ async def _chat_turn(db, patient: Patient, conv, text: str):
             flush_reply()
             print(c("⑦ stage: ", "bold", "cyan")
                   + f"week {d.get('week_number')} phase {d.get('phase')}"
-                  + f" step {d.get('current_step')}/{d.get('total_steps')}"
+                  + f" step {d.get('current_step')}/{d.get('total_steps')} ({d.get('step_name')})"
                   + f" ready={d.get('ready_to_advance')} completion={d.get('step_completion')}"
-                  + f" drift={d.get('drift')} ready_to_complete={d.get('ready_to_complete')}")
+                  + f" ready_to_complete={d.get('ready_to_complete')}")
         # ⑧ session_summary 는 더 이상 스트림 이벤트가 아니다(세션 요약은 종료 시 REST
         #    /end 경로에서 생성된다). 스트림에서는 나오지 않으므로 별도 분기를 두지 않는다.
         elif et == "session_ready":

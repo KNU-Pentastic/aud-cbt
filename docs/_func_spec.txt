@@ -872,9 +872,9 @@ MVP-핵심
 어떻게 동작하는가
 별도 LLM(Sonnet 4.6) 호출, 매 환자 발화 후 실행
 입력: 현재 단계, 현재 세션 대화 로그, 단계별 완료 조건
-출력: { current_step: 1-5, ready_to_advance: bool, step_drift_risk: 'low'|'med'|'high' } JSON
-ready_to_advance=true이고 단계별 핵심 메시지가 전달되었으면 다음 단계로 전환
-환자가 다른 주제로 빠지면 step_drift_risk 상승, 일정 임계값 초과 시 LLM이 부드럽게 복귀 유도
+출력: { current_step: 1-5 (대화가 도달한 절대 단계), ready_to_advance: bool, step_completion: 0~1 } JSON
+current_step 은 단조 비감소 — 추적기가 대화를 보고 도달 단계를 판단하되 이미 기록된 단계 아래로는 내려가지 않음(floor). 대화가 여러 단계를 진행했으면 그만큼 한 번에 반영(점프 허용)
+세션 종료는 사용자가 직접 한다(자동 종료 아님). 5단계까지 마쳐 ready_to_advance=true 면 '마칠 준비' 신호만 띄운다
 주의·한계  단계 판단기가 또 다른 LLM이므로 환각 가능. 단계 전환 잘못이 큰 임상 손해를 주지 않으므로 우선 단순 구현 후 운영하며 정확도 측정.
 
 6.2.4 세션 요약기 (Session Summarizer) — NEW in v2.0

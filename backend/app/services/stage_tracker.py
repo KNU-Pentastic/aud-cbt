@@ -1,9 +1,14 @@
 """Stage tracker — CBT 5-step progress per session. Sonnet 4.6.
 
 역할: 코치(대화 LLM)는 cbt_stages 의 단계 정의를 받아 '현재 단계'를 진행하고, 이 추적기는
-같은 정의를 기준으로 '현재 단계가 완료됐는지(다음 단계로 갈 준비)'와 '세션 전체가 끝났는지
-(5단계까지 마침)'만 판단한다. 단계는 한 번에 한 칸씩만 오른다 — 추적기가 대화를 사후에 보고
-절대 단계를 추정해 1→5 로 점프하던(그래서 2~4단계를 건너뛰고 조기 종료되던) 문제를 없앤다.
+같은 정의를 기준으로 대화를 보고 '지금까지 도달한 단계'를 절대값(reached_step, 1~5)으로
+판단한다. 그리고 '세션 전체가 끝났는지(5단계까지 마치고 마무리됐는지)'를 판단한다.
+
+단계는 단조 비감소다 — 기록된 단계(요청의 current_step) 아래로는 절대 내려가지 않도록
+floor 로 강제한다(한 번 도달한 단계는 되돌아가지 않는다). 대신 대화가 실제로 여러 단계를
+진행했으면 그만큼 한 번에 반영한다(점프 허용). 예전엔 라운드당 +1 로만 올라 진행도가 대화를
+못 따라가고 초반 단계에 묶였는데, 이제 대화가 도달한 단계를 그대로 보여 준다. 조기 종료는
+별개 문제로, 종료 자체를 사용자가 결정하므로(자동 종료 없음) 단계 점프가 종료를 앞당기지 않는다.
 """
 
 from __future__ import annotations
@@ -26,26 +31,34 @@ _SYS = (
     "You are a CBT session stage tracker. A weekly session runs through 5 steps IN ORDER: "
     "1=check-in review, 2=last-week homework review, 3=core content, "
     "4=personalization, 5=this week's homework assignment. "
-    "You are given the CURRENT step (with its goal) and the recent dialogue. "
-    "Judge ONLY the current step — do not look ahead. Decide two booleans: "
-    "(1) step_complete — has the CURRENT step's goal been sufficiently covered in the "
-    "dialogue so it is natural to move on to the next step? "
-    "(2) session_complete — true ONLY when the current step is 5 AND this week's homework "
-    "has actually been agreed with the patient AND the conversation has reached a close. "
-    'Reply ONLY as strict JSON: {"step_complete": bool, "session_complete": bool, '
-    '"completion": 0..1, "drift": "low|medium|high", "delivered": ["..."]}'
+    "You are given the step the session is CURRENTLY recorded at (a FLOOR — the session has "
+    "already reached at least this step) and the recent dialogue. "
+    "Judge, from the dialogue, the FURTHEST step the conversation has actually worked through "
+    "so far, and report it as an absolute step number 1..5 in 'reached_step'. "
+    "reached_step MUST be >= the recorded current step (the session never moves backward). "
+    "Do NOT inflate — only count a step as reached if its goal has been substantively "
+    "addressed in the dialogue; if unsure, stay at the recorded step. "
+    "Also decide session_complete — true ONLY when step 5 has been reached AND this week's "
+    "homework has actually been agreed with the patient AND the conversation has reached a close. "
+    "'completion' is how complete the reached step itself is (0..1). "
+    'Reply ONLY as strict JSON: {"reached_step": 1-5, "session_complete": bool, '
+    '"completion": 0..1, "delivered": ["..."]}'
 )
 
 
 def track(db: Session, req: StageTrackRequest) -> StageTrackResponse:
     cur = cbt_stages.clamp_step(req.current_step)
+    # 호출부가 이미 최근 N턴(현재 limit=40)으로 잘라 넘기므로 여기서 추가로 자르지 않는다.
+    # 예전엔 [-12:] 로 다시 잘라, 초반 단계(체크인·과제 리뷰)가 완료됐다는 근거가 윈도우
+    # 밖으로 밀려나 추적기가 그 도달을 보지 못하고 단계가 묶이던 문제가 있었다.
     messages = [
         {
             "role": "user",
             "content": (
                 f"Week: {req.week_number}\n"
-                f"current_step: {cur} ({cbt_stages.step_line(cur)})\n"
-                f"recent_dialogue: {req.dialogue[-12:]}"
+                f"steps: {cbt_stages.overview()}\n"
+                f"current_step (floor): {cur} ({cbt_stages.step_line(cur)})\n"
+                f"recent_dialogue: {req.dialogue}"
             ),
         }
     ]
@@ -87,34 +100,35 @@ def track(db: Session, req: StageTrackRequest) -> StageTrackResponse:
             exc_info=True,
         )
 
-    # 추적기는 '현재 단계 완료 여부'만 판단한다. 완료면 다음 단계로 한 칸 전진(절대 건너뛰지 않음).
-    step_complete = bool(data.get("step_complete", False))
-    next_step = min(cur + 1, cbt_stages.TOTAL_STEPS) if step_complete else cur
+    # 추적기는 '대화가 지금까지 도달한 절대 단계'를 판단한다. 그 값을 기록된 단계(cur)
+    # 아래로는 내려가지 않게 floor 로 강제한다(단조 비감소) — 판단 실패/누락 시엔 reached=cur
+    # 로 보아 그대로 유지한다(전진 없음). 모델이 여러 단계를 한 번에 진행했다고 보면 점프를 허용한다.
+    try:
+        reached = cbt_stages.clamp_step(int(data.get("reached_step", cur)))
+    except (TypeError, ValueError):
+        reached = cur
+    next_step = max(cur, reached)
 
-    # ready_to_advance = '세션을 마칠 준비'(5단계까지 마침). session_complete 는 모델이 5단계에서만
-    # 주도록 지시했지만, 안전하게 next_step 도 5 이상인지 함께 확인한다.
+    # ready_to_advance = '세션을 마칠 준비'(5단계까지 마침). session_complete 는 모델이 5단계에
+    # 도달했을 때만 주도록 지시했지만, 안전하게 next_step 도 5 이상인지 함께 확인한다.
     session_complete = bool(data.get("session_complete", False))
     ready = session_complete and next_step >= cbt_stages.TOTAL_STEPS
 
-    completion = float(data.get("completion", 0.2))
-    drift = data.get("drift", "low")
-    if drift not in ("low", "medium", "high"):
-        drift = "low"
-    delivered = data.get("delivered") or []
-    if ready:
-        action = "advance_step"
-    elif step_complete:
-        action = "advance_step"
-    elif drift == "high":
-        action = "redirect_to_step_topic"
-    else:
-        action = "continue_current"
+    # completion·delivered 도 모델이 보낸 원시 JSON 값이라 형식이 어긋날 수 있다. reached_step
+    # 과 같은 식으로 방어해, 한 필드가 깨졌다고 track() 이 예외로 빠져 '판단 불가'(stage freeze)로
+    # 떨어지지 않게 한다 — 잘못된 값은 기본값으로 대체하고 판단(current_step)은 그대로 살린다.
+    try:
+        completion = float(data.get("completion", 0.2))
+    except (TypeError, ValueError):
+        completion = 0.2
+    raw_delivered = data.get("delivered")
+    delivered = raw_delivered if isinstance(raw_delivered, list) else []
+    action = "advance_step" if (ready or next_step > cur) else "continue_current"
 
     return StageTrackResponse(
         current_step=next_step,
         ready_to_advance=ready,
         step_completion_estimate=max(0.0, min(1.0, completion)),
-        step_drift_risk=drift,  # type: ignore[arg-type]
         delivered_objectives=[str(x) for x in delivered][:10],
         recommended_next_action=action,  # type: ignore[arg-type]
         tracked=tracked,

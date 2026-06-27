@@ -1801,15 +1801,12 @@ components:
         current_step: { type: integer, minimum: 1, maximum: 5 }
         ready_to_advance: { type: boolean }
         step_completion_estimate: { type: number, format: float, minimum: 0, maximum: 1 }
-        step_drift_risk:
-          type: string
-          enum: [low, medium, high]
         delivered_objectives:
           type: array
           items: { type: string }
         recommended_next_action:
           type: string
-          enum: [advance_step, redirect_to_step_topic, continue_current]
+          enum: [advance_step, continue_current]
 
     # ---------- Internal: Session Summarizer ----------
     SessionSummarizeRequest:

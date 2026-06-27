@@ -2409,11 +2409,9 @@ export interface components {
             ready_to_advance?: boolean;
             /** Format: float */
             step_completion_estimate?: number;
-            /** @enum {string} */
-            step_drift_risk?: "low" | "medium" | "high";
             delivered_objectives?: string[];
             /** @enum {string} */
-            recommended_next_action?: "advance_step" | "redirect_to_step_topic" | "continue_current";
+            recommended_next_action?: "advance_step" | "continue_current";
         };
         SessionSummarizeRequest: {
             session_id: string;

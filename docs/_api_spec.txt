@@ -966,9 +966,9 @@ conversation_id, session_id, week_number
 current_step (1-5), step_objectives (사전 정의 목표)
 dialogue (현재 단계 시작 후 대화)
 응답 —
-current_step, ready_to_advance, step_completion_estimate (0~1)
-step_drift_risk (low/medium/high), delivered_objectives
-recommended_next_action: advance_step / redirect_to_step_topic / continue_current
+current_step (도달한 절대 단계, 단조 비감소), ready_to_advance, step_completion_estimate (0~1)
+delivered_objectives, tracked (판단 성립 여부 — LLM 장애/파싱 실패 시 false)
+recommended_next_action: advance_step / continue_current
 주의 단계 전환 잘못이 큰 임상 손해를 주지 않으므로 우선 단순 구현 후 운영하며 정확도 측정.
 
 

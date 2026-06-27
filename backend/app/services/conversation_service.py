@@ -18,8 +18,8 @@ Trace events (LLM_TRACE=on 일 때만 — 정량 평가/라이브 관찰용; 운
   output_filter      { passed, recommended_action, violations[],
                        replaced_with_fallback }              # ⑤ output_filter
   utterance_analysis { text, analysis{...}, safety{...} }    # ⑥ utterance (+ ① safety)
-  stage_progress     { week_number, phase, current_step, ready_to_advance,
-                       step_completion, drift, ready_to_complete }  # ⑦ stage
+  stage_progress     { week_number, phase, current_step, step_name, ready_to_advance,
+                       step_completion, ready_to_complete }  # ⑦ stage
 
 ⑧ session_summarizer 는 더 이상 SSE 이벤트로 노출하지 않는다. 세션 요약은 사용자가
 종료 버튼으로 /me/conversations/{id}/end (reason=completed) 를 호출할 때 end_conversation
@@ -384,9 +384,9 @@ def _advance_session_stage(
     if sess is None or sess.status != "in_progress":
         return None
 
-    # 단계 진행 판단에서도 위기 발화는 뺀다(exclude_safety). 위기 발화로 '주제
-    # 이탈(drift)'이 잡혀 세션이 멈추는 것을 막는다. 위기 외 정상 대화는 그대로 보므로
-    # 진행 맥락이 끊기지 않고, current_step 은 sess 에 보존돼 단계가 되돌아가지 않는다.
+    # 단계 진행 판단에서도 위기 발화는 뺀다(exclude_safety). 위기 발화가 단계 판단 맥락에
+    # 섞여 진행 추정을 왜곡하는 것을 막는다. 위기 외 정상 대화는 그대로 보므로 진행 맥락이
+    # 끊기지 않고, current_step 은 sess 에 보존돼(단조 비감소) 단계가 되돌아가지 않는다.
     dialogue = [
         {"role": t.role, "text": t.text}
         for t in _recent_turns(db, conv.conversation_id, limit=40, exclude_safety=True)
@@ -404,9 +404,11 @@ def _advance_session_stage(
         ),
     )
     week = conv.week_number or patient.current_week
-    # stage_tracker 가 대화 기준으로 평가해 단조 증가시킨 '절대 단계'. 이전엔 ±1 만
-    # 움직여 진행도가 대화를 못 따라가고 2단계에 멈췄다. 이제 대화가 도달한 단계를 그대로 반영한다.
-    sess.current_step = resp.current_step
+    # stage_tracker 가 대화를 보고 판단한 '지금까지 도달한 절대 단계'. 추적기 안에서 이미
+    # floor(기록된 단계 미만으로 안 내려감) 처리하지만, 영속 경계에서도 한 번 더 max 로
+    # 단조 비감소를 강제한다(추적기를 교체/우회해도 단계가 되돌아가지 않게). 이전엔 라운드당
+    # +1 로만 올라 진행도가 대화를 못 따라가고 초반 단계에 멈췄다 — 이제 도달 단계를 그대로 반영한다.
+    sess.current_step = max(prev_step, resp.current_step)
     db.commit()
 
     # '마칠 준비' = 직전 라운드에 이미 5단계였고, 이번 평가에서 마칠 준비가 됐다고
@@ -420,11 +422,12 @@ def _advance_session_stage(
         "week_number": week,
         "total_weeks": 12,
         "phase": _phase_for_week(week),
-        "current_step": resp.current_step,
-        "total_steps": 5,
+        "current_step": sess.current_step,
+        # 단계 이름은 cbt_stages 단일 출처에서 실어 보내, 화면 라벨이 백엔드 정의와 어긋나지 않게 한다.
+        "step_name": cbt_stages.step_name(sess.current_step),
+        "total_steps": cbt_stages.TOTAL_STEPS,
         "ready_to_advance": resp.ready_to_advance,
         "step_completion": round(resp.step_completion_estimate, 2),
-        "drift": resp.step_drift_risk,
         # LLM 이 이번 주 내용을 끝까지 진행해 '마칠 준비'가 됐는지(자동 종료 아님).
         "ready_to_complete": ready_to_complete,
     }

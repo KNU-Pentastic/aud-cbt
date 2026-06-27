@@ -70,12 +70,12 @@ class StageTrackRequest(BaseModel):
 
 
 class StageTrackResponse(BaseModel):
+    # 대화가 지금까지 도달한 절대 단계(1~5). 단조 비감소 — 기록된 단계 아래로 내려가지 않는다.
     current_step: int = Field(ge=1, le=5)
     ready_to_advance: bool
     step_completion_estimate: float = Field(ge=0, le=1)
-    step_drift_risk: Literal["low", "medium", "high"]
     delivered_objectives: list[str]
-    recommended_next_action: Literal["advance_step", "redirect_to_step_topic", "continue_current"]
+    recommended_next_action: Literal["advance_step", "continue_current"]
     # 추적 판단이 실제로 이뤄졌는지. LLM 호출 실패(Anthropic 장애)나 파싱 실패로 판단을
     # 얻지 못하면 False — 이때 단계는 전진하지 않는다. 호출부가 '진짜 미완료'와 '장애로
     # 판단 불가'를 구분해, 장애로 얼어붙은 단계를 종료 시 복구할지 결정하는 데 쓴다.
