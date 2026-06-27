@@ -134,9 +134,14 @@ export function TraceStrip({ sessionId }: Props) {
               <Text style={styles.sectionTitle}>진행도</Text>
               <Text style={styles.line}>
                 주차 {progress.week_number}/{progress.total_weeks} · Phase {progress.phase}
-                {progress.drift !== 'low' ? `  ⚠︎ 이탈:${progress.drift}` : ''}
               </Text>
-              {step ? <StageIndicator stage={step as 1 | 2 | 3 | 4 | 5} /> : null}
+              {step != null ? (
+                <StageIndicator
+                  stage={step}
+                  label={progress.step_name}
+                  completion={progress.step_completion}
+                />
+              ) : null}
               {progress.ready_to_complete && (
                 <Text style={styles.advance}>
                   ✅ 이번 주 내용 마무리 — 사용자가 ‘세션 마치기’로 종료하면 다음 주차로 진행

@@ -26,6 +26,11 @@ def clamp_step(step: int | None) -> int:
     return max(1, min(TOTAL_STEPS, step))
 
 
+def step_name(step: int) -> str:
+    """단계 이름('핵심 콘텐츠' 등). 화면 단계 라벨이 백엔드 정의와 어긋나지 않도록 단일 출처로 쓴다."""
+    return CBT_STEPS[clamp_step(step)]["name"]
+
+
 def step_line(step: int) -> str:
     """'3/5 핵심 콘텐츠 — ...' 형태의 한 줄 설명."""
     s = clamp_step(step)

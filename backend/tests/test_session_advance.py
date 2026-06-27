@@ -106,31 +106,46 @@ def test_stage_mock_advances_one_step(db: Session) -> None:
     assert resp.ready_to_advance is False
 
 
-def test_step_rises_at_most_one_per_round(
+def test_absolute_step_jumps_and_never_regresses(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """모델이 한 번에 5단계로 점프 평가해도 단계 상승은 라운드당 +1 로 제한된다(1→5 점프 방지)."""
+    """추적기는 대화가 도달한 '절대 단계'를 반영한다 — 여러 단계를 한 번에 진행했으면 점프를
+    허용하고(2→5), 모델이 더 낮은 단계를 줘도 기록된 단계 아래로는 내려가지 않는다(floor, 단조 비감소)."""
     from app.schemas.internal import LLMInvokeResponse, LLMUsageBlock
 
-    def _fake_invoke(_db: object, _req: object) -> LLMInvokeResponse:
-        # 모델이 현재 단계 완료 + 세션 완료를 동시에 줘도, 단계는 한 칸만 오른다.
-        return LLMInvokeResponse(
-            content='{"step_complete": true, "session_complete": true, "completion": 1.0, "drift": "low"}',
-            usage=LLMUsageBlock(input_tokens=1, output_tokens=1),
-            stop_reason="end_turn",
-            invocation_id="inv_test",
-        )
+    def _reached(n: int):
+        def _inv(_db: object, _req: object) -> LLMInvokeResponse:
+            return LLMInvokeResponse(
+                content='{"reached_step": %d, "session_complete": false, "completion": 0.5}' % n,
+                usage=LLMUsageBlock(input_tokens=1, output_tokens=1),
+                stop_reason="end_turn",
+                invocation_id="inv_test",
+            )
 
-    monkeypatch.setattr(stage_tracker.llm_gateway, "invoke", _fake_invoke)
-    resp = stage_tracker.track(
+        return _inv
+
+    # 점프 허용: 기록 2단계인데 대화가 5단계까지 도달 → 5 로 반영(예전 +1 캡 제거).
+    monkeypatch.setattr(stage_tracker.llm_gateway, "invoke", _reached(5))
+    up = stage_tracker.track(
         db,
         StageTrackRequest(
             conversation_id="c", session_id="s", week_number=1,
             current_step=2, dialogue=[],
         ),
     )
-    assert resp.current_step == 3  # 2 → 3 (한 칸만, 5 로 점프하지 않음)
-    assert resp.ready_to_advance is False  # 5단계가 아니므로 완료 신호가 있어도 종료 아님
+    assert up.current_step == 5
+    assert up.ready_to_advance is False  # session_complete=false → 마칠 준비 아님
+
+    # floor: 기록 4단계인데 모델이 1 을 줘도 4 아래로 내려가지 않는다(단조 비감소).
+    monkeypatch.setattr(stage_tracker.llm_gateway, "invoke", _reached(1))
+    down = stage_tracker.track(
+        db,
+        StageTrackRequest(
+            conversation_id="c", session_id="s", week_number=1,
+            current_step=4, dialogue=[],
+        ),
+    )
+    assert down.current_step == 4
 
 
 def test_stage_mock_caps_at_five(db: Session) -> None:
@@ -175,6 +190,36 @@ def test_stage_track_marks_untracked_on_llm_failure(
     assert resp.ready_to_advance is False
 
 
+def test_malformed_completion_or_delivered_does_not_freeze_tracking(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """모델이 completion/delivered 를 형식에 안 맞게 줘도 track() 이 예외로 빠지지 않고(단계
+    freeze 방지) 단계 판단은 살린다 — 잘못된 필드는 기본값으로 대체하고 tracked=True 를 유지한다."""
+    from app.schemas.internal import LLMInvokeResponse, LLMUsageBlock
+
+    def _bad(_db: object, _req: object) -> LLMInvokeResponse:
+        # completion 이 숫자가 아니고(→ float 예외 후보), delivered 가 리스트가 아니다(→ 순회 예외 후보).
+        return LLMInvokeResponse(
+            content='{"reached_step": 4, "session_complete": false, "completion": "high", "delivered": 5}',
+            usage=LLMUsageBlock(input_tokens=1, output_tokens=1),
+            stop_reason="end_turn",
+            invocation_id="inv_test",
+        )
+
+    monkeypatch.setattr(stage_tracker.llm_gateway, "invoke", _bad)
+    resp = stage_tracker.track(
+        db,
+        StageTrackRequest(
+            conversation_id="c", session_id="s", week_number=1,
+            current_step=3, dialogue=[],
+        ),
+    )
+    assert resp.tracked is True  # 예외로 빠지지 않고 판단 자체는 성립
+    assert resp.current_step == 4  # reached_step 은 정상 반영
+    assert resp.step_completion_estimate == 0.2  # 잘못된 completion → 기본값
+    assert resp.delivered_objectives == []  # 잘못된 delivered → 빈 목록
+
+
 # ── (B) off-by-one: 5단계에 막 들어선 턴엔 종료되지 않는다 ────────────────
 
 
@@ -208,7 +253,6 @@ def test_jump_to_step5_with_complete_does_not_signal_ready(
             current_step=5,
             ready_to_advance=True,
             step_completion_estimate=1.0,
-            step_drift_risk="low",
             delivered_objectives=[],
             recommended_next_action="advance_step",
         )

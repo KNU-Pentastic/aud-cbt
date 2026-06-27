@@ -108,16 +108,18 @@ def _mock_response(req: LLMInvokeRequest) -> tuple[str, int, int]:
     if req.purpose == "safety_classification":
         text = '{"grade": "none", "event_type": "none", "confidence": 0.1}'
     elif req.purpose == "stage_tracking":
-        # mock 모드: 매 호출 현재 단계를 완료(step_complete)로 보아 한 칸 전진하고,
-        # 5단계에서 session_complete 를 내 세션을 마무리한다. (예전엔 ready 가 항상 false 라
-        # 세션이 영영 끝나지 않았다 — BUG #6) 새 stage_tracker 스키마에 맞춘다.
-        m = re.search(r"current_step:\s*(\d+)", last_user)
-        step = int(m.group(1)) if m else 1
-        session_complete = "true" if step >= 5 else "false"
+        # mock 모드: 절대-단계(reached_step) 스키마에 맞춰, 매 호출 한 단계 더 진행한 것으로
+        # 보아 reached_step=floor+1 을 돌려준다(데모에서 바가 +1 씩 전진). 5단계에 닿으면
+        # session_complete 로 마무리 신호를 낸다. 프롬프트의 'current_step (floor): N' 을 읽는다.
+        m = re.search(r"current_step.*?:\s*(\d+)", last_user)
+        floor = int(m.group(1)) if m else 1
+        reached = min(floor + 1, 5)
+        session_complete = "true" if reached >= 5 else "false"
         text = (
-            '{"step_complete": true, "session_complete": ' + session_complete
-            + ', "completion": ' + f"{min(1.0, step / 5):.2f}"
-            + ', "drift": "low", "delivered": []}'
+            '{"reached_step": ' + str(reached)
+            + ', "session_complete": ' + session_complete
+            + ', "completion": ' + f"{min(1.0, reached / 5):.2f}"
+            + ', "delivered": []}'
         )
     elif req.purpose == "session_summarization":
         # 데모/개발용 요약 — summarizer 가 읽는 키(completed/unaddressed/insights/
