@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { redirect } from "next/navigation"
 import { createSession } from "@/lib/session"
+import { friendlyMessageFromCode } from "@/lib/errorMessages"
 
 const LoginSchema = z.object({
   email: z.email({ error: "올바른 이메일을 입력하세요." }),
@@ -51,7 +52,17 @@ export async function loginAction(
         body: JSON.stringify(parsed.data),
       })
       if (!res.ok) {
-        return { errors: { form: ["로그인에 실패했습니다."] } }
+        let code: string | undefined
+        try {
+          const errBody = (await res.json()) as { error?: { code?: string } }
+          code = errBody?.error?.code
+        } catch {
+          /* 본문이 JSON 이 아니면 기본 문구 사용 */
+        }
+        // 레이트리밋(429)·자격 오류 등을 코드에 맞춰 안내.
+        return {
+          errors: { form: [friendlyMessageFromCode(code, "로그인에 실패했습니다.")] },
+        }
       }
       const body = (await res.json()) as { access_token: string }
       accessToken = body.access_token

@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, Response, status
 from sqlalchemy import select
 
 from app.deps import CurrentPatient, DbSession
+from app.ratelimit import limiter
 from app.encryption import blind_index
 from app.exceptions import conflict, gone, not_found, unauthorized
 from app.models.patient import Patient
@@ -40,7 +41,8 @@ def _consume_code(db: DbSession, code: str) -> Patient:
 
 
 @router.post("/patient/register", response_model=TokenResponse)
-def patient_register(body: PatientRegisterIn, db: DbSession) -> TokenResponse:
+@limiter.limit("10/hour")
+def patient_register(request: Request, body: PatientRegisterIn, db: DbSession) -> TokenResponse:
     patient = _consume_code(db, body.registration_code)
     patient.pin_hash = hash_secret(body.pin)
     patient.is_registered = True
@@ -51,7 +53,9 @@ def patient_register(body: PatientRegisterIn, db: DbSession) -> TokenResponse:
 
 
 @router.post("/patient/login", response_model=TokenResponse)
-def patient_login(body: PatientLoginIn, db: DbSession) -> TokenResponse:
+@limiter.limit("5/minute")
+@limiter.limit("50/hour")
+def patient_login(request: Request, body: PatientLoginIn, db: DbSession) -> TokenResponse:
     # We do NOT consume the registration code here — login is by code+PIN repeatedly.
     row = db.get(RegistrationCode, body.registration_code)
     if row is None:
@@ -68,7 +72,10 @@ def patient_login(body: PatientLoginIn, db: DbSession) -> TokenResponse:
 
 
 @router.post("/patient/email/register", response_model=TokenResponse)
-def patient_email_register(body: PatientEmailRegisterIn, db: DbSession) -> TokenResponse:
+@limiter.limit("10/hour")
+def patient_email_register(
+    request: Request, body: PatientEmailRegisterIn, db: DbSession
+) -> TokenResponse:
     """이메일 회원가입 — 등록 코드로 신원을 바인딩하고 이메일/비밀번호를 설정한다.
 
     이메일은 암호화 저장하되 결정론적 blind index(email_lookup)로 중복을 막고
@@ -93,7 +100,9 @@ def patient_email_register(body: PatientEmailRegisterIn, db: DbSession) -> Token
 
 
 @router.post("/patient/email/login", response_model=TokenResponse)
-def patient_email_login(body: PatientEmailLoginIn, db: DbSession) -> TokenResponse:
+@limiter.limit("5/minute")
+@limiter.limit("50/hour")
+def patient_email_login(request: Request, body: PatientEmailLoginIn, db: DbSession) -> TokenResponse:
     lookup = blind_index(body.email)
     patient = (
         db.execute(select(Patient).where(Patient.email_lookup == lookup)).scalar_one_or_none()
@@ -111,7 +120,9 @@ def patient_email_login(body: PatientEmailLoginIn, db: DbSession) -> TokenRespon
 
 
 @router.post("/provider/login", response_model=TokenResponse)
-def provider_login(body: ProviderLoginIn, db: DbSession) -> TokenResponse:
+@limiter.limit("5/minute")
+@limiter.limit("50/hour")
+def provider_login(request: Request, body: ProviderLoginIn, db: DbSession) -> TokenResponse:
     provider = db.execute(
         select(Provider).where(Provider.email == str(body.email).lower())
     ).scalar_one_or_none()
@@ -128,7 +139,10 @@ def logout() -> Response:
 
 
 @router.post("/patient/pin/change", status_code=status.HTTP_204_NO_CONTENT)
-def change_pin(body: PinChangeIn, patient: CurrentPatient, db: DbSession) -> Response:
+@limiter.limit("5/minute")
+def change_pin(
+    request: Request, body: PinChangeIn, patient: CurrentPatient, db: DbSession
+) -> Response:
     if not patient.pin_hash or not verify_secret(body.current_pin, patient.pin_hash):
         raise unauthorized("Current PIN incorrect", code="INVALID_PIN")
     patient.pin_hash = hash_secret(body.new_pin)

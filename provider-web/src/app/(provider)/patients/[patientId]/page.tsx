@@ -14,6 +14,8 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { friendlyError } from "@/lib/errorMessages"
+
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
@@ -100,8 +102,7 @@ export default function PatientDetailPage({
       setConfirmUnlock(false)
       setUnlockNote("")
     } catch (e) {
-      const msg = e instanceof Error && e.message ? e.message : "잠금 해제 실패"
-      toast.error(msg)
+      toast.error(friendlyError(e, "잠금 해제 실패"))
     }
   }
 
@@ -112,8 +113,7 @@ export default function PatientDetailPage({
         `등록 코드 재발급: ${r.registration_code} (${formatDateKo(r.expires_at)}까지)`,
       )
     } catch (e) {
-      const msg = e instanceof Error && e.message ? e.message : "재발급 실패"
-      toast.error(msg)
+      toast.error(friendlyError(e, "재발급 실패"))
     } finally {
       setConfirmRegen(false)
     }
@@ -134,8 +134,7 @@ export default function PatientDetailPage({
       toast.success("환자를 삭제했습니다.")
       router.replace("/patients")
     } catch (e) {
-      const msg = e instanceof Error && e.message ? e.message : "삭제 실패"
-      toast.error(msg)
+      toast.error(friendlyError(e, "삭제 실패"))
     }
   }
 

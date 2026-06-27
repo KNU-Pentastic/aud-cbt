@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session
 
 from app import cbt_stages
 from app.config import settings
+from app.exceptions import APIError
 from app.ids import conversation_id as new_conv_id
 from app.ids import message_id as new_message_id
 from app.ids import session_id as new_session_id
@@ -193,6 +194,22 @@ def _sse(event: str, data: dict) -> dict:
     올바른 SSE 프레임을 생성한다.
     """
     return {"event": event, "data": json.dumps(data, ensure_ascii=False)}
+
+
+def _stream_error_payload(exc: Exception) -> dict:
+    """스트림 도중 발생한 예외를 SSE error 이벤트 payload 로 변환한다.
+
+    llm_gateway 가 던진 APIError(쿼터 초과 LLM_TOKEN_QUOTA_EXCEEDED, 업스트림 장애
+    LLM_UPSTREAM_UNAVAILABLE 등)는 구체 코드/메시지를 그대로 보존해, 프런트가
+    '오늘 사용량 소진' 같은 정확한 안내를 띄울 수 있게 한다. 그 외 예외는 일반
+    LLM_STREAM_FAILED 로 묶는다(내부 상세 비노출).
+    """
+    if isinstance(exc, APIError) and isinstance(exc.detail, dict):
+        return {
+            "code": exc.detail.get("code", "LLM_STREAM_FAILED"),
+            "message": exc.detail.get("message", "internal error"),
+        }
+    return {"code": "LLM_STREAM_FAILED", "message": str(exc)[:200]}
 
 
 def _recent_turns(
@@ -559,7 +576,7 @@ async def stream_user_message(
             yield _sse("token", {"text": token})
     except Exception as exc:
         log.exception("LLM stream failed")
-        yield _sse("error", {"code": "LLM_STREAM_FAILED", "message": str(exc)[:200]})
+        yield _sse("error", _stream_error_payload(exc))
         yield _sse("done", {"finish_reason": "error"})
         return
 
@@ -760,7 +777,7 @@ async def stream_session_opening(
             yield _sse("token", {"text": token})
     except Exception as exc:
         log.exception("opening LLM stream failed")
-        yield _sse("error", {"code": "LLM_STREAM_FAILED", "message": str(exc)[:200]})
+        yield _sse("error", _stream_error_payload(exc))
         yield _sse("done", {"finish_reason": "error"})
         return
 
