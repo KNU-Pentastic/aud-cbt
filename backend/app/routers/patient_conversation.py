@@ -197,16 +197,20 @@ def end_conversation(
     conv = _get_conversation_or_404(db, patient.patient_id, conversation_id)
     if conv.status != "active":
         raise conflict("Conversation already ended", code="CONVERSATION_ENDED")
-    # 종료를 즉시 확정·커밋해 수십 ms 안에 응답한다. 단계 복구·세션 요약·다음 주차
-    # 진행 같은 무거운 LLM 작업은 응답 후 백그라운드로 미뤄, 배포 프록시 타임아웃이나
-    # 요청 도중 프로세스 종료가 '종료 커밋'을 삼켜 세션이 active 로 되살아나는 것을 막는다.
-    ended_at, next_avail = conversation_service.end_conversation(db, conv, body.reason)
-    if body.reason == "completed":
+    # 종료를 즉시 확정하고, 완료 여부·다음 주차 진행까지 동기로 끝낸 뒤 응답한다 — 이래야
+    # 종료 직후 재진입이 결정론적으로 올바른(진행된) 주차의 세션에 들어간다(예전엔 주차
+    # 진행을 백그라운드로 미뤄, 재진입이 stale 한 current_week 로 이전 주차 세션을 만들었다).
+    # 항상 느린 '세션 요약'만 응답 후 백그라운드로 미룬다 — 다음 세션 선택을 게이팅하지 않으므로.
+    ended_at, next_avail, completed = conversation_service.end_conversation(
+        db, conv, body.reason
+    )
+    if completed:
         background.add_task(
-            conversation_service.finalize_completion, conversation_id, body.reason
+            conversation_service.generate_session_summary, conversation_id
         )
     return ConversationEndOut(
         ended_at=ended_at,
         reason=body.reason,
         next_session_available_at=next_avail,
+        completed=completed,
     )

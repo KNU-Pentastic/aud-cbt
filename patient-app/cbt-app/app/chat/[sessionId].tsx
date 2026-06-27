@@ -1,6 +1,6 @@
 import {
   View, Text, FlatList, StyleSheet, Alert, Platform, KeyboardAvoidingView,
-  ActivityIndicator,
+  ActivityIndicator, Pressable,
 } from 'react-native';
 import { useEffect, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,11 +11,14 @@ import { TraceStrip } from '@/components/chat/TraceStrip';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { ChatInput } from '@/components/chat/ChatInput';
-import { colors, spacing } from '@/constants/theme';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queries';
+import { colors, spacing, radius } from '@/constants/theme';
 
 export default function ChatScreen() {
   const { sessionId, kind } = useLocalSearchParams<{ sessionId: string; kind?: string }>();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const flatListRef = useRef<FlatList>(null);
   const creatingRef = useRef(false);
 
@@ -94,13 +97,13 @@ export default function ChatScreen() {
     // 게이트가 외부 LLM·네트워크 장애 때 버튼을 영구 비활성화시켜 실질적으로 끝난 세션을
     // 못 끝내는 함정이 됐다 — 주차 진행 여부는 서버가 current_step 으로 안전하게 결정한다.)
     if (session.isComplete) return;
-    // 종료(/end)가 서버에서 확정된 뒤에만 로비(홈)로 복귀한다. await 후 이동해야 로비가
-    // current-session 을 조회할 때 이 대화가 아직 active 로 보이는 레이스를 막는다.
-    // 종료가 실패하면(false) 화면에 머무르고 오류 Alert(아래 useEffect)로 안내해, 거짓
-    // 완료로 빠져나가지 않고 다시 '세션 마치기'로 재시도할 수 있게 한다.
+    // 종료(/end)가 서버에서 확정되면 store 가 isComplete 로 바꿔 이 화면이 '완료' 상태로
+    // 바뀐다 — 자동으로 홈에 나가지 않고, 사용자가 '오늘 세션을 마쳤어요'를 보고 직접
+    // '홈으로'를 누른다(완료를 확실히 보게 함). 종료가 실패하면 화면에 머무르고 오류
+    // Alert(아래 useEffect)로 안내해, 거짓 완료로 빠져나가지 않고 다시 '세션 마치기'로
+    // 재시도할 수 있게 한다.
     const endNow = async () => {
-      const ok = await completeSession(session.id);
-      if (ok) router.replace('/');
+      await completeSession(session.id);
     };
     const title = '세션을 마칠까요?';
     const message =
@@ -116,6 +119,13 @@ export default function ChatScreen() {
       { text: '계속하기', style: 'cancel' },
       { text: '세션 마치기', style: 'destructive', onPress: endNow },
     ]);
+  };
+
+  // 완료 화면의 '홈으로' — 홈 쿼리를 무효화해 복귀 시 동기로 진행된 주차가 반영되게 한 뒤
+  // 이동한다. (종료에서 완료·주차 진행이 끝나므로 홈은 곧바로 새 주차를 보여준다.)
+  const goHome = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.home });
+    router.replace('/');
   };
 
   const reversedMessages = [...session.messages].reverse();
@@ -150,6 +160,14 @@ export default function ChatScreen() {
         {session.isComplete ? (
           <View style={styles.completeNotice}>
             <Text style={styles.completeText}>오늘 세션을 마쳤어요. 수고하셨어요 🌿</Text>
+            <Pressable
+              onPress={goHome}
+              style={({ pressed }) => [styles.homeButton, pressed && { opacity: 0.88 }]}
+              accessibilityRole="button"
+              accessibilityLabel="홈으로 돌아가기"
+            >
+              <Text style={styles.homeButtonText}>홈으로 돌아가기</Text>
+            </Pressable>
           </View>
         ) : (
           <>
@@ -193,6 +211,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   completeText: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
+  homeButton: {
+    marginTop: 14,
+    backgroundColor: colors.coral,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    borderRadius: radius.md,
+  },
+  homeButtonText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
   readyNotice: {
     paddingHorizontal: 20,
     paddingVertical: 12,

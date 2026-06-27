@@ -1,13 +1,13 @@
 """통합: 실제 POST /end 라우트 + FastAPI BackgroundTasks 배선 검증.
 
-end_conversation(즉시 종료 커밋) → BackgroundTasks(finalize_completion, 자체 DB 세션)
-전체 경로를 실제 앱(TestClient)으로 통과시킨다. Starlette TestClient 는 응답을 보낸 뒤
-백그라운드 태스크를 실행하므로, client.post 가 반환될 즈음엔 마무리(요약·주차 진행)까지
-반영돼 있다. 라우터가 finalize 를 백그라운드로 예약하는지, finalize 가 자체 세션으로
-완료 처리를 마치는지 — 즉 종료가 '정확한 타이밍에' 확정되는지를 확인한다.
+end_conversation(종료 + 완료·주차 진행을 동기로 확정) → BackgroundTasks(generate_session_summary,
+자체 DB 세션) 전체 경로를 실제 앱(TestClient)으로 통과시킨다. Starlette TestClient 는 응답을
+보낸 뒤 백그라운드 태스크를 실행하므로, client.post 가 반환될 즈음엔 요약까지 생성돼 있다.
+라우터가 완료 시에만 요약을 백그라운드로 예약하는지, 완료·주차 진행이 응답 전에 동기로
+확정돼 재진입이 결정론적인지 — 즉 종료가 '정확한 타이밍에' 확정되는지를 확인한다.
 
 mock LLM(USE_LLM_MOCK)로 검증한다. SQLite 는 StaticPool 로 단일 연결을 공유해, 요청
-세션(get_db 오버라이드)과 finalize 의 자체 세션(SessionLocal 몽키패치)이 같은 DB 를 본다.
+세션(get_db 오버라이드)과 요약의 자체 세션(SessionLocal 몽키패치)이 같은 DB 를 본다.
 """
 
 from datetime import date
@@ -48,7 +48,7 @@ def client(monkeypatch: pytest.MonkeyPatch):
         model.__table__.create(engine, checkfirst=True)
     test_session = sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
-    # finalize_completion 이 자체적으로 여는 세션도 같은 DB 로(프로덕션 app.database.SessionLocal 대체).
+    # generate_session_summary 가 자체적으로 여는 세션도 같은 DB 로(프로덕션 app.database.SessionLocal 대체).
     monkeypatch.setattr(conversation_service, "SessionLocal", test_session)
 
     def _override_get_db():
@@ -114,8 +114,10 @@ def _seed(test_session: sessionmaker, *, step: int) -> None:
         s.commit()
 
 
-def test_end_route_terminates_immediately_and_completes_at_step5(client: TestClient) -> None:
-    """5단계 도달 세션을 /end 로 마치면: 200 즉시 응답 + 종료 확정 + (백그라운드) 완료·주차 진행."""
+def test_end_route_completes_synchronously_and_advances_week(client: TestClient) -> None:
+    """5단계 도달 세션을 /end 로 마치면: 200 즉시 응답 + 종료·완료·주차 진행을 '동기'로 확정.
+    완료 직후 current-session 이 새 주차를 보고 active 가 없어, 재진입이 결정론적으로
+    올바른 주차 세션에 들어간다(레이스 해소). 요약만 응답 뒤 백그라운드로 생성된다."""
     test_session = client.test_session  # type: ignore[attr-defined]
     _seed(test_session, step=5)
 
@@ -124,33 +126,44 @@ def test_end_route_terminates_immediately_and_completes_at_step5(client: TestCli
     body = r.json()
     assert body["reason"] == "completed"
     assert body["ended_at"]
+    assert body["completed"] is True  # 완료가 응답에 동기로 실려 온다
 
     with test_session() as s:
         assert s.get(Conversation, "c_test").status == "ended"  # 즉시 종료 확정
-        assert s.get(CbtSession, "s_test").status == "completed"  # 백그라운드 마무리에서 완료 승격
-        assert s.get(Patient, "p_test").current_week == 5  # 다음 주차 진행
+        assert s.get(CbtSession, "s_test").status == "completed"  # 동기 완료 승격
+        assert s.get(Patient, "p_test").current_week == 5  # 동기 주차 진행
         summary = s.execute(
             select(SessionSummary).where(SessionSummary.session_id == "s_test")
         ).scalar_one()
-        assert summary.completed_objectives  # 요약 생성됨
+        assert summary.completed_objectives  # 요약은 응답 후 백그라운드로 생성됨
 
-    # 이미 종료된 대화를 다시 마치려 하면 409(클라이언트가 '이미 종료'로 동기화하는 신호).
+    # 재진입 레이스 해소 증명: 완료 직후 current-session 이 새 주차(5)를 보고 active 가 없다
+    # → 후속 POST /sessions 는 '새 주차'로 세션을 만든다(이전 주차 유령 세션이 안 생긴다).
+    cs = client.get("/v1/me/conversations/current-session")
+    assert cs.status_code == 200
+    assert cs.json()["current_week"] == 5
+    assert cs.json()["active_conversation_id"] is None
+    new = client.post("/v1/me/conversations/sessions")
+    assert new.status_code == 201
+    assert new.json()["week_number"] == 5  # 새 세션은 진행된 주차로 생성
+
+    # 이미 종료된 (예전) 대화를 다시 마치려 하면 409(클라이언트가 '이미 종료'로 동기화하는 신호).
     r2 = client.post("/v1/me/conversations/c_test/end", json={"reason": "completed"})
     assert r2.status_code == 409
     assert r2.json()["error"]["code"] == "CONVERSATION_ENDED"
 
 
-def test_end_route_recovers_frozen_step_via_background(client: TestClient) -> None:
-    """단계가 얼어붙은(3) 채로 /end 하면, 백그라운드 복구가 5단계로 끌어올려 완료 처리한다.
-
-    (mock 추적기는 매 호출 현재 단계를 완료로 보고 +1, 5단계에서 완결 신호 → 3→4→5 복구)."""
+def test_end_route_completes_and_advances_regardless_of_step(client: TestClient) -> None:
+    """핵심: 단계가 5에 못 닿은(3) 세션도 /end(완료)면 완료·다음 주차로 진행한다 — 사용자가
+    끝냈으므로. 단계는 추적기 값(3) 그대로 두고, 주차만 진행한다(인위적 복구 없음)."""
     test_session = client.test_session  # type: ignore[attr-defined]
     _seed(test_session, step=3)
 
     r = client.post("/v1/me/conversations/c_test/end", json={"reason": "completed"})
     assert r.status_code == 200
+    assert r.json()["completed"] is True
 
     with test_session() as s:
-        assert s.get(CbtSession, "s_test").current_step == 5  # 복구로 끌어올림
+        assert s.get(CbtSession, "s_test").current_step == 3  # 단계는 그대로
         assert s.get(CbtSession, "s_test").status == "completed"
-        assert s.get(Patient, "p_test").current_week == 5
+        assert s.get(Patient, "p_test").current_week == 5  # 그래도 다음 주차로 진행
