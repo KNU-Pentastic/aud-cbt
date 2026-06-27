@@ -13,7 +13,7 @@
 <img alt="status" src="https://img.shields.io/badge/Demo-Reproducible%20%E2%9C%94-2E8B57">
 </p>
 
-대상은 DSM-5 기준 중등도~중증 AUD로 입원 치료 후 퇴원한 환자다. 이 시기의 90일 재발률은 40~60%, 자살 위험은 일반 인구의 약 10배에 달한다. 프로그램은 **Project MATCH CBT Manual(Kadden et al., 1995)** 과 **NIAAA Combined Behavioral Intervention(COMBINE, 2004)** 매뉴얼을 근거로 한 12주·4-Phase 구조화 CBT다.
+대상은 DSM-5 기준 중등도-중증 AUD로 입원 치료 후 퇴원한 환자다. 이 시기의 90일 재발률은 40-60%, 자살 위험은 일반 인구의 약 10배에 달한다. 프로그램은 **Project MATCH CBT Manual(Kadden et al., 1995)** 과 **NIAAA Combined Behavioral Intervention(COMBINE, 2004)** 매뉴얼을 근거로 한 12주·4-Phase 구조화 CBT다.
 
 ---
 
