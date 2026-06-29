@@ -174,12 +174,12 @@ cd patient-app/cbt-app && npm install && npx expo start # Expo Go(QR) · 'a' And
 
 ## Demo — 데모
 
-아래는 환자 메시지 한 건이 백엔드 파이프라인(안전분류 → 컨텍스트 → Opus 4.8 코치 → 출력필터)을 통과한 **실제 한 턴**입니다.
+아래는 환자 메시지 한 건이 백엔드 파이프라인(안전분류 → 컨텍스트 → Opus 4.7 코치 → 출력필터)을 통과한 **실제 한 턴**입니다.
 
 > **환자 입력**
 > 요즘 회식 자리에서 술 권유를 받으면 거절하기가 너무 힘들어요. 이번 주에도 한 번 무너질 뻔했어요.
 >
-> **코치 응답** (`claude-opus-4-8`, SSE 스트리밍)
+> **코치 응답** (`claude-opus-4-7`, SSE 스트리밍)
 > 안녕하세요 길동님. 먼저 이렇게 솔직하게 이야기 꺼내주셔서 고맙습니다. (…) 그래서 우선 지난 한 주를 좀 가볍게 점검해보고 싶은데요 — **기분**, **갈망**, **잠**은 어떠셨어요? 그리고 실제로 **술을 드신 적**이 있었는지도 편하게 말씀해 주세요.
 
 같은 턴에서 **안전 분류기는 `grade: none`(오탐 없이 정상 진행)**, **단계 추적기는 5단계 중 1단계(체크인 리뷰)** 를 독립적으로 확인했습니다.
@@ -208,7 +208,7 @@ cd patient-app/cbt-app && npm install && npx expo start # Expo Go(QR) · 'a' And
 | **백엔드** | Python 3.11+ · FastAPI · SQLAlchemy 2.0 · Alembic · PostgreSQL 16 · Redis 7 · Pydantic v2 · PyJWT + passlib · cryptography(Fernet) PII 암호화 · sse-starlette · pytest |
 | **환자 앱** | TypeScript · Expo SDK 54 / React Native 0.81 / React 19 · expo-router 6 · Zustand · TanStack Query · react-hook-form + zod · expo-secure-store |
 | **의료진 웹** | TypeScript · Next.js 16 (App Router) / React 19 · shadcn/ui + Tailwind v4 · TanStack Query + Table · Recharts · jose · openapi-fetch · BFF 프록시(백엔드 토큰 은닉) |
-| **LLM** | Anthropic Claude SDK — 코치 `claude-opus-4-8` · 단계판단/요약 `claude-sonnet-4-6` · 분류/필터/분석 `claude-haiku-4-5` *(모두 환경변수로 교체 가능)* |
+| **LLM** | Anthropic Claude SDK — 코치 `claude-opus-4-7` · 단계판단/요약 `claude-sonnet-4-6` · 분류/필터/분석 `claude-haiku-4-5` *(모두 환경변수로 교체 가능)* |
 | **공통** | Docker Compose · `openapi.yaml` 단일 정본(Swagger ↔ TS 타입 생성) · ruff/black · ESLint/Prettier |
 
 > **모델 분담 근거** — 환자에게 보이는 유일한 텍스트인 코치 대화엔 최고 품질 **Opus**, 판단·요약엔 중간 추론 **Sonnet**, 호출량 많은 분류/추출엔 빠르고 저렴한 **Haiku**.
@@ -233,4 +233,4 @@ cd patient-app/cbt-app && npm install && npx expo start # Expo Go(QR) · 'a' And
 
 > 대회 규칙에 따라 수상 시 스폰서에게 부여되는 *비독점·기간 한정* 라이선스는 이와 별개이며, 본 저장소를 일반 공중에 공개 라이선스하는 것이 아닙니다. 소유권은 팀이 계속 보유합니다.
 
-<sub>본 README의 모든 스크린샷·대화·로그는 2026-06 기준 로컬에서 실제 실행(실 Claude Opus 4.8 호출 포함)해 캡처했습니다. · AUD-CBT v3.0 · KNU Pentastic</sub>
+<sub>본 README의 모든 스크린샷·대화·로그는 2026-06 기준 로컬에서 실제 실행(실 Claude Opus 4.7 호출 포함)해 캡처했습니다. · AUD-CBT v3.0 · KNU Pentastic</sub>
