@@ -8,8 +8,10 @@ import { colors, spacing, radius } from '@/constants/theme';
 /**
  * 개인정보 수집·이용 동의 시트 (시연용 목업).
  *
- * 실제 동의 내역을 저장하지 않는다 — 회원가입 직전에 화면으로만 보여주고,
- * 필수 항목 동의 시 onAgree() 를 호출해 실제 가입 절차로 넘긴다.
+ * 개인정보 보호법상 동의 구조(① 일반 ② 민감정보 ③ 의료진 제공 ④ 국외 이전)를
+ * 각각 구분된 체크박스로 보여주고, ⑤ 위기 시 안전 조치는 동의 없이 고지한다.
+ * 단, 시연용이므로 동의 내역을 서버에 저장하지 않는다 — 회원가입 직전에 화면으로만
+ * 보여주고, 필수 항목 동의 시 onAgree() 를 호출해 실제 가입 절차로 넘긴다.
  */
 
 type ConsentItem = {
@@ -19,6 +21,8 @@ type ConsentItem = {
   detail: string;
 };
 
+// 개인정보 보호법상 ①일반·②민감·③제공·④국외이전은 각각 구분된 체크박스여야 한다
+// (제22조 제1항 제5호). "전체 동의" 버튼은 두되 개별 체크가 가능하도록 유지한다.
 const ITEMS: ConsentItem[] = [
   {
     key: 'privacy',
@@ -27,7 +31,8 @@ const ITEMS: ConsentItem[] = [
     detail:
       '수집 항목: 이메일 또는 PIN, 등록 코드, 서비스 이용 기록\n' +
       '수집 목적: 회원 식별 및 인지행동치료(CBT) 프로그램 제공\n' +
-      '보유 기간: 회원 탈퇴 시까지',
+      '보유 기간: 회원 탈퇴 시까지\n' +
+      '근거: 개인정보 보호법 제15조',
   },
   {
     key: 'sensitive',
@@ -36,7 +41,31 @@ const ITEMS: ConsentItem[] = [
     detail:
       '수집 항목: 음주/충동 기록, 감정 체크인, 상담 대화 내용\n' +
       '수집 목적: 맞춤형 회복 지원 및 치료 효과 분석\n' +
-      '보유 기간: 회원 탈퇴 시까지',
+      '보유 기간: 회원 탈퇴 시까지\n' +
+      '근거: 개인정보 보호법 제23조(별도 동의)',
+  },
+  {
+    key: 'provider',
+    required: true,
+    title: '담당 의료진에 대한 개인정보 제공 동의 (필수)',
+    detail:
+      '제공받는 자: 회원의 담당 의료기관·의료진\n' +
+      '제공 항목: 위 일반 개인정보 수집·이용·민감정보(건강정보) 수집·이용에서 수집한 정보(회복 경과·안전 신호 포함)\n' +
+      '제공 목적: 치료 경과 모니터링 및 임상적 개입\n' +
+      '보유 기간: 진료 관계 종료 또는 회원 탈퇴 시까지\n' +
+      '근거: 개인정보 보호법 제17조',
+  },
+  {
+    key: 'overseas',
+    required: true,
+    title: 'AI 상담을 위한 민감정보 국외 이전 동의 (필수)',
+    detail:
+      '이전받는 자: Anthropic, PBC (Claude API 제공사)\n' +
+      '이전 국가: 미국\n' +
+      '이전 항목: AI 상담 중 입력하는 대화 내용(건강정보 포함)\n' +
+      '이전 목적: CBT 기반 AI 상담 응답 생성\n' +
+      '보유 기간: 상담 응답 생성에 필요한 기간\n' +
+      '근거: 개인정보 보호법 제28조의8',
   },
   {
     key: 'marketing',
@@ -228,6 +257,25 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginLeft: 34,
     marginTop: 6,
+  },
+  safetyNotice: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    marginTop: spacing.sm,
+  },
+  safetyNoticeTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 6,
+  },
+  safetyNoticeBody: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
   notice: {
     fontSize: 11,
