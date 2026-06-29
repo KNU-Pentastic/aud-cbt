@@ -7,6 +7,9 @@
 <sub>알코올 사용장애(AUD) 환자를 위한 LLM 기반 인지행동치료(CBT) 어플리케이션 —<br/>
 사용자는 모바일 앱에서 12주 CBT 코치와 대화하고, 의료진은 웹 포털에서 회복 경과·위기 신호를 모니터링한다.</sub>
 
+<b>환자 앱:<a>https://aud-cbt-patient.vercel.app/<a></b>
+<b>의료진 웹:[https://aud-cbt-patient.vercel.app](https://aud-cbt.vercel.app/patients)</b>
+
 <br/><br/>
 
 <img alt="backend" src="https://img.shields.io/badge/Backend-FastAPI%20%C2%B7%20PostgreSQL%2016-009688">
