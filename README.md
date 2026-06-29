@@ -184,10 +184,6 @@ cd patient-app/cbt-app && npm install && npx expo start # Expo Go(QR) · 'a' And
 
 같은 턴에서 **안전 분류기는 `grade: none`(오탐 없이 정상 진행)**, **단계 추적기는 5단계 중 1단계(체크인 리뷰)** 를 독립적으로 확인했습니다.
 
-📸 **전체 스크린샷 갤러리 · 한 턴 Trace 판정 표 · 재현 가능한 검증 로그 → [`docs/DEMO.md`](docs/DEMO.md)**
-
-> 공개 배포 URL은 없습니다(임상 데이터 특성상 로컬 실행 기준). 위 모든 화면·로그는 [Quick Start](#quick-start--빠른-시작) 절차 그대로 재현됩니다.
-
 ### Demo Accounts — 데모 계정
 
 `docker compose exec api python -m scripts.seed_demo` 실행 후:
