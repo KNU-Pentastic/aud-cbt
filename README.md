@@ -5,12 +5,18 @@
 <b>An LLM-orchestrated CBT digital therapeutic for alcohol use disorder.</b>
 
 <sub>알코올 사용장애(AUD) 환자를 위한 LLM 기반 인지행동치료(CBT) 어플리케이션 —<br/>
-사용자는 모바일 앱에서 12주 CBT 코치와 대화하고, 의료진은 웹 포털에서 회복 경과·위기 신호를 모니터링한다.</sub>
-
-<b>환자 앱:<a>https://aud-cbt-patient.vercel.app/<a><br/>의료진 웹:[https://aud-cbt-patient.vercel.app](https://aud-cbt.vercel.app/patients)</b>
+환자는 모바일 앱에서 12주 CBT 코치와 대화하고, 의료진은 웹 포털에서 회복 경과·위기 신호를 모니터링합니다.</sub>
 
 <br/><br/>
 
+<b>🏆 강원대학교 2026년 X+AI·SW 융합 프로젝트 — 우수상 수상작</b>
+&nbsp;·&nbsp;
+<a href="https://www.youtube.com/watch?v=1iPfsawb0L0"><b>🎬 시연 영상</b></a>
+
+<br/><br/>
+
+<img alt="award" src="https://img.shields.io/badge/%F0%9F%8F%86_%EA%B0%95%EC%9B%90%EB%8C%80%ED%95%99%EA%B5%90_2026%EB%85%84_X%2BAI%C2%B7SW_%EC%9C%B5%ED%95%A9_%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8-%EC%9A%B0%EC%88%98%EC%83%81-FFD700">
+<br/>
 <img alt="backend" src="https://img.shields.io/badge/Backend-FastAPI%20%C2%B7%20PostgreSQL%2016-009688">
 <img alt="patient" src="https://img.shields.io/badge/Patient%20App-Expo%20%C2%B7%20React%20Native-000020">
 <img alt="provider" src="https://img.shields.io/badge/Provider%20Web-Next.js%2016-black">
@@ -27,25 +33,13 @@
 
 ---
 
-## Highlights
+## 개요 — Overview
 
-> **AUD-CBT는, 퇴원한 알코올 사용장애 환자가 다음 외래까지의 공백기를 안전하게 건너도록 돕는 치료보조도구 입니다.**
+**알코올컷!(AUD-CBT)** 은 강원대학교 **2026년 X+AI·SW 융합 프로젝트** **우수상** 수상작으로, 퇴원한 알코올 사용장애 환자가 다음 외래까지의 공백기를 안전하게 건너도록 돕는 디지털 치료제 프로토타입입니다. 범용 챗봇이 아니라, **검증된 표준 치료 매뉴얼(NIAAA CBST·CBI)의 구조를 그대로 디지털로 옮긴 서비스**입니다.
 
 - **12주 CBT 코치 (대화 LLM)** — Claude Opus가 동기강화상담(MI) 스타일로 매주 세션을 진행. 한 세션은 5단계(체크인 → 과제리뷰 → 핵심콘텐츠 → 개인화 → 다음과제)로, 코치와 단계 판단기가 같은 정의를 공유해 일관되게 흐릅니다.
-- **실시간 위기 분류 · 차단** — 모든 발화를 *규칙 + Claude Haiku* 하이브리드로 분류. 자살·급성중독 신호는 **즉시 LLM 잠금 + 긴급 연락 안내**, 재발·복약중단은 전문 분기 응답. *재현율 우선* 설계.
+- **실시간 위기 분류 · 차단** — 모든 발화를 *규칙 + Claude Haiku* 하이브리드로 분류. 자살·급성중독 신호는 **즉시 LLM 잠금 + 긴급 연락 안내**, 재발·복약중단은 전문 분기 응답. *재현율 우선* 설계 — 실 배포 코드 검증에서 **응급 위음성 0건**.
 - **의료진 모니터링 포털** — 기분·갈망·수면 추이, 안전 이벤트 타임라인, 복약 순응률, 세션 이력을 한 화면에. 위기 시 LLM 잠금/해제까지.
-
----
-
-## Background — 배경
-
-대상은 **DSM-5 기준 중등도~중증 AUD**로 입원 치료 후 퇴원한 환자입니다. 이 시기 90일 재발률은 **40~60%**, 자살 위험은 일반 인구의 약 **10배**에 달합니다. 정작 환자가 가장 취약한 이 "공백기"에는 임상적 개입이 거의 닿지 않습니다.
-
-AUD-CBT는 **Project MATCH CBT Manual(Kadden et al., 1995)** 과 **NIAAA Combined Behavioral Intervention(COMBINE, 2004)** 매뉴얼을 근거로 한 **12주 · 4-Phase 구조화 CBT**를 모바일로 전달하고, 그 대화를 의료진이 원격으로 지켜보게 합니다. (→ [References](#references--임상-근거))
-
----
-
-## The Repository — 저장소 구성
 
 세 개의 사용자 접점 + 이를 잇는 백엔드로 구성된 **모노레포**입니다.
 
@@ -58,9 +52,64 @@ AUD-CBT는 **Project MATCH CBT Manual(Kadden et al., 1995)** 과 **NIAAA Combine
 
 ---
 
-## Architecture — 아키텍처
+## 배경과 문제 정의 — Background & Research
 
-환자 발화 한 턴이 흐르는 **실제 런타임 파이프라인**입니다.
+### 대회 배경
+
+강원대학교 **2026년 X+AI·SW 융합 프로젝트**는 자신의 전공·도메인(X)에 AI·SW를 융합해 실제 문제를 해결하는 대회입니다. 우리 팀은 **X = 정신건강 의료(알코올 사용장애 회복)** 를 선택해, 근거 기반 심리치료 매뉴얼을 LLM 오케스트레이션으로 전달하는 시스템을 설계·구현했고 **우수상**을 수상했습니다.
+
+### 문제 정의
+
+대상은 **DSM-5 기준 중등도~중증 AUD**로 입원 치료 후 퇴원한 환자입니다.
+
+- 중독 치료 후 재발의 **약 3분의 2가 첫 90일 안에** 일어나고 (Hunt et al., 1971), 치료받은 환자의 **40~60%가 1년 안에** 재사용으로 돌아갑니다 (McLellan et al., 2000).
+- AUD 환자의 자살 위험은 일반 인구의 **약 10배**로 보고됩니다 (Wilcox et al., 2004).
+- 그런데 퇴원 후 임상 접점은 통상 **월 1~2회 외래**가 전부입니다. '지속 외래'(퇴원 후 월 1회 이상)를 1년간 유지하는 환자는 **12.7%**, 1년 이상 단주 유지율은 **14.5%** 수준입니다.†
+- 위험은 매일 존재하는데 개입은 한 달에 한두 번 — 가장 취약한 시기에 **"매일의 공백"** 이 생깁니다. 알코올컷!은 이 공백을 메우는 것을 목표로 합니다.
+
+<sub>† 지속 외래 유지율·단주 유지율은 대회 발표자료의 팀 리서치 수치입니다. 문헌 인용이 병기된 수치는 국제 통계입니다.</sub>
+
+### 연구 근거
+
+**치료 기전 — ABC 인지 모델.** CBT는 음주를 **학습된 행동**으로 봅니다: 환경 단서가 갈망을 '조건화'해 자동으로 음주를 촉발하므로, 상황(A)과 음주(C) 사이에 끼어 있는 **자동 사고(B)** 가 개입 지점입니다.
+
+| | A · 상황 | B · 생각 | C · 행동 |
+|---|---|---|---|
+| 개입 전 | "퇴근 후, 힘든 하루" | *"한 잔쯤은 괜찮아"* (자동 사고) | 음주 |
+| **CBT 개입 후** | 동일 | *"산책으로 푼다"* (대안적 사고) | **단주 유지** |
+
+목표는 내가 어떤 고위험 상황에서 마시는지 찾아내고, 그 상황을 음주 없이 다루는 구체적 기술을 익히는 것입니다. 효과는 반복 검증되어 있습니다 — 53개 무작위대조시험(RCT) 메타분석 (Magill & Ray, 2009), 대규모 다기관 RCT인 Project MATCH (Project MATCH Research Group, 1997).
+
+**임상 토대 — 두 개의 NIAAA 매뉴얼의 결합.** **CBST**(인지행동 대처기술치료, Kadden et al., 1995 · Project MATCH)는 CBT를 알코올 사용장애용으로 매뉴얼화한 표준 프로토콜이고, **CBI**(복합행동중재, NIAAA COMBINE, 2004)는 CBT 기술훈련에 동기강화·가족참여·약물지원을 통합한 확장 매뉴얼입니다. 본 프로젝트는 **CBST를 핵심 치료 토대로 삼고, CBST에 없는 재발·복약 대응 절차를 CBI에서 가져와 결합**했으며, 대화 스타일은 동기강화상담(MI)을 따릅니다.
+
+**12주 · 4-Phase 커리큘럼** — 주 1회 구조화 세션으로 진행합니다.
+
+| Phase | 주차 | 핵심 질문 | 내용 |
+|---|---|---|---|
+| **01 동기** | 1주 | 왜 끊는가 | 단주 동기 재확인 · 라포 형성 |
+| **02 분석** | 2~3주 | 무엇이 나를 마시게 하는가 | 음주 패턴 · 고위험 상황 분석 |
+| **03 기술 훈련** | 4~11주 | 어떻게 막을 것인가 | 거절 · 갈망 · 대처 기술 |
+| **04 종결** | 12주 | 어떻게 유지하는가 | 유지 · 재발방지 계획 |
+
+**세션 구조 — 전통 CBT 회기의 1:1 이식.** 한 세션의 5단계는 Project MATCH의 회기 구조를 그대로 옮긴 것입니다. 코치와 단계 판단기가 이 정의를 공유합니다.
+
+| 전통 CBT 회기 (Project MATCH) | 본 앱의 5단계 세션 |
+|---|---|
+| 도입 · 한 주 점검 | ① 체크인 리뷰 |
+| 지난 회기 기술·과제 검토 | ② 지난 주 과제 리뷰 |
+| 새 기술의 근거·지침 제시 | ③ 핵심 콘텐츠 전달 |
+| 치료사 시연 → 역할극 | ④ 개인화 적용 — 실제 상황을 ABC로 |
+| 다음 회기 과제 부여 | ⑤ 이번 주 과제 |
+
+**왜 LLM인가.** 매뉴얼 기반 치료는 세션 구조·콘텐츠가 명시적이어서 **LLM 오케스트레이션에 적합**합니다: 주차별 커리큘럼을 컨텍스트로 조립해 코치에게 주입하고, 별도 모델이 단계 준수를 독립적으로 추적하며, 안전 분류 기준은 CBI 매뉴얼에 **1:1 매핑된 518개 항목 카탈로그**로 도출하고 출처 매핑을 검수했습니다. 그리고 LLM은 외래가 닿지 못하는 시간을 메웁니다 — **주 1회 구조화 세션**에 더해, 갈망·위기의 순간 **24시간 즉시 응답하는 갈망 대응 모드**가 함께 동작합니다. 스마트폰 기반 사후관리가 실제로 위험 음주를 줄인다는 것은 **A-CHESS 무작위 임상시험 (Gustafson et al., 2014)** 으로 입증된 접근입니다. (→ [References](#references--임상-근거))
+
+---
+
+## 핵심 기능 — Core Features
+
+### ① LLM 오케스트레이션 — 멀티모델 파이프라인
+
+환자 발화 한 턴이 흐르는 **실제 런타임 파이프라인**입니다. 하나의 거대 프롬프트가 아니라, 역할별로 분리된 LLM 컴포넌트들이 협업합니다.
 
 ```mermaid
 flowchart TB
@@ -92,14 +141,23 @@ flowchart TB
 
 **처리 순서** (`conversation_service.stream_user_message`): 발화 저장 → **안전 분류**(등급 A면 즉시 잠금·중단) → **컨텍스트 빌드** → **코치 LLM 토큰 스트리밍(SSE)** → **출력 필터** → 응답 저장 → **단계 추적**(비동기). 세션 종료는 환자가 직접 누를 때만이며, 이때 **세션 요약기**가 다음 주차로 임상 맥락을 인계합니다.
 
-> 외부로 나가는 모든 LLM 호출은 게이트웨이에서 **비식별화**(주민번호·전화·이메일·카드/계좌 등 정형 식별자 마스킹)를 거칩니다. 단, 안전 분류 정확도를 위해 임상적 자연어 신호는 일부러 보존합니다.
+- **모델 분담** — 환자에게 보이는 유일한 텍스트인 코치 대화엔 최고 품질 **Opus**, 단계 판단·세션 요약엔 중간 추론 **Sonnet**, 호출량 많은 분류·필터·발화 분석엔 빠르고 저렴한 **Haiku**. 모두 환경변수로 교체 가능합니다.
+- **투명성(LLM Trace)** — 데모·검증 모드에서 각 응답이 어떤 가이드라인 블록과 시스템 프롬프트로 생성됐는지, 단계 판정·안전 등급·갈망 강도까지 턴 단위로 공개합니다.
+- **결정적 목(mock)** — `USE_LLM_MOCK=true`면 API 키 없이 전체 파이프라인이 결정적으로 동작해, 검증·시연·CI가 재현 가능합니다.
+
 > 상세 5-레이어 설계도 → [`docs/aud_cbt_v3_system_architecture.svg`](docs/aud_cbt_v3_system_architecture.svg)
 
----
+### ② 실시간 안전 분류 · 차단
 
-## Safety Classifier — 안전 분류기 검증
+단발 문장이 아니라 **직전 2~3턴 맥락**을 함께 보는 **규칙 + LLM 하이브리드** 다중 턴 분류기입니다 — 같은 표현도 맥락에 따라 정반대로 판정합니다(아래 ③ 검증의 대비쌍 시나리오). 임상 원칙은 **재현율 > 정밀도**를 따릅니다.
 
-단어 하나가 아니라 **대화 맥락**까지 함께 봅니다. 그래서 똑같은 *"죽고싶네"* 한마디도 맥락에 따라 **농담(일반)** 인지 **진짜 위기(등급 A)** 인지 정반대로 가려냅니다. 재현율 우선이 원칙입니다.
+- **등급 A (자살·급성중독)** → 즉시 LLM 잠금 + 119·109 긴급 연락 안내. 의료진 포털에 안전 이벤트 기록, 잠금 해제는 의료진이 수행.
+- **등급 B (재발·복약중단·PAWS)** → 신호별 전문 분기 응답(예: 재발 시 절제위반효과(AVE) 인지왜곡 차단 대화).
+- **룰 키워드 레이어** — LLM 판정과 독립적으로 동작하는 fail-safe 백스톱. LLM 하나에 안전을 맡기지 않습니다.
+
+### ③ 안전 분류기 검증 — Verification
+
+똑같은 *"죽고싶네"* 한마디도 맥락에 따라 **농담(일반)** 인지 **진짜 위기(등급 A)** 인지 정반대로 가려내는지 — 시연용 수치가 아니라 **실제 배포 코드의 `classify()`를 직접 호출**해 확인했습니다.
 
 **검증 방법** — 멀티턴 시나리오 9턴 + 단발 스모크 8건, **총 17턴**을 실제 백엔드 분류기로 채점했습니다(턴마다 5회 반복, 5/5 통과해야 PASS). 정답과 분류기 판정을 맞춰 본 혼동 행렬입니다.
 
@@ -110,52 +168,105 @@ flowchart TB
 | **PAWS** (금단 후유증) | · | · | **2** ✅ | · |
 | **일반** (위험 없음) | · | ⚠️ **1** | · | **4** ✅ |
 
-**한눈에 보기** — 대각선(✅)에 모일수록 정확합니다(· = 0건). **17턴 중 16턴이 정답과 일치 = 94%.**
+**한눈에 보기** — 대각선(✅)에 모일수록 정확합니다(· = 0건). **17턴 중 16턴이 정답과 일치 = 94%** (축별: 멀티턴 8/9 · 단발 8/8).
 
 - ✅ **응급(등급 A) 6턴 전부 정확** → 진짜 위기를 놓친 경우 **0건** (가장 중요한 수치).
-- ✅ **위음성 0건**
-- ⚠️ **오답**(멀티턴 MT-B01): 실제 '일반'을 한 단계 위인 '등급 B'로 본 **위양성**입니다.
+- ✅ 위험 신호가 '일반'으로 **새어 나간 경우 0건** → 모든 오류가 *더 안전한 쪽*으로만 발생.
+- ⚠️ **딱 하나의 오답**(멀티턴 MT-B01): 실제 '일반'을 한 단계 위인 '등급 B'로 본 **과분류**입니다. 위기를 놓친 게 아니라 한 번 더 조심한 경우라 임상 위험은 없습니다.
 
-> 분류 기준은 NIAAA CBI 매뉴얼에 1:1 매핑한 **518개 항목**에서 도출했습니다. 시나리오·스크립트·전체 결과 → [`docs/08_multiturn_smoke_results.md`](docs/08_multiturn_smoke_results.md)
+> 두 검증은 서로 다른 축을 봅니다 — 멀티턴은 **직전 맥락 기반 판정**(대비쌍 구분 · 부인 후 재노출), 단발은 **룰 키워드 백업 안전장치를 포함한 전체 경로**(LLM이 멈춰도 작동하는 fail-safe가 함께 켜지는 것까지 확인). 분류 기준은 NIAAA CBI 매뉴얼에 1:1 매핑한 **518개 항목**에서 도출했습니다(출처 매핑 검수). 시나리오·스크립트·전체 결과 → [`docs/08_multiturn_smoke_results.md`](docs/08_multiturn_smoke_results.md)
 
----
+### ④ 의료진 모니터링 포털
 
-## Privacy & Compliance — 개인정보보호
+- **환자 상세 대시보드** — 주차·단주 일수·복약 순응률, 30일 기분·갈망·수면 추이, **안전 이벤트 타임라인**, 세션 이력을 한 화면에.
+- **위기 대응 루프** — 안전 분류기가 기록한 이벤트를 의료진이 확인하고, LLM 잠금/해제를 직접 제어.
+- **임상 워크플로** — 신규 환자 등록(D0), 재평가(D4) 폼을 검증 스키마(zod)와 함께 제공.
+- **BFF 프록시** — 브라우저에 백엔드 토큰을 노출하지 않는 Backend-for-Frontend 구조.
 
-환자의 **식별정보와 건강정보(민감정보)** 를 다루는 서비스인 만큼, 「개인정보 보호법」과 「개인정보의 안전성 확보조치 기준」(개인정보보호위원회고시 제2025-9호)을 **설계 단계부터** 반영했습니다. 임상 안전(위기 분류)과 데이터 안전(암호화·접근통제)을 같은 우선순위로 다룹니다.
+<img src="docs/screenshots/03-patient-dashboard.png" width="760">
 
-### 기술적 안전조치
+<sub>환자 상세 대시보드 — 30일 기분·갈망·수면 추이 · 안전 이벤트 타임라인 · LLM 잠금 제어. 표시된 "등급 B · 재발 신호" 이벤트는 환자 메시지를 안전 분류기가 실시간 분류해 기록한 실제 이벤트입니다.</sub>
 
-| 영역 | 구현 | 근거 법령 |
-|---|---|---|
-| **저장 암호화** | 환자 **이름·전화·이메일**과 **위기 발화 원문**을 Fernet 인증암호(AES-128-CBC + HMAC-SHA256)로 암호화 저장. `EncryptedString` ORM 타입으로 전 코드에 투명 적용 | 안전조치 기준 제7조 · 법 제23조 |
-| **비식별화 (국외 이전)** | 외부 LLM(미국) 호출 전 **단일 게이트웨이**에서 주민번호·전화·이메일·카드/계좌 등 정형 식별자를 자동 마스킹. 우회 경로·해제 플래그 없음 | 법 제28조의8 · 제24조의2 |
-| **접근통제 (RBAC)** | JWT 역할 분리 + `provider_id` 일치 검증으로 **담당 환자만** 열람(IDOR 차단), 전역 우회 권한 없음 | 제5조 · 제6조 |
-| **접속기록** | 환자 상세 열람·LLM 안전잠금 해제 등 민감 행위를 **계정·시각·대상·행위** 단위로 append-only 기록 | 제8조 |
-| **인증** | 비밀번호·PIN **bcrypt 단방향 해시**, HS256 JWT(역할별 만료), CSPRNG 1회용 등록코드, 로그인 레이트리밋·계정 열거 차단 | 제5조·제6조·제7조 |
-| **전송보안** | BFF 프록시로 백엔드 토큰 은닉, `httpOnly`·`SameSite` 세션 쿠키, CORS 출처 화이트리스트, 보안 헤더(HSTS·nosniff·X-Frame-Options) | 제6조·제7조 |
-| **운영 안전장치** | 운영 환경에서 암호화 키·시크릿 미설정 시 **기동 거부**(fail-fast), 회원 삭제 시 관련 레코드 비가역 파기 | 제7조 · 제21조 |
+### ⑤ 개인정보 보호 설계 — Privacy by Design
 
-### 동의 구조 (환자 앱 가입 화면)
+환자 발화는 건강정보(민감정보)이며, LLM API 호출은 국외 이전에 해당합니다. 프로토타입 범위 안에서 **저장 → 전송 → 접근 → 동의** 네 지점에 보호 장치를 설계·구현했습니다.
 
-개인정보 보호법은 ①일반·②민감·④국외이전 동의를 **각각 구분된 체크박스**로 받도록 요구합니다(제22조 제1항 제5호). 가입 동의 화면([`ConsentSheet.tsx`](patient-app/cbt-app/components/ConsentSheet.tsx))은 이를 그대로 구현합니다.
+| 지점 | 구현 |
+|---|---|
+| **저장** | 민감 PII 4개 필드(환자 이름·전화·이메일, 안전 이벤트 발화 원문)를 **Fernet(AES-128-CBC + HMAC) 암호화** 후 저장 — `enc:v1:` 버전드 포맷 ([`encryption.py`](backend/app/encryption.py)) |
+| **전송** | LLM으로 나가기 **직전** 정형 식별자(주민등록번호·전화·이메일·카드/계좌번호)를 마스킹 — DB 원문은 비파괴, 임상 자연어 신호는 보존해 안전 분류 정확도 유지 ([`deidentify.py`](backend/app/services/deidentify.py)) |
+| **접근** | 환자 민감정보 조회 **접근 로그(AccessLog)** 기록 · JWT 역할 기반 인증 · `/internal` 라우트 외부 차단 |
+| **동의** | 「개인정보 보호법」 조항별(제15조·제22조·제23조·제17조·제28조의8·제18조) **개별 동의 5종 + 위기 시 안전조치 고지** 구조 설계 → [`docs/개인정.md`](docs/개인정.md) |
 
-| 동의 항목 | 성격 | 근거 |
-|---|---|---|
-| ① 개인정보 수집·이용 | 필수 | 제15조 |
-| ② 민감정보(건강정보) — 별도 동의 | 필수 | 제23조 |
-| ③ 담당 의료진 제공 | 필수 | 제17조 |
-| ④ 민감정보 국외 이전(Anthropic, PBC / 미국) | 필수·별도 | 제28조의8 |
-| ⑤ 위기 시 안전 조치 | 고지(동의 불요) | 제18조 제2항 제3호 |
-
-> 만 19세 이상 이용, 열람·정정·삭제·처리정지·동의 철회 등 정보주체 권리를 보장하도록 설계했습니다. 개인정보 처리방침 전문 → [`docs/개인정.md`](docs/개인정.md)
-
-> [!NOTE]
-> **프로토타입 범위** — 본 앱은 해커톤 출품작으로 인허가 의료기기가 아니며, 위 조치는 핵심 식별·민감정보를 중심으로 적용됩니다. TLS 등 전송 구간 암호화는 배포 인프라(리버스 프록시)가 담당하고, 동의 이력의 서버 저장은 정식 출시 시 연동됩니다.
 
 ---
 
-## Quick Start — 빠른 시작(로컬 구동 시)
+## 데모 — Demo
+
+<div align="center">
+<a href="https://www.youtube.com/watch?v=1iPfsawb0L0"><img src="https://img.youtube.com/vi/1iPfsawb0L0/hqdefault.jpg" width="480" alt="AUD-CBT 시연 영상"></a>
+<br/>
+<b>🎬 <a href="https://www.youtube.com/watch?v=1iPfsawb0L0">전체 시연 영상 (YouTube)</a></b>
+</div>
+
+아래는 환자 메시지 한 건이 백엔드 파이프라인(안전분류 → 컨텍스트 → 코치 → 출력필터)을 통과한 **실제 한 턴**입니다.
+
+> **환자 입력**
+> 요즘 회식 자리에서 술 권유를 받으면 거절하기가 너무 힘들어요. 이번 주에도 한 번 무너질 뻔했어요.
+>
+> **코치 응답** (`claude-opus-4-8`, SSE 스트리밍)
+> 안녕하세요 길동님. 먼저 이렇게 솔직하게 이야기 꺼내주셔서 고맙습니다. (…) 그래서 우선 지난 한 주를 좀 가볍게 점검해보고 싶은데요 — **기분**, **갈망**, **잠**은 어떠셨어요? 그리고 실제로 **술을 드신 적**이 있었는지도 편하게 말씀해 주세요.
+
+같은 턴에서 **안전 분류기는 `grade: none`(오탐 없이 정상 진행)**, **단계 추적기는 5단계 중 1단계(체크인 리뷰)** 를 독립적으로 확인했습니다.
+
+<sub>캡처 당시 코치 모델은 `claude-opus-4-8`이며, 현재 저장소 기본값은 `claude-opus-4-7`입니다(환경변수로 교체 가능).</sub>
+
+📸 **전체 스크린샷 갤러리 · 한 턴 Trace 판정 표 · 재현 가능한 검증 로그 → [`docs/DEMO.md`](docs/DEMO.md)**
+
+> 공개 배포 URL은 없습니다(임상 데이터 특성상 로컬 실행 기준). 전체 흐름은 위 **시연 영상**으로 볼 수 있고, 모든 화면·로그는 [로컬 구동 방법](#로컬-구동-방법--quick-start) 절차 그대로 재현됩니다.
+
+---
+
+## 문제 해결 — Engineering Notes
+
+개발 중 실제로 부딪힌 문제와 해결 과정 일부입니다.
+
+**① 코치 LLM이 환자 발화를 지어내는 문제 → 반복 계측 후 모델 롤백**
+상위 모델(`claude-opus-4-8`)이 간헐적으로 자기 응답 안에 환자가 하지 않은 말(가짜 `user` 턴)을 이어 쓰는 현상을 발견했습니다. 동일 프롬프트로 모델만 바꿔 5회씩 반복한 A/B 계측에서 4-8은 5회 중 3회, 4-7은 0회 재현 → 코치 기본 모델을 `claude-opus-4-7`로 롤백했습니다. 환자 발화를 지어내는 것은 임상 대화에서 허용할 수 없는 결함이므로, 문장 품질보다 신뢰성을 택한 결정입니다.
+
+**② 배포 환경에서만 깨지는 API 응답 → 프록시의 이중 압축 해제 추적**
+배포 후 의료진 환자 목록이 HTTP 200인데도 `ERR_CONTENT_DECODING_FAILED`로 깨졌습니다. 원인은 BFF 프록시: Node fetch(undici)가 업스트림의 gzip 본문을 이미 해제했는데 원래의 `Content-Encoding: gzip` 헤더를 그대로 전달해, 브라우저가 평문을 다시 해제하려다 실패한 것. `content-encoding`을 hop-by-hop 제거 목록에 추가해 해결했습니다([route.ts](provider-web/src/app/api/v1/%5B...path%5D/route.ts)). 로컬 서버는 응답을 압축하지 않아 로컬에서는 재현되지 않던 버그입니다.
+
+**③ 빌드 타임에 박제되는 프론트 환경변수 → fail-safe 기본값**
+Next.js의 `NEXT_PUBLIC_*` 변수는 빌드 시점에 코드에 인라인됩니다. 환경변수 기본값이 mock 모드로 되어 있던 탓에, 빌드 시 변수를 누락한 배포본이 조용히 깨진 mock 모드(503)로 떨어졌습니다. 기본값을 운영 안전값(실제 백엔드 프록시 + mock 비활성)으로 뒤집고 mock은 명시적으로만 켜지게 바꿨습니다([env.ts](provider-web/src/lib/env.ts)) — 기본값은 실패해도 안전한 쪽이어야 한다는 교훈.
+
+---
+
+## 기술 스택 — Tech Stack
+
+| 영역 | 스택 |
+|---|---|
+| **백엔드** | Python 3.11+ · FastAPI · SQLAlchemy 2.0 · Alembic · PostgreSQL 16 · Redis 7 · Pydantic v2 · PyJWT + passlib · cryptography(Fernet) PII 암호화 · sse-starlette · pytest |
+| **환자 앱** | TypeScript · Expo SDK 54 / React Native 0.81 / React 19 · expo-router 6 · Zustand · TanStack Query · react-hook-form + zod · expo-secure-store |
+| **의료진 웹** | TypeScript · Next.js 16 (App Router) / React 19 · shadcn/ui + Tailwind v4 · TanStack Query + Table · Recharts · jose · openapi-fetch · BFF 프록시(백엔드 토큰 은닉) |
+| **LLM** | Anthropic Claude SDK — 코치 `claude-opus-4-7` · 단계판단/요약 `claude-sonnet-4-6` · 분류/필터/분석 `claude-haiku-4-5` *(모두 환경변수로 교체 가능)* |
+| **공통** | Docker Compose · `openapi.yaml` 단일 정본(Swagger ↔ TS 타입 생성) · ruff/black · ESLint/Prettier |
+
+### 운영 비용 모델링 — Cost Model
+
+역할별 모델 분담이 실제 운영 원가로 성립하는지도 계산했습니다. 테스트 대화의 평균 턴 수를 기준으로, 모델별 공개 단가(입력/출력 $/MTok — Opus $5/$25 · Sonnet $3/$15 · Haiku $1/$5)와 환율 ₩1,500/$를 적용한 **1인 기준 LLM 원가**입니다.
+
+| 시나리오 (메인 세션 턴 / 갈망 대화 턴) | 12주 총 토큰 | 12주 원가 | 월 환산 |
+|---|:---:|:---:|:---:|
+| 기본 하단 (12 / 6) | 3.2M | ₩22,050 | **₩7,350** |
+| 기본 상단 (15 / 8) | 4.5M | ₩28,650 | **₩9,550** |
+| 적극 상한 (20 / 12) | 6.46M | ₩41,400 | **₩13,800** |
+
+> 프롬프트 캐싱 적용 시 약 20% 추가 절감 여지가 있습니다.
+
+---
+
+## 로컬 구동 방법 — Quick Start
 
 > 전제: Docker Desktop, Node.js 20+. **키 없이도 `USE_LLM_MOCK=true`로 전 흐름이 결정적 목으로 동작**합니다.
 
@@ -180,21 +291,7 @@ cd provider-web && npm install && npm run dev          # http://localhost:3000 (
 cd patient-app/cbt-app && npm install && npx expo start # Expo Go(QR) · 'a' Android · 'i' iOS · 'w' Web
 ```
 
----
-
-## Demo — 데모
-
-아래는 환자 메시지 한 건이 백엔드 파이프라인(안전분류 → 컨텍스트 → Opus 4.7 코치 → 출력필터)을 통과한 **실제 한 턴**입니다.
-
-> **환자 입력**
-> 요즘 회식 자리에서 술 권유를 받으면 거절하기가 너무 힘들어요. 이번 주에도 한 번 무너질 뻔했어요.
->
-> **코치 응답** (`claude-opus-4-7`, SSE 스트리밍)
-> 안녕하세요 길동님. 먼저 이렇게 솔직하게 이야기 꺼내주셔서 고맙습니다. (…) 그래서 우선 지난 한 주를 좀 가볍게 점검해보고 싶은데요 — **기분**, **갈망**, **잠**은 어떠셨어요? 그리고 실제로 **술을 드신 적**이 있었는지도 편하게 말씀해 주세요.
-
-같은 턴에서 **안전 분류기는 `grade: none`(오탐 없이 정상 진행)**, **단계 추적기는 5단계 중 1단계(체크인 리뷰)** 를 독립적으로 확인했습니다.
-
-### Demo Accounts — 데모 계정
+### 데모 계정
 
 `docker compose exec api python -m scripts.seed_demo` 실행 후:
 
@@ -207,25 +304,33 @@ cd patient-app/cbt-app && npm install && npx expo start # Expo Go(QR) · 'a' And
 
 ---
 
-## Tech Stack — 기술 스택
+## 팀원 — Team
 
-| 영역 | 스택 |
+**Team KNU Pentastic** — 강원대학교 2026년 X+AI·SW 융합 프로젝트 우수상 (5인)
+
+| 이름 | 역할 |
 |---|---|
-| **백엔드** | Python 3.11+ · FastAPI · SQLAlchemy 2.0 · Alembic · PostgreSQL 16 · Redis 7 · Pydantic v2 · PyJWT + passlib · cryptography(Fernet) PII 암호화 · sse-starlette · pytest |
-| **환자 앱** | TypeScript · Expo SDK 54 / React Native 0.81 / React 19 · expo-router 6 · Zustand · TanStack Query · react-hook-form + zod · expo-secure-store |
-| **의료진 웹** | TypeScript · Next.js 16 (App Router) / React 19 · shadcn/ui + Tailwind v4 · TanStack Query + Table · Recharts · jose · openapi-fetch · BFF 프록시(백엔드 토큰 은닉) |
-| **LLM** | Anthropic Claude SDK — 코치 `claude-opus-4-7` · 단계판단/요약 `claude-sonnet-4-6` · 분류/필터/분석 `claude-haiku-4-5` *(모두 환경변수로 교체 가능)* |
-| **공통** | Docker Compose · `openapi.yaml` 단일 정본(Swagger ↔ TS 타입 생성) · ruff/black · ESLint/Prettier |
+| **유다민** | 팀장 · 기획 총괄(서비스 전체 방향 설계 — 핵심 컨셉·문제 정의·12주 CBT 골격) · 의료진 웹 프론트엔드 · 임상·시장 근거 리서치·사실 검증 주도 · 발표 콘텐츠·스크립트 제작 및 본선 발표 |
+| **박재현** | 백엔드 총괄 — LLM 오케스트레이션 파이프라인 · 하이브리드 안전 분류기 구현·검증 · PII 암호화·비식별화 · LLM Trace 설계 · 운영 트러블슈팅([Engineering Notes](#문제-해결--engineering-notes)) · FastAPI/PostgreSQL·Docker 배포 |
+| **마준성** | 환자 앱 프론트엔드 · 임상 근거 조사·인용 검증 · LLM 비용 모델링 · 개인정보보호법 요건 조사 |
+| **최성안** | 데이터 검수 · 디자인 · QA |
+| **심지수** | 데이터 검수 · 디자인 · QA |
 
-> **모델 분담 근거** — 환자에게 보이는 유일한 텍스트인 코치 대화엔 최고 품질 **Opus**, 판단·요약엔 중간 추론 **Sonnet**, 호출량 많은 분류/추출엔 빠르고 저렴한 **Haiku**.
 
 ---
 
 ## References — 임상 근거
 
-- Kadden, R., et al. (1995). *Cognitive-Behavioral Coping Skills Therapy Manual.* Project MATCH Monograph Series, Vol. 3. NIAAA.
-- NIAAA (2004). *Combined Behavioral Intervention (CBI) Manual.* COMBINE Monograph Series.
-- American Psychiatric Association (2013). *Diagnostic and Statistical Manual of Mental Disorders (DSM-5).*
+
+- Kadden, R., et al. (1995). *Cognitive-Behavioral Coping Skills Therapy Manual.* Project MATCH Monograph Series, Vol. 3. NIAAA. — 12주 커리큘럼의 1차 근거
+- NIAAA (2004). *Combined Behavioral Intervention (CBI) Manual.* COMBINE Monograph Series. — 모듈식 콘텐츠·안전 분류 카탈로그의 근거
+- Project MATCH Research Group (1997). Matching alcoholism treatments to client heterogeneity. *Journal of Studies on Alcohol*, 58(1), 7–29. — CBT 효과를 검증한 대규모 다기관 RCT
+- Magill, M., & Ray, L. A. (2009). Cognitive-behavioral treatment with adult alcohol and illicit drug users: A meta-analysis of randomized controlled trials. *Journal of Studies on Alcohol and Drugs*, 70(4), 516–527. — CBT 효과성 메타분석
+- Hunt, W. A., Barnett, L. W., & Branch, L. G. (1971). Relapse rates in addiction programs. *Journal of Clinical Psychology*, 27(4), 455–456. — 재발의 다수가 첫 90일에 집중
+- McLellan, A. T., Lewis, D. C., O'Brien, C. P., & Kleber, H. D. (2000). Drug dependence, a chronic medical illness. *JAMA*, 284(13), 1689–1695. — 치료 후 1년 내 재사용률 40~60%
+- Wilcox, H. C., Conner, K. R., & Caine, E. D. (2004). Association of alcohol and drug use disorders and completed suicide: An empirical review of cohort studies. *Drug and Alcohol Dependence*, 76, S11–S19. — AUD의 자살 위험 약 10배
+- Gustafson, D. H., et al. (2014). A smartphone application to support recovery from alcoholism: A randomized clinical trial. *JAMA Psychiatry*, 71(5), 566–572. — 스마트폰 기반 AUD 사후관리의 효과를 입증한 RCT (A-CHESS)
+- American Psychiatric Association (2013). *Diagnostic and Statistical Manual of Mental Disorders (DSM-5).* — 대상군 정의
 
 ---
 
@@ -233,10 +338,10 @@ cd patient-app/cbt-app && npm install && npx expo start # Expo Go(QR) · 'a' And
 
 > [!IMPORTANT]
 > **본 프로젝트는 연구·교육·대회 심사를 위한 프로토타입이며, 인허가를 받은 의료기기가 아닙니다.**
-> 실제 진단·치료·응급 대응에 사용할 수 없습니다. 표시되는 긴급 연락처(119·109 등)는 정보 제공용이며, 위기 상황에서는 즉시 공식 응급 서비스에 연락하십시오. 모든 환자 데이터는 데모용 시드이며, 환자 식별정보(이름·연락처 등)는 저장 시 Fernet으로 암호화됩니다.
+> 실제 진단·치료·응급 대응에 사용할 수 없습니다. 표시되는 긴급 연락처(119·109 등)는 정보 제공용이며, 위기 상황에서는 즉시 공식 응급 서비스에 연락하십시오. 모든 환자 데이터는 데모용 시드이며, PII는 저장 시 Fernet으로 암호화됩니다.
 
 **© 2026 KNU Pentastic — All rights reserved.** 본 저장소는 대회 출품용이며 공개 오픈소스로 배포되지 않습니다. 권리자의 사전 서면 허락 없이 사용·복제·수정·배포를 금합니다. 전문은 [`LICENSE`](LICENSE).
 
 > 대회 규칙에 따라 수상 시 스폰서에게 부여되는 *비독점·기간 한정* 라이선스는 이와 별개이며, 본 저장소를 일반 공중에 공개 라이선스하는 것이 아닙니다. 소유권은 팀이 계속 보유합니다.
 
-<sub>본 README의 모든 스크린샷·대화·로그는 2026-06 기준 로컬에서 실제 실행(실 Claude Opus 4.7 호출 포함)해 캡처했습니다. · AUD-CBT v3.0 · KNU Pentastic</sub>
+<sub>본 README의 모든 스크린샷·대화·로그는 2026-06 기준 로컬에서 실제 실행(실 Claude Opus 호출 포함)해 캡처했습니다. · AUD-CBT v3.0 · KNU Pentastic</sub>
