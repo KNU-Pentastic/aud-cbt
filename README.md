@@ -324,7 +324,7 @@ cd patient-app/cbt-app && npm install && npx expo start # Expo Go(QR) · 'a' And
 |---|---|
 | **유다민** | 팀장 · 기획 총괄(서비스 전체 방향 설계 — 핵심 컨셉·문제 정의·12주 CBT 골격) · 의료진 웹 프론트엔드 · 임상·시장 근거 리서치·사실 검증 주도 · 발표 콘텐츠·스크립트 제작 및 본선 발표 |
 | **박재현** | 백엔드 총괄 — LLM 오케스트레이션 파이프라인 · 하이브리드 안전 분류기 구현·검증 · PII 암호화·비식별화 · LLM Trace 설계 · 운영 트러블슈팅([Engineering Notes](#문제-해결--engineering-notes)) · FastAPI/PostgreSQL·Docker 배포 |
-| **마준성** | 환자 앱 프론트엔드 · 임상 근거 조사·인용 검증 · LLM 비용 모델링([Cost Model](#운영-비용-모델링--cost-model)) · 개인정보보호법 요건 조사([Privacy by Design](#⑤-개인정보-보호-설계--privacy-by-design)) |
+| **마준성** | 환자 앱 프론트엔드 · 임상 근거 조사·인용 검증 · LLM 비용 모델링([Cost Model](#운영-비용-모델링--cost-model)) · 개인정보보호법 요건 조사([Privacy by Design](#-개인정보-보호-설계--privacy-by-design)) |
 | **최성안** | 데이터 검수 · 디자인 · QA |
 | **심지수** | 데이터 검수 · 디자인 · QA |
 
